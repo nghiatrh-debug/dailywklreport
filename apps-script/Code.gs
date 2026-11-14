@@ -1,0 +1,436 @@
+/**
+ * BÁO CÁO NGÀY CÔNG TRƯỜNG – Backend Google Apps Script (khuôn mẫu dùng chung, bản tối ưu tốc độ)
+ * ---------------------------------------------------------------------------------------------
+ * Tối ưu:
+ *  - doGet nhúng sẵn cấu hình + danh mục ngày vào trang (không cần gọi máy chủ để hiện đăng nhập)
+ *  - Đăng nhập trả luôn dữ liệu màn hình đầu; mỗi màn hình chỉ 1 lần gọi (apiOpen)
+ *  - CacheService cho cấu hình, danh mục ngày, dữ liệu ngày; đọc Sheet có ghi nhớ trong mỗi lần chạy
+ *  - Ghi theo dòng (không ghi lại cả bảng); bảng chuẩn hóa chỉ ghi khi CHỐT
+ *  - Ảnh không gửi kèm dữ liệu; tải riêng theo lô (apiImages); PDF do máy chủ tự chèn ảnh
+ *
+ * Cài: copy Google Sheet mẫu → Tiện ích mở rộng → Apps Script → chạy setup() → Triển khai Web App.
+ */
+
+const SPREADSHEET_ID = '';
+const ROOT_FOLDER_ID = '';
+const ROOT_FOLDER_PREFIX = 'Báo cáo ngày – ';
+const TZ = 'Asia/Ho_Chi_Minh';
+const TOKEN_DAYS = 30;
+const CACHE_TTL = 21600;   // 6 giờ (tối đa của CacheService)
+
+const SCHEMA = {
+  BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json'],
+  PhieuKS:   ['khoa','ngay','ma_nguoi','ten','khu_vuc','trang_thai','nop_luc','nhap_thay_boi','ghi_chu','tra_lai_ghi_chu','so_viec','so_anh','cap_nhat_luc','json'],
+  CongViec:  ['ngay','loai','bo_mon','khu_vuc','stt','noi_dung','vi_tri','ma_wbs','dvt','kl_ngay','tien_do_text','tien_do_pct','tien_do_truoc','lap_lai','nguoi_bao_cao','ma_tien_do'],
+  NhanLuc:   ['ngay','chuc_danh','so_luong'],
+  ThietBi:   ['ngay','thiet_bi','so_luong'],
+  NghiemThu: ['ngay','loai','khu_vuc','noi_dung','vi_tri','ket_qua_hoac_thoi_gian','nguoi_bao_cao'],
+  ThiNghiem: ['ngay','khu_vuc','noi_dung','vi_tri','ket_qua','nguoi_bao_cao'],
+  VatTu:     ['ngay','chung_loai','quy_cach','dvt','so_luong'],
+  AnToan:    ['ngay','noi_dung','bien_phap'],
+  HinhAnh:   ['ngay','nguon','khu_vuc','chu_thich','chup_luc','canh_bao','file_id','url'],
+  TongHopKy: ['ky_key','loai','tu_ngay','den_ngay','danh_gia','pdf_url','cap_nhat_luc','json'],
+  NhatKy:    ['thoi_gian','nguoi','hanh_dong','ngay','chi_tiet'],
+  CauHinh:   ['key','json']
+};
+const NORMALIZED = ['CongViec', 'NhanLuc', 'ThietBi', 'NghiemThu', 'ThiNghiem', 'VatTu', 'AnToan', 'HinhAnh'];
+
+/* ======================= WEB APP ======================= */
+function doGet() {
+  const t = HtmlService.createTemplateFromFile('Index');
+  let boot = '';
+  try { boot = JSON.stringify({ config: cfg_(), index: index_() }).replace(/</g, '\\u003c'); } catch (e) { boot = ''; }
+  t.boot = boot;
+  return t.evaluate()
+    .setTitle('Báo cáo ngày công trường')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Chạy 1 lần sau khi dán code: tạo đủ các tab dữ liệu. */
+function setup() {
+  Object.keys(SCHEMA).forEach(sheet_);
+  ['Sheet1', 'Trang tính1'].forEach(n => { const sh = ss_().getSheetByName(n); if (sh && sh.getLastRow() === 0 && ss_().getSheets().length > 1) ss_().deleteSheet(sh); });
+  cdel_(['cfg', 'idx']);
+  Logger.log('Đã tạo cấu trúc dữ liệu. Triển khai Web App rồi mở link để khai báo dự án lần đầu.');
+}
+
+/* ======================= CẤU HÌNH, ĐĂNG NHẬP ======================= */
+function apiBoot() { return JSON.stringify({ config: cfg_(), index: index_() }); }
+function apiPublicConfig() { return kv_('config'); }
+
+function apiSetup(cfgJson, pin) {
+  const old = cfg_();
+  if (old && old.setupDone) throw new Error('Dự án đã được khai báo. Dùng Cấu hình → Reset để khai báo lại.');
+  if (!/^\d{4,6}$/.test(String(pin))) throw new Error('PIN phải gồm 4–6 chữ số');
+  Object.keys(SCHEMA).forEach(sheet_);
+  const c = JSON.parse(cfgJson); delete c.demoPins; delete c.pins; c.sample = false;
+  const admin = c.users[0]; admin.role = 'admin';
+  saveCfg_(c);
+  setKv_('pins', JSON.stringify({ [admin.id]: hash_(admin.id, pin) }));
+  log_(admin.id, 'KHAI_BAO_DU_AN', '', c.project.code);
+  return JSON.stringify({ token: newToken_(admin.id), uid: admin.id });
+}
+
+/** Đăng nhập; trả luôn dữ liệu màn hình đầu tiên (mode: 'my' | 'day') để giao diện không phải gọi thêm. */
+function apiLogin(uid, pin, mode) {
+  const c = cfg_(), u = c && c.users.find(x => x.id === uid);
+  if (!u || u.active === false) return null;
+  const pins = JSON.parse(kv_('pins') || '{}');
+  if (!pins[uid] || pins[uid] !== hash_(uid, pin)) { Utilities.sleep(600); return null; }
+  if (Math.random() < 0.1) cleanTokens_();
+  const token = newToken_(uid);
+  let bundle = null;
+  if (mode) { try { bundle = bundle_(u, '', mode, uid); } catch (e) {} }
+  return JSON.stringify({ token: token, uid: uid, bundle: bundle });
+}
+
+function apiSaveConfig(token, json) {
+  const me = auth_(token, ['admin']);
+  const old = cfg_(), c = JSON.parse(json);
+  delete c.pins; delete c.demoPins;
+  c.setupDone = true; c.setupAt = old.setupAt;
+  c.wbsMemory = Object.assign({}, old.wbsMemory || {}, c.wbsMemory || {});
+  const meNew = c.users.find(u => u.id === me.id); if (meNew) { meNew.role = 'admin'; meNew.active = true; }
+  saveCfg_(c);
+  log_(me.id, 'SUA_CAU_HINH', '', '');
+  return true;
+}
+
+function apiSetPin(token, uid, pin) {
+  const me = auth_(token);
+  if (me.role !== 'admin' && me.id !== uid) throw new Error('Không có quyền đặt PIN cho người khác');
+  if (!/^\d{4,6}$/.test(String(pin))) throw new Error('PIN phải gồm 4–6 chữ số');
+  const pins = JSON.parse(kv_('pins') || '{}'); pins[uid] = hash_(uid, pin); setKv_('pins', JSON.stringify(pins));
+  log_(me.id, 'DAT_PIN', '', uid);
+  return true;
+}
+
+/* ======================= DỮ LIỆU NGÀY ======================= */
+/** 1 lần gọi cho 1 màn hình: {date, index, report, subs, prev:{date, report, subs}} – không kèm ảnh. */
+function apiOpen(token, date, mode, uid) {
+  const me = auth_(token);
+  return JSON.stringify(bundle_(me, date, mode, uid || me.id));
+}
+
+function bundle_(me, date, mode, uid) {
+  const idx = index_();
+  const all = idx.reports.map(r => r.date).concat(idx.subs.map(s => s.date));
+  const td = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  if (!date) {
+    const ds = all.slice().sort();
+    date = mode === 'my' ? td : (ds.indexOf(td) >= 0 || !ds.length ? td : ds[ds.length - 1]);
+  }
+  const day = dayData_(date);
+  let subs = day.subs;
+  if (me.role === 'ks') subs = subs.filter(s => s.uid === me.id);
+  const before = all.filter(d => d < date).sort(), pd = before[before.length - 1] || '';
+  const prev = pd ? dayData_(pd) : null;
+  return { date: date, index: idx, report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+}
+
+/** Ảnh theo fileId → data URL (tải riêng theo lô, sau khi chữ/số đã hiện). */
+function apiImages(token, ids) {
+  auth_(token);
+  const out = {};
+  (ids || []).slice(0, 10).forEach(id => { try { out[id] = dataUrl_(id); } catch (e) { out[id] = ''; } });
+  return JSON.stringify(out);
+}
+
+function apiSaveSub(token, json) {
+  const me = auth_(token, ['admin', 'chot', 'ks']);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const s = JSON.parse(json), d = s.date;
+    const day = dayData_(d);
+    if (day.report && day.report.status === 'locked') throw new Error('Báo cáo ngày ' + d + ' đã chốt – không sửa phiếu được');
+    const old = day.subs.find(x => x.uid === s.uid);
+    if (me.role === 'ks') {
+      if (me.id !== s.uid) throw new Error('Không có quyền sửa phiếu của người khác');
+      if (old && !(old.status === 'draft' || old.status === 'returned' || (old.status === 'submitted' && s.status === 'draft')))
+        throw new Error('Phiếu đã nộp/đã nhận – không sửa được');
+      if (['draft', 'submitted'].indexOf(s.status) < 0) s.status = 'draft';
+    }
+    mergeWbs_(s.wbsMem); delete s.wbsMem;
+    const newImgs = (s.photos || []).some(p => !p.fileId && p.img);
+    if (newImgs) { const folder = subFolder_(rootFolder_(), 'HinhAnh', d); (s.photos || []).forEach((p, i) => uploadImg_(p, folder, d + '_' + s.uid + '_' + (i + 1))); }
+    // ảnh đã có trên Drive mà phía giao diện gửi thiếu dữ liệu → giữ nguyên fileId
+    const store = strip_(s), c = cfg_();
+    const zones = c.zones.filter(z => z.owner === s.uid).map(z => z.name + ' (' + z.section + ')').join(', ');
+    upsertRow_('PhieuKS', 0, s.key, [s.key, d, s.uid, userName_(c, s.uid), zones, s.status, s.submittedAt || '', s.enteredBy ? userName_(c, s.enteredBy) : '',
+      s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_(), JSON.stringify(store)]);
+    cdel_(['idx', 'day:' + d]);
+    if (!old || old.status !== s.status) log_(me.id, 'PHIEU_' + String(s.status).toUpperCase(), d, userName_(c, s.uid));
+    return JSON.stringify({ ok: true, photos: (s.photos || []).map(p => p.fileId || '') });
+  } finally { lock.releaseLock(); }
+}
+
+function apiSaveReport(token, json) {
+  const me = auth_(token, ['admin', 'chot']);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const r = JSON.parse(json), d = r.date, c = cfg_();
+    const old = dayData_(d).report;
+    mergeWbs_(r.wbsMem); delete r.wbsMem;
+    const need = (r.layout && !r.layout.fileId && r.layout.img) || (r.extraPhotos || []).some(p => !p.fileId && p.img);
+    if (need) { const folder = subFolder_(rootFolder_(), 'HinhAnh', d);
+      uploadImg_(r.layout, folder, d + '_mat_bang'); (r.extraPhotos || []).forEach((p, i) => uploadImg_(p, folder, d + '_bo_sung_' + (i + 1))); }
+    // ảnh bổ sung vừa tải lên → cập nhật fileId trong mảng gộp
+    const ex = {}; (r.extraPhotos || []).forEach(p => { if (p.id) ex[p.id] = p.fileId; });
+    (r.photos || []).forEach(p => { if (!p.fileId && p.id && ex[p.id]) p.fileId = ex[p.id]; });
+    const store = strip_(r);
+    const pctOf = v => { const s = String(v == null ? '' : v).trim(); return /^-?\d+([.,]\d+)?\s*%?$/.test(s) ? parseFloat(s.replace(',', '.')) : ''; };
+    const tasks = r.tasks || [];
+    const pdf = (rowOf_('BaoCao', 0, d) || [])[12] || '';
+    upsertRow_('BaoCao', 0, d, [d, r.status, r.version || 0, r.lockedBy ? userName_(c, r.lockedBy) : '', r.lockedAt || '', r.weather.am, r.weather.pm, r.weather.temp,
+      (r.manpower || []).reduce((s, m) => s + (Number(m.qty) || 0), 0), (r.equipment || []).filter(m => Number(m.qty) > 0).length,
+      tasks.length, tasks.filter(t => pctOf(t.progress) !== '' && pctOf(t.progress) >= 100).length, pdf, now_(), JSON.stringify(store)]);
+    if (r.status === 'locked') writeNormalized_(r, c, pctOf);     // bảng chuẩn hóa = số liệu đã chốt
+    cdel_(['idx', 'day:' + d]);
+    if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, '');
+    return JSON.stringify({ ok: true, layout: r.layout ? r.layout.fileId || '' : '', extra: (r.extraPhotos || []).map(p => p.fileId || '') });
+  } finally { lock.releaseLock(); }
+}
+
+function writeNormalized_(r, c, pctOf) {
+  const d = r.date;
+  const zn = id => { const z = c.zones.find(x => x.id === id); return z ? z.name : ''; };
+  const secOf = t => { const z = c.zones.find(x => x.id === t.zoneId); return z ? z.section : (t.section || ''); };
+  const cv = [];
+  (r.tasks || []).forEach((t, i) => cv.push([d, 'THUC_HIEN', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, t.unit, t.qtyDay, t.progress, pctOf(t.progress), t.prevProgress, t.recurring ? 'x' : '', userName_(c, t.by), t.scheduleId || '']));
+  (r.plans || []).forEach((t, i) => cv.push([d, 'KE_HOACH', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, '', '', t.target, pctOf(t.target), '', '', userName_(c, t.by), t.scheduleId || '']));
+  replaceDay_('CongViec', d, cv);
+  replaceDay_('NhanLuc', d, (r.manpower || []).map(m => [d, m.title, Number(m.qty) || 0]));
+  replaceDay_('ThietBi', d, (r.equipment || []).map(m => [d, m.name, Number(m.qty) || 0]));
+  replaceDay_('NghiemThu', d, (r.inspections || []).map(x => [d, 'TRONG_NGAY', zn(x.zoneId), x.desc, x.loc, x.result, userName_(c, x.by)])
+    .concat((r.inspectionPlans || []).map(x => [d, 'KE_HOACH', zn(x.zoneId), x.desc, x.loc, x.time, userName_(c, x.by)])));
+  replaceDay_('ThiNghiem', d, (r.tests || []).map(x => [d, zn(x.zoneId), x.desc, x.loc, x.result, userName_(c, x.by)]));
+  replaceDay_('VatTu', d, (r.materials || []).map(x => [d, x.name, x.spec, x.unit, Number(x.qty) || 0]));
+  replaceDay_('AnToan', d, [[d, (r.safety && r.safety.summary) || '', '']].concat(((r.safety && r.safety.issues) || []).map(x => [d, x.desc, x.action])));
+  const img = [];
+  if (r.layout && r.layout.fileId) img.push([d, 'MAT_BANG', '', r.layout.caption || '', '', '', r.layout.fileId, driveUrl_(r.layout.fileId)]);
+  (r.photos || []).forEach(p => { if (p.fileId) img.push([d, p.by ? userName_(c, p.by) : 'Người chốt', zn(p.zoneId), p.caption || '', p.takenAt || '', p.warn || '', p.fileId, driveUrl_(p.fileId)]); });
+  replaceDay_('HinhAnh', d, img);
+}
+
+function apiDeleteDay(token, date) {
+  const me = auth_(token, ['admin']);
+  NORMALIZED.concat(['BaoCao']).forEach(n => replaceDay_(n, date, []));
+  replaceDay_('PhieuKS', date, [], 1);
+  cdel_(['idx', 'day:' + date]);
+  log_(me.id, 'XOA_NGAY', date, '');
+  return true;
+}
+
+/** Báo cáo trong khoảng ngày (không ảnh) + phần nhập tay của kỳ – 1 lần gọi. */
+function apiPeriod(token, from, to, key) {
+  auth_(token);
+  const j = SCHEMA.BaoCao.indexOf('json'), sh = sheet_('BaoCao'), keys = col_('BaoCao', 0);
+  const rowsIdx = []; keys.forEach((k, i) => { if (k >= from && k <= to) rowsIdx.push(i); });
+  let reports = [];
+  if (rowsIdx.length) {
+    const a = Math.min.apply(null, rowsIdx), b = Math.max.apply(null, rowsIdx);
+    const vals = sh.getRange(a + 2, j + 1, b - a + 1, 1).getValues();
+    reports = rowsIdx.map(i => ({ d: keys[i], r: JSON.parse(vals[i - a][0]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
+  }
+  let manual = null;
+  if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? JSON.parse(row[SCHEMA.TongHopKy.indexOf('json')]) : null; }
+  return JSON.stringify({ reports: reports, manual: manual });
+}
+function apiSavePeriod(token, json) {
+  auth_(token, ['admin', 'chot']);
+  const p = JSON.parse(json), old = rowOf_('TongHopKy', 0, p.key);
+  upsertRow_('TongHopKy', 0, p.key, [p.key, p.kind, p.from, p.to, p.evaluation || '', old ? old[5] : '', now_(), json]);
+  return true;
+}
+
+/** HTML → PDF. Ảnh được giao diện đánh dấu src="fid:<fileId>" → máy chủ tự chèn từ Drive (đỡ gửi dữ liệu nặng từ điện thoại). */
+function apiExportPdf(token, html, fileName, key, kind) {
+  const me = auth_(token, ['admin', 'chot']);
+  html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + dataUrl_(id) + '"'; } catch (e) { return 'src=""'; } });
+  const folder = subFolder_(rootFolder_(), 'PDF', kind === 'day' ? String(key).slice(0, 7) : (kind === 'week' ? 'Tuan' : 'Thang'));
+  const old = folder.getFilesByName(fileName); while (old.hasNext()) old.next().setTrashed(true);
+  const pdf = Utilities.newBlob(html, 'text/html', 'bc.html').getAs('application/pdf').setName(fileName);
+  const url = folder.createFile(pdf).getUrl();
+  if (kind === 'day') { setCell_('BaoCao', key, 'pdf_url', url); cdel_(['day:' + key]); }
+  else setCell_('TongHopKy', key, 'pdf_url', url);
+  log_(me.id, 'XUAT_PDF', kind === 'day' ? key : '', fileName);
+  return url;
+}
+
+/** Chuyển dự án: copy Google Sheet làm lưu trữ → xóa dữ liệu (giữ tiêu đề), thu hồi phiên, xóa bộ đệm. */
+function apiResetAll(token) {
+  auth_(token, ['admin']);
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const idx = index_();
+    let url = '';
+    if (kv_('config')) {
+      const name = 'LƯU TRỮ_' + (projectCode_() || 'DU_AN') + '_' + Utilities.formatDate(new Date(), TZ, 'yyyyMMdd_HHmm');
+      url = DriveApp.getFileById(ss_().getId()).makeCopy(name, rootFolder_()).getUrl();
+    }
+    Object.keys(SCHEMA).forEach(n => { const sh = sheet_(n); if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, SCHEMA[n].length).clearContent(); forget_(n); });
+    const props = PropertiesService.getScriptProperties(); Object.keys(props.getProperties()).filter(k => k.indexOf('tok_') === 0).forEach(k => props.deleteProperty(k));
+    const dates = idx.reports.map(r => 'day:' + r.date).concat(idx.subs.map(s => 'day:' + s.date));
+    cdel_(['cfg', 'idx'].concat(dates));
+    return url;
+  } finally { lock.releaseLock(); }
+}
+
+/* ======================= HÀM PHỤ: DỮ LIỆU ======================= */
+const MEMO = {};                      // ghi nhớ trong 1 lần chạy
+function ss_() { return MEMO._ss || (MEMO._ss = SPREADSHEET_ID ? SpreadsheetApp.openById(SPREADSHEET_ID) : SpreadsheetApp.getActive()); }
+function now_() { return Utilities.formatDate(new Date(), TZ, 'dd/MM/yyyy HH:mm'); }
+function cache_() { return CacheService.getScriptCache(); }
+function cget_(k) { try { const v = cache_().get(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function cput_(k, o) { try { const s = JSON.stringify(o); if (s.length < 95000) cache_().put(k, s, CACHE_TTL); } catch (e) {} }
+function cdel_(keys) { try { cache_().removeAll(keys); } catch (e) {} keys.forEach(k => { delete MEMO['c:' + k]; }); }
+
+function cfg_() {
+  if (MEMO.cfg !== undefined) return MEMO.cfg;
+  let c = cget_('cfg');
+  if (!c) { const s = kv_('config'); c = s ? JSON.parse(s) : null; if (c) cput_('cfg', c); }
+  return (MEMO.cfg = c);
+}
+function saveCfg_(c) { setKv_('config', JSON.stringify(c)); MEMO.cfg = c; cdel_(['cfg']); }
+function mergeWbs_(add) {
+  if (!add || !Object.keys(add).length) return;
+  const c = cfg_(); c.wbsMemory = c.wbsMemory || {}; let ch = false;
+  Object.keys(add).forEach(k => { if (c.wbsMemory[k] !== add[k]) { c.wbsMemory[k] = add[k]; ch = true; } });
+  if (ch) saveCfg_(c);
+}
+function index_() {
+  if (MEMO.idx) return MEMO.idx;
+  let idx = cget_('idx');
+  if (!idx) {
+    const rb = sheet_('BaoCao'), nb = rb.getLastRow() - 1, rp = sheet_('PhieuKS'), np = rp.getLastRow() - 1;
+    const b = nb > 0 ? rb.getRange(2, 1, nb, 3).getValues() : [], p = np > 0 ? rp.getRange(2, 2, np, 5).getValues() : [];
+    idx = { reports: b.filter(r => r[0]).map(r => ({ date: String(r[0]), status: r[1], version: r[2] })),
+            subs: p.filter(r => r[0]).map(r => ({ date: String(r[0]), uid: r[1], status: r[4] })) };
+    cput_('idx', idx);
+  }
+  return (MEMO.idx = idx);
+}
+/** {report, subs} của 1 ngày – đọc đúng các dòng cần thiết, có bộ đệm. */
+function dayData_(d) {
+  const ck = 'day:' + d;
+  if (MEMO['c:' + ck]) return MEMO['c:' + ck];
+  let v = cget_(ck);
+  if (!v) {
+    const row = rowOf_('BaoCao', 0, d);
+    const report = row ? JSON.parse(row[SCHEMA.BaoCao.indexOf('json')]) : null;
+    const keys = col_('PhieuKS', 1), sh = sheet_('PhieuKS'), j = SCHEMA.PhieuKS.indexOf('json');
+    const ri = []; keys.forEach((k, i) => { if (k === String(d)) ri.push(i); });
+    let subs = [];
+    if (ri.length) { const a = Math.min.apply(null, ri), b = Math.max.apply(null, ri);
+      const vals = sh.getRange(a + 2, j + 1, b - a + 1, 1).getValues(); subs = ri.map(i => JSON.parse(vals[i - a][0])); }
+    v = { report: report, subs: subs };
+    cput_(ck, v);
+  }
+  return (MEMO['c:' + ck] = v);
+}
+
+function sheet_(name) {
+  if (MEMO['sh:' + name]) return MEMO['sh:' + name];
+  let sh = ss_().getSheetByName(name);
+  if (!sh) {
+    sh = ss_().insertSheet(name);
+    const h = SCHEMA[name];
+    sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#eef2ff');
+    sh.setFrozenRows(1);
+    sh.getRange('A:B').setNumberFormat('@');
+    if (name === 'TongHopKy') sh.getRange('C:D').setNumberFormat('@');
+    if (h[h.length - 1] === 'json') sh.hideColumns(h.length);
+  }
+  return (MEMO['sh:' + name] = sh);
+}
+/** Một cột (dạng chuỗi) – ghi nhớ trong lần chạy. */
+function col_(name, c) {
+  const k = 'col:' + name + ':' + c; if (MEMO[k]) return MEMO[k];
+  const sh = sheet_(name), n = sh.getLastRow() - 1;
+  return (MEMO[k] = n > 0 ? sh.getRange(2, c + 1, n, 1).getValues().map(r => String(r[0])) : []);
+}
+function rowOf_(name, keyCol, key) {
+  const i = col_(name, keyCol).indexOf(String(key)); if (i < 0) return null;
+  return sheet_(name).getRange(i + 2, 1, 1, SCHEMA[name].length).getValues()[0];
+}
+function forget_(name) { Object.keys(MEMO).forEach(k => { if (k.indexOf('col:' + name + ':') === 0) delete MEMO[k]; }); }
+/** Sửa đúng 1 dòng theo khóa, chưa có thì thêm cuối bảng. */
+function upsertRow_(name, keyCol, key, row) {
+  const sh = sheet_(name), w = SCHEMA[name].length, i = col_(name, keyCol).indexOf(String(key));
+  const r = row.map(v => v == null ? '' : v);
+  if (i >= 0) sh.getRange(i + 2, 1, 1, w).setValues([r]);
+  else sh.getRange(sh.getLastRow() + 1, 1, 1, w).setValues([r]);
+  forget_(name);
+}
+/** Xóa các dòng có cột keyCol = d (xóa theo khối liền nhau, từ dưới lên) rồi thêm các dòng mới cuối bảng. */
+function replaceDay_(name, d, rows, keyCol) {
+  keyCol = keyCol || 0;
+  const sh = sheet_(name), w = SCHEMA[name].length, keys = col_(name, keyCol);
+  const idx = []; keys.forEach((k, i) => { if (k === String(d)) idx.push(i + 2); });
+  for (let e = idx.length - 1; e >= 0;) { let s = e; while (s > 0 && idx[s - 1] === idx[s] - 1) s--; sh.deleteRows(idx[s], e - s + 1); e = s - 1; }
+  if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, w).setValues(rows.map(r => r.map(v => v == null ? '' : v)));
+  forget_(name);
+}
+function setCell_(name, key, col, val) {
+  const i = col_(name, 0).indexOf(String(key));
+  if (i >= 0) sheet_(name).getRange(i + 2, SCHEMA[name].indexOf(col) + 1).setValue(val);
+}
+function kv_(k) { const r = rowOf_('CauHinh', 0, k); return r ? r[1] : null; }
+function setKv_(k, v) { upsertRow_('CauHinh', 0, k, [k, v]); }
+function log_(uid, act, d, detail) { try { sheet_('NhatKy').appendRow([now_(), userName_(cfg_(), uid), act, d || '', detail || '']); } catch (e) {} }
+
+/* ======================= HÀM PHỤ: QUYỀN, ẢNH, DRIVE ======================= */
+function userName_(c, uid) { const u = c && c.users.find(x => x.id === uid); return u ? u.name : (uid || ''); }
+function projectCode_() { const c = cfg_(); return c ? (c.project.code || '') : ''; }
+function driveUrl_(id) { return 'https://drive.google.com/file/d/' + id + '/view'; }
+function salt_() {
+  const p = PropertiesService.getScriptProperties(); let s = p.getProperty('salt');
+  if (!s) { s = Utilities.getUuid(); p.setProperty('salt', s); }
+  return s;
+}
+function hash_(uid, pin) {
+  const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt_() + '|' + uid + '|' + pin, Utilities.Charset.UTF_8);
+  return b.map(x => ((x + 256) % 256).toString(16).padStart(2, '0')).join('');
+}
+function newToken_(uid) {
+  const t = Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty('tok_' + t, JSON.stringify({ uid: uid, exp: Date.now() + TOKEN_DAYS * 864e5 }));
+  return t;
+}
+function cleanTokens_() {
+  const p = PropertiesService.getScriptProperties(), all = p.getProperties(), now = Date.now();
+  Object.keys(all).forEach(k => { if (k.indexOf('tok_') === 0) { try { if (JSON.parse(all[k]).exp < now) p.deleteProperty(k); } catch (e) { p.deleteProperty(k); } } });
+}
+function auth_(token, roles) {
+  const raw = token && PropertiesService.getScriptProperties().getProperty('tok_' + token);
+  if (!raw) throw new Error('AUTH: phiên đăng nhập không hợp lệ');
+  const t = JSON.parse(raw); if (t.exp < Date.now()) throw new Error('AUTH: phiên đăng nhập hết hạn');
+  const c = cfg_(), u = c && c.users.find(x => x.id === t.uid);
+  if (!u || u.active === false) throw new Error('AUTH: tài khoản không còn hoạt động');
+  if (roles && roles.indexOf(u.role) < 0) throw new Error('Không có quyền thực hiện thao tác này');
+  return u;
+}
+function strip_(o) {
+  const c = JSON.parse(JSON.stringify(o));
+  [c.layout].concat(c.photos || [], c.extraPhotos || []).forEach(p => { if (p && p.fileId) p.img = ''; });
+  return c;
+}
+function uploadImg_(o, folder, name) {
+  if (!o || o.fileId || !o.img || String(o.img).indexOf('data:') !== 0) return;
+  const m = o.img.match(/^data:(.+?);base64,(.*)$/);
+  o.fileId = folder.createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], name + '.jpg')).getId();
+}
+function dataUrl_(id) { const b = DriveApp.getFileById(id).getBlob(); return 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); }
+function rootFolder_() {
+  if (MEMO.root) return MEMO.root;
+  const name = ROOT_FOLDER_PREFIX + (projectCode_() || 'DU_AN');
+  if (ROOT_FOLDER_ID) return (MEMO.root = subFolder_(DriveApp.getFolderById(ROOT_FOLDER_ID), name));
+  const it = DriveApp.getFoldersByName(name);
+  return (MEMO.root = it.hasNext() ? it.next() : DriveApp.createFolder(name));
+}
+function subFolder_(parent) {
+  let f = parent;
+  for (let i = 1; i < arguments.length; i++) { const it = f.getFoldersByName(arguments[i]); f = it.hasNext() ? it.next() : f.createFolder(arguments[i]); }
+  return f;
+}
