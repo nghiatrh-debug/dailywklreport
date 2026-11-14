@@ -11,7 +11,7 @@ function mkSheet(name){ const data = []; const sh = {
       clearContent(){ for(let i=0;i<nr;i++) for(let j=0;j<nc;j++) if(data[r0+i]) data[r0+i][c0+j]=''; 
         while(data.length && data[data.length-1].every(x=>x==='')) data.pop(); return this; },
       setValue(v){ data[r0][c0]=v; }, setFontWeight(){return this;}, setBackground(){return this;} }; } }; return sh; }
-const ss = { getSheetByName:n=>sheets[n]||null, insertSheet:n=>(sheets[n]=mkSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}, getId:()=>'SS1' };
+const ss = { getSheetByName:n=>sheets[n]||null, insertSheet:n=>(sheets[n]=mkSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}, getId:()=>'SS1', getUrl:()=>'https://docs.google.com/spreadsheets/d/SS1' };
 function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://drive/'+name,
   getFoldersByName(n){ const k=f.kids[n]; let used=false; return {hasNext:()=>!!k&&!used, next:()=>{used=true;return k;}}; },
   createFolder(n){ return f.kids[n]=mkFolder(n); },

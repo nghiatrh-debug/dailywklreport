@@ -126,7 +126,9 @@ function bundle_(me, date, mode, uid) {
   if (me.role === 'ks') subs = subs.filter(s => s.uid === me.id);
   const before = all.filter(d => d < date).sort(), pd = before[before.length - 1] || '';
   const prev = pd ? dayData_(pd) : null;
-  return { date: date, index: idx, report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+  const out = { date: date, index: idx, report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+  if (me.role === 'admin') out.links = links_();
+  return out;
 }
 
 /** Ảnh theo fileId → data URL (tải riêng theo lô, sau khi chữ/số đã hiện). */
@@ -292,7 +294,7 @@ function cfg_() {
   if (!c) { const s = kv_('config'); c = s ? JSON.parse(s) : null; if (c) cput_('cfg', c); }
   return (MEMO.cfg = c);
 }
-function saveCfg_(c) { setKv_('config', JSON.stringify(c)); MEMO.cfg = c; cdel_(['cfg']); }
+function saveCfg_(c) { setKv_('config', JSON.stringify(c)); MEMO.cfg = c; delete MEMO.root; cdel_(['cfg', 'links']); }
 function mergeWbs_(add) {
   if (!add || !Object.keys(add).length) return;
   const c = cfg_(); c.wbsMemory = c.wbsMemory || {}; let ch = false;
@@ -381,6 +383,12 @@ function setKv_(k, v) { upsertRow_('CauHinh', 0, k, [k, v]); }
 function log_(uid, act, d, detail) { try { sheet_('NhatKy').appendRow([now_(), userName_(cfg_(), uid), act, d || '', detail || '']); } catch (e) {} }
 
 /* ======================= HÀM PHỤ: QUYỀN, ẢNH, DRIVE ======================= */
+/** Link nhanh cho Quản trị: file Google Sheet dữ liệu + thư mục Drive ảnh/PDF của dự án (có bộ đệm). */
+function links_() {
+  let l = cget_('links');
+  if (!l) { l = { sheet: ss_().getUrl(), folder: '' }; try { l.folder = rootFolder_().getUrl(); } catch (e) {} cput_('links', l); }
+  return l;
+}
 function userName_(c, uid) { const u = c && c.users.find(x => x.id === uid); return u ? u.name : (uid || ''); }
 function projectCode_() { const c = cfg_(); return c ? (c.project.code || '') : ''; }
 function driveUrl_(id) { return 'https://drive.google.com/file/d/' + id + '/view'; }

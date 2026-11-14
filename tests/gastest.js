@@ -22,6 +22,8 @@ sub.status='submitted'; ctx.apiSaveSub(tkK, JSON.stringify(sub));
 const sk = Object.assign({}, sub, {uid:'uA', key:'2026-11-15|uA'}); threw=false; try{ ctx.apiSaveSub(tkK, JSON.stringify(sk)); }catch(e){threw=true;} A([threw,'KS cannot save others']);
 let ob = J(ctx.apiOpen(tk,'2026-11-15','day','')); A([ob.index.subs.length===1 && ob.index.subs[0].status==='submitted','index sub (cache invalidated)']);
 A([ob.subs[0].photos[0].img==='' && ob.subs[0].photos[0].fileId,'bundle has no image data']);
+A([ob.links && ob.links.sheet.includes('spreadsheets') && ob.links.folder,'admin gets Sheet + Drive folder links']);
+A([!J(ctx.apiOpen(tkK,'2026-11-15','my','')).links,'KS gets no links']);
 const im = J(ctx.apiImages(tk,[ob.subs[0].photos[0].fileId])); A([Object.values(im)[0].startsWith('data:image/jpeg'),'apiImages']);
 const obK = J(ctx.apiOpen(tkK,'2026-11-16','my','')); A([obK.prev && obK.prev.date==='2026-11-15' && obK.prev.subs.length===1,'prev day in bundle']);
 

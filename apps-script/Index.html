@@ -29,6 +29,7 @@ button{font-family:inherit;cursor:pointer}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--ac2)}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 select.btn{padding:7px 8px}
+a.btn{text-decoration:none}
 .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;display:inline-block}
 .b-draft{background:#fef3c7;color:#92400e}.b-lock{background:#d1fae5;color:#065f46}.b-new{background:#e0e7ff;color:#3730a3}
 .wrap{max-width:1500px;margin:0 auto;padding:18px 20px 60px}
@@ -420,7 +421,7 @@ async function localIndex(){ return { reports:(await IDB.all('reports')).map(r=>
 
 /* ===================== TRẠNG THÁI ===================== */
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
-let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
+let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
 let TAB = 'status', MYTAB = 'work', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
 let dirty = {R:false, S:false}, saveTimer = {R:null, S:null}, prevTimer = null;
 let EDIT = 'R', RO = false;                                       // gốc dữ liệu & chế độ chỉ đọc cho các ô nhập đang dựng
@@ -560,8 +561,16 @@ function navItems(){
   if (isAdmin()) it.push(['config','Cấu hình']);
   return it;
 }
+/* Nhãn góc trên: Quản trị (bản Google) → nút mở nhanh Google Sheet & thư mục Drive; vai trò khác → ẩn */
+function renderChip(){ const el = $('#syncChip'); if (!el) return;
+  if (!IS_GAS) { el.style.display = ''; el.textContent = '💻 Lưu trên máy (bản xem trước)'; return; }
+  if (ME && isAdmin() && LINKS) { el.style.display = 'contents';
+    el.innerHTML = `<a class="btn sm" href="${esc(LINKS.sheet)}" target="_blank" rel="noopener" title="Mở file Google Sheet chứa dữ liệu">📊 Mở Google Sheet</a>` +
+      (LINKS.folder ? `<a class="btn sm" href="${esc(LINKS.folder)}" target="_blank" rel="noopener" title="Thư mục Drive chứa ảnh và PDF của dự án">📁 Thư mục ảnh/PDF</a>` : ''); }
+  else { el.style.display = 'none'; el.innerHTML = ''; } }
 function renderNav(){
   $('#nav').innerHTML = navItems().map(([k,t])=>`<button class="pill ${VIEW===k?'on':''}" data-view="${k}">${t}</button>`).join('');
+  renderChip();
   $('#userChip').innerHTML = ME ? `<span class="uchip">👤 ${esc(ME.name)} <span class="rl">${esc(ROLES[ME.role])}</span><button class="btn sm ghost" data-act="logout">Đăng xuất</button></span>` : '';
   $('#dayBar').classList.toggle('hide', !(VIEW==='my' || VIEW==='day'));
   ['my','day','period','config'].forEach(v=> $('#v-'+v).classList.toggle('hide', v!==VIEW));
@@ -584,7 +593,7 @@ const refreshIdx = async () => renderDateSel();
 function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date===o.date && (kind==='reports' || x.uid===o.uid)); if (i>=0) L[i] = o; else L.push(o); }
 /* Gói dữ liệu → trạng thái màn hình (không gọi máy chủ) */
 function applyBundle(b, mode, u){
-  IDX = b.index || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null;
+  IDX = b.index || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
   R = b.report ? normReport(b.report) : null;
   if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); applyMerge(); renderDayAll(); }
   else { SUBS = (b.subs||[]).map(normSub); const s = SUBS.find(x=>x.uid===u); S = s || newSub(DATE, u); if (!s) SUBS.push(S); S_OTHER = u !== ME.id; renderMy(); }
@@ -1049,7 +1058,7 @@ document.addEventListener('click', async e=>{
   const a = b.dataset.act;
   if (a==='add'){ const o = rootObj(b.dataset.root), arr = getPath(o, b.dataset.path), it = JSON.parse(b.dataset.tpl||'{}'); it.id = uid(); arr.push(it); markDirty(b.dataset.root); b.dataset.root==='S' ? renderMy() : (renderForm(), renderDoc()); }
   if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
-  if (a==='logout'){ await flush(); try { localStorage.removeItem('bcn_session'); } catch(x){} ME = null; TOKEN = ''; showLogin(); }
+  if (a==='logout'){ await flush(); try { localStorage.removeItem('bcn_session'); } catch(x){} ME = null; TOKEN = ''; LINKS = null; showLogin(); }
   if (a==='goToday'){ await flush(); DATE = today(); return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
   if (a==='prevDay' || a==='nextDay'){ await flush(); const opts = [...$('#dateSel').options].map(o=>o.value).sort(); const i = opts.indexOf(DATE), j = a==='prevDay' ? i-1 : i+1;
     if (opts[j]) { DATE = opts[j]; return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); } toast('Không còn ngày ' + (a==='prevDay'?'trước':'sau')); }
@@ -1177,7 +1186,7 @@ async function resetAllFlow(){
     closeModal(); toast('Đang reset…', 8000);
     try { clearTimeout(saveTimer.R); clearTimeout(saveTimer.S); dirty = {R:false,S:false}; const arch = await Store.resetAll();
       try { localStorage.removeItem('bcn_session'); } catch(x){}
-      CFG = clone(GENERIC_CFG); R = null; S = null; ME = null; VIEW=''; BOOT = null; IDX = {reports:[],subs:[]}; try { Object.keys(localStorage).filter(k=>k.startsWith('bcn_last_')).forEach(k=>localStorage.removeItem(k)); } catch(x){} renderNav(); showSetup();
+      CFG = clone(GENERIC_CFG); R = null; S = null; ME = null; VIEW=''; LINKS = null; BOOT = null; IDX = {reports:[],subs:[]}; try { Object.keys(localStorage).filter(k=>k.startsWith('bcn_last_')).forEach(k=>localStorage.removeItem(k)); } catch(x){} renderNav(); showSetup();
       toast(arch ? '✔ Đã lưu trữ dữ liệu cũ và reset. Khai báo dự án mới.' : '✔ Đã reset. Khai báo dự án mới.', 5000);
     } catch(e){ toast('⚠ Lỗi reset: ' + (e.message||e), 6000); } };
 }
@@ -1241,7 +1250,7 @@ function sampleDay(date, d){
 }
 async function seed(){ for (const d of [2,1,0]){ const {r, subs} = sampleDay(addDays('2026-06-27', -d), d); await Store.saveReport(r); for (const s of subs) await Store.saveSub(s); } }
 async function boot(){
-  $('#syncChip').textContent = IS_GAS ? '☁ Google Sheets' : '💻 Lưu trên máy (bản xem trước)';
+  renderChip();
   let b = null; try { b = await Store.boot(); } catch(e){}
   const c = b && b.config;
   if (!c || !c.setupDone) { CFG = clone(GENERIC_CFG); return showSetup(); }
