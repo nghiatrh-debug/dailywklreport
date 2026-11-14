@@ -84,6 +84,24 @@ Cách được khuyên dùng vẫn là **mỗi dự án một bản copy riêng*
 - Máy chủ dùng **CacheService**, **chỉ sửa đúng dòng cần sửa**. Các bảng chuẩn hóa (CongViec, NhanLuc…) chỉ được ghi khi **chốt**, nên chứa đúng số liệu chính thức.
 - Giới hạn không vượt qua được của Google: mỗi lần gọi máy chủ mất khoảng 1–1,5 giây. App đã được thiết kế để gọi ít nhất có thể.
 
+## 6c. Dùng trên điện thoại
+Giao diện tự đổi khi màn hình hẹp hơn 768px. Máy tính giữ nguyên giao diện cũ.
+- **Phần đầu trang** gọn một dòng. Bấm nút 👤 để xem tên, đăng xuất, trạng thái lưu. Tài khoản Quản trị có thêm nút mở Google Sheet và thư mục ảnh/PDF.
+- **Kỹ sư**:
+  - Mỗi việc là một thẻ, có ô **KL % lũy kế** và **KL ngày** cỡ lớn.
+  - Các nút cộng nhanh **+2 / +5 / +7 / +10 / 100%** cộng tiếp từ % hôm nay, hoặc từ % hôm trước nếu hôm nay chưa nhập.
+  - Ô vị trí, WBS, ĐVT, việc lặp lại được gấp vào mục "Chi tiết".
+  - Thanh đáy có nút **Lưu / Nộp / Xem** và 4 tab **Công việc · Nghiệm thu · Ảnh · Ghi chú**.
+  - Nút **📸 Chụp ảnh** mở thẳng camera sau.
+- **Người chốt**:
+  - Phiếu của từng kỹ sư hiện dạng thẻ, có nút Xem/sửa, Trả lại, Nhập thay.
+  - Nhân lực và thiết bị chỉnh bằng nút **− / +**.
+  - Thanh đáy có nút **Lưu · ✔ Chốt ngày · PDF · Xem**.
+- **Xem trước** báo cáo hoặc phiếu mở toàn màn hình, tự thu nhỏ vừa khổ A4.
+- Thêm vào màn hình chính:
+  - iPhone: mở bằng Safari → Chia sẻ → Thêm vào MH chính.
+  - Android: mở bằng Chrome → ⋮ → Thêm vào MH chính.
+
 ## 7. Giới hạn hiện tại
 - PIN là lớp bảo vệ nội bộ. Giữ file Google Sheet ở chế độ **không chia sẻ** cho kỹ sư, vì họ chỉ dùng qua link Web App.
 - PDF được tạo bằng bộ chuyển HTML→PDF của Google, nên bố cục có thể hơi khác bản xem trước. Bản Google Sheet theo tháng và PDF xuất từ Sheet làm ở đợt 2B.

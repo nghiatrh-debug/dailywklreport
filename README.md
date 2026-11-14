@@ -25,6 +25,16 @@ Web app trên **Google Apps Script** để lập báo cáo ngày công trường
   - Nghiệm thu, thí nghiệm, an toàn liệt kê đầy đủ.
 - **Nhật ký thao tác** (tab NhatKy) và các bảng chuẩn hóa để phân tích bằng Pivot hoặc Looker Studio.
 
+## Giao diện điện thoại
+Khi màn hình hẹp hơn 768px, giao diện tự chuyển sang dạng dành cho điện thoại:
+- Mỗi việc là một thẻ, có nút cộng nhanh +2/+5/+7/+10/100%.
+- Thanh tab và các nút thao tác cố định ở đáy màn hình.
+- Nút chụp ảnh mở thẳng camera.
+- Nhân lực, thiết bị chỉnh bằng nút −/+.
+- Xem trước báo cáo toàn màn hình.
+
+Giao diện máy tính giữ nguyên.
+
 ## Tối ưu tốc độ
 - Cấu hình được nhúng sẵn vào trang khi mở (template scriptlet).
 - Đăng nhập trả về luôn dữ liệu màn hình đầu; mỗi màn hình chỉ gọi máy chủ 1 lần.
