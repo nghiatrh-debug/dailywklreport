@@ -36,6 +36,12 @@ sed -n '/<script>$/,/<\/script>/p' apps-script/Index.html | sed '1d;$d' > /tmp/a
 - Tính năng mới → thêm kiểm thử vào `gastest.js` / `ui.js`. Mock thiếu hàm → bổ sung `tests/gasmock.js`.
 - Xem ảnh chụp giao diện trước khi báo xong.
 
+### Vòng viết code → tự kiểm thử → TESTING.md (bắt buộc mỗi đợt sửa)
+1. Sửa xong → tự chạy `bash tests/run-all.sh "ghi chú đợt sửa"` (chạy cả 3 bước, tự ghi 1 dòng vào nhật ký `TESTING.md`). Trong môi trường Claude: đặt `CHROME=/usr/bin/google-chrome PW_PATH=/tmp/pwnode/node_modules/playwright-core`.
+2. Có lỗi → tự sửa và chạy lại đến khi ĐẠT. Không báo xong, không push khi còn lỗi.
+3. Viết thêm mục trong "Ghi chú từng đợt sửa" của `TESTING.md` bằng lời dễ hiểu: sửa gì, kiểm thử mới, ảnh màn hình đã xem, rủi ro còn lại. Cập nhật phần "bao phủ" nếu có nhóm kiểm thử mới.
+4. Commit `TESTING.md` cùng với code.
+
 ### Triển khai
 - `git push origin main` → GitHub Actions kiểm thử → `clasp push` lên bản thử **/dev**. Link `/exec` không đổi.
 - Chỉ khi chủ repo nói "phát hành": `git push origin main:release` → `clasp deploy` lên `/exec`. Không dùng tag (proxy chặn).
