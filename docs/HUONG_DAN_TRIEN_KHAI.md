@@ -67,7 +67,7 @@ Kiểm thử gồm 2 phần chạy song song: **máy chủ** (`tests/gastest.js`
    - Nhập thời tiết, nhân lực, thiết bị, vật tư, an toàn, mặt bằng.
    - Bấm **Chốt** để khóa ngày.
    - Bấm **Lưu PDF vào Google Drive**, rồi gửi link qua Zalo.
-4. **Sửa sau khi đã chốt**: bấm **Mở khóa**, sửa, rồi chốt lại. Báo cáo thành bản **v2** (file `yyyymmdd-<mã dự án>-Daily Report_v2.pdf`); PDF bản cũ trên Drive được giữ nguyên.
+4. **Sửa sau khi đã chốt**: bấm **Mở khóa**, sửa, rồi chốt lại. Báo cáo thành bản **v2**; khi xuất lại, file `yyyymmdd-<mã dự án>-Daily Report.pdf` mới thay file cũ cùng tên trên Drive (file cũ vào thùng rác).
 
 ## 4b. Cách tính % và so sánh kế hoạch (từ đợt 2)
 | Ô trên phiếu | Ai nhập | Cách tính |

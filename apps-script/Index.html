@@ -1574,8 +1574,8 @@ function doPrint(){ try { window.print(); } catch(e){} if (!IS_GAS) setTimeout((
 async function toDrive(kind){
   if (!IS_GAS){ modal(`<h3>Cần triển khai bản Google Apps Script</h3><p>Bản xem trước lưu dữ liệu trên máy. Để lưu Google Sheets + PDF vào Drive, triển khai theo HUONG_DAN_TRIEN_KHAI.md.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đã hiểu</button></div>`); return; }
   try { toast('Đang tạo PDF…', 9000);
-    if (kind==='day'){ if (!repLocked()) await saveR(true); const v = R.version>1 ? '_v'+R.version : ''; const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
-      showLink(await Store.exportPdf(docHtml(box), `${R.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report${v}.pdf`, R.date, 'day')); }
+    if (kind==='day'){ if (!repLocked()) await saveR(true); const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
+      showLink(await Store.exportPdf(docHtml(box), `${R.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report.pdf`, R.date, 'day')); }
     else { await Store.savePeriod(P.manual); const pr = periodRange(); showLink(await Store.exportPdf(docHtml($('#pdoc')), `${P.kind==='week'?'BCT':'BCTh'}_${CFG.project.code}_${pr.from}_${pr.to}.pdf`, pr.key, P.kind)); }
   } catch(e){ toast('⚠ Lỗi xuất PDF: '+(e.message||e), 6000); }
 }
