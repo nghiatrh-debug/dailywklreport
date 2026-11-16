@@ -29,6 +29,19 @@
 3. Dữ liệu cũ giữ nguyên, không cần chạy lại `setup`.
 4. Mở link, bấm Ctrl+F5 (hoặc đóng mở lại app trên điện thoại).
 
+## 2c. Tự động triển khai từ GitHub (đã thiết lập)
+Đã cài: clasp trên máy anh Nghĩa, secret `CLASPRC_JSON` trên GitHub, file `.clasp.json` (Script ID) và `.github/workflows/deploy.yml`.
+
+| Thao tác | Kết quả |
+|---|---|
+| Đẩy code lên nhánh `main` | GitHub chạy kiểm thử. Đạt thì code tự vào Apps Script, bản **Thử nghiệm** (Triển khai → Kiểm tra triển khai → link `/dev`, chỉ chủ sở hữu mở được). **Link `/exec` của kỹ sư không đổi.** |
+| Đẩy tag `v…` (VD `v2.1`), hoặc vào tab **Actions → Kiểm thử & triển khai → Run workflow** và tick *release* | Như trên, sau đó **phát hành lên link chính thức `/exec`**: link giữ nguyên, kỹ sư tải lại app là thấy bản mới |
+| Kiểm thử lỗi | Dừng, **không** đưa code lên. GitHub gửi email báo lỗi cho chủ repo |
+
+- Xem lịch sử chạy: tab **Actions** của repo.
+- Quay về bản cũ: Apps Script → Triển khai → Quản lý triển khai → ✎ → chọn **phiên bản** trước → Triển khai.
+- Nếu báo lỗi đăng nhập (`invalid_grant`, `unauthorized`): trên máy tính chạy lại `clasp login`, sau đó cập nhật secret `CLASPRC_JSON` bằng nội dung file `%USERPROFILE%\.clasprc.json` mới.
+
 ## 3. Vai trò
 | Vai trò | Làm được gì |
 |---|---|

@@ -1,0 +1,75 @@
+# Tự động kiểm thử và đưa code lên Google Apps Script
+# - Mỗi lần đẩy code lên nhánh main: chạy kiểm thử → đưa code vào Apps Script (bản "Thử nghiệm" /dev).
+#   Link chính thức /exec cho kỹ sư KHÔNG đổi.
+# - Phát hành lên link chính thức /exec: đẩy tag "v..." (VD v2.1) hoặc vào tab Actions → Run workflow → tick "release".
+name: Kiểm thử & triển khai Apps Script
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore: ['docs/**', 'README.md']
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Phát hành lên link chính thức (/exec)'
+        type: boolean
+        default: false
+      note:
+        description: 'Ghi chú phiên bản'
+        required: false
+        default: ''
+
+concurrency:
+  group: apps-script-deploy
+  cancel-in-progress: false
+
+env:
+  DEPLOYMENT_ID: AKfycbxmF9lIdXFVNxDS6CMPVp7GWarUa_ZGJOix_dc0nQZmQkbloBR6otP6-sG7h-wyJTAL
+
+jobs:
+  test:
+    name: Kiểm thử máy chủ (giả lập Apps Script)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Chạy kiểm thử
+        run: node tests/gastest.js
+
+  deploy:
+    name: Đưa code lên Apps Script
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cài clasp
+        run: npm install -g @google/clasp@3
+      - name: Nạp thông tin đăng nhập clasp (từ secret CLASPRC_JSON)
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::Chưa có secret CLASPRC_JSON – xem docs/HUONG_DAN_TRIEN_KHAI.md mục Tự động triển khai"
+            exit 1
+          fi
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+          chmod 600 "$HOME/.clasprc.json"
+      - name: Đẩy code (cập nhật bản Thử nghiệm /dev)
+        run: clasp push -f
+      - name: Phát hành lên link chính thức /exec
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release)
+        env:
+          NOTE: ${{ inputs.note }}
+        run: |
+          DESC="${GITHUB_REF_NAME} $(date -u +%Y-%m-%d) ${GITHUB_SHA::7} ${NOTE}"
+          clasp deploy -i "$DEPLOYMENT_ID" -d "$DESC"
+          echo "### ✔ Đã phát hành: $DESC" >> "$GITHUB_STEP_SUMMARY"
+      - name: Xóa thông tin đăng nhập
+        if: always()
+        run: rm -f "$HOME/.clasprc.json"
