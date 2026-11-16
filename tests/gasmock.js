@@ -10,7 +10,9 @@ function mkSheet(name){ const data = []; const sh = {
       getValues(){ stats.sheetReads++; const o=[]; for(let i=0;i<nr;i++){ const row=[]; for(let j=0;j<nc;j++) row.push((data[r0+i]||[])[c0+j] ?? ''); o.push(row);} return o; },
       clearContent(){ for(let i=0;i<nr;i++) for(let j=0;j<nc;j++) if(data[r0+i]) data[r0+i][c0+j]=''; 
         while(data.length && data[data.length-1].every(x=>x==='')) data.pop(); return this; },
-      setValue(v){ data[r0][c0]=v; }, setFontWeight(){return this;}, setBackground(){return this;} }; } }; return sh; }
+      setValue(v){ data[r0][c0]=v; }, setFontWeight(){return this;}, setBackground(){return this;},
+      createTextFinder(q){ let whole=false; const tf={ matchEntireCell(b){ whole=b; return tf; }, findAll(){ stats.finds=(stats.finds||0)+1; const o=[];
+        for(let i=0;i<nr;i++) for(let j=0;j<nc;j++){ const v=String((data[r0+i]||[])[c0+j] ?? ''); if (whole ? v===q : v.includes(q)) o.push({getRow:()=>r0+i+1}); } return o; } }; return tf; } }; } }; return sh; }
 const ss = { getSheetByName:n=>sheets[n]||null, insertSheet:n=>(sheets[n]=mkSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}, getId:()=>'SS1', getUrl:()=>'https://docs.google.com/spreadsheets/d/SS1' };
 function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://drive/'+name, getName:()=>name, getId:()=>'ID_'+name,
   getFoldersByName(n){ const k=f.kids[n]; let used=false; return {hasNext:()=>!!k&&!used, next:()=>{used=true;return k;}}; },

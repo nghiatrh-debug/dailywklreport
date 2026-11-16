@@ -147,6 +147,12 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await shot(pg, 'desk_conflict');
     await pg.click('#cfKeep'); await wait(600);
     ok(await pg.evaluate(async () => (await IDB.get('reports', R.date)).weather.am === 'Mưa / Rain' && !CONFL.R), 'Chống ghi đè: “Giữ bản của tôi” → lưu được');
+    /* ---- Dung lượng: chỉ mục gọn, dọn ảnh đệm ---- */
+    ok(await pg.evaluate(() => { const x = idxDec({r:[['2026-11-01','l',2,'v']], s:[['2026-11-01','u1','a']], t:['2026-12-01']}); return x.reports[0].status==='locked' && x.reports[0].review==='approved' && x.subs[0].status==='accepted' && x.testDays[0]==='2026-12-01' && idxDec(IDX)===IDX; }), 'Giải mã chỉ mục gọn từ máy chủ');
+    ok(await pg.evaluate(async () => { const d = await IDB.open(); const old = Date.now() - 90*864e5;
+      await new Promise(r => { const st = d.transaction('imgs','readwrite').objectStore('imgs'); st.put({key:'oldimg', v:'data:x', t:old}); st.put({key:'lg_keep', v:'data:x', t:old}).onsuccess = r; });
+      await IDB.put('imgs', 'newimg', 'data:y'); const n = await pruneImgs();
+      return n >= 1 && !(await IDB.get('imgs','oldimg')) && (await IDB.get('imgs','lg_keep')) && (await IDB.get('imgs','newimg')); }), 'Dọn ảnh đệm > 60 ngày, giữ logo và ảnh mới');
     /* ---- Đợt 5: tuần, phiên đăng nhập ---- */
     ok(await pg.evaluate(() => { CFG.settings.weekEnd = '4'; P.kind = 'week'; P.anchor = '2026-11-19'; const a = periodRange(); P.anchor = '2026-11-20'; const b = periodRange(); return a.from === '2026-11-13' && a.to === '2026-11-19' && b.from === '2026-11-20'; }), 'Kỳ tuần: Thứ 6 13/11 → Thứ 5 19/11; 20/11 sang kỳ mới');
     await login(pg, 'u_lam', '2222'); await wait(300);

@@ -587,16 +587,33 @@ function syncPrev(s, prev){
 /* ===================== LƯU TRỮ ===================== */
 const IDB = { db:null, mem:{reports:new Map(),subs:new Map(),periods:new Map(),kv:new Map(),imgs:new Map()}, ok:true,
   async open(){ if (this.db || !this.ok) return this.db;
-    try { this.db = await new Promise((res,rej)=>{ const q = indexedDB.open('bcn_v2', 2);
-      q.onupgradeneeded = () => { const d=q.result; ['reports','subs','periods','kv','imgs'].forEach(s=>{ if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:'key'}); }); };
+    try { this.db = await new Promise((res,rej)=>{ const q = indexedDB.open('bcn_v2', 3);
+      q.onupgradeneeded = e => { const d=q.result; ['reports','subs','periods','kv','imgs'].forEach(s=>{ if(!d.objectStoreNames.contains(s)) d.createObjectStore(s,{keyPath:'key'}); });
+        // v3: ảnh đệm có mốc thời gian t để tự dọn; ảnh đệm cũ (không có t) xóa một lần, giữ logo
+        const st = q.transaction.objectStore('imgs'); if (!st.indexNames.contains('t')) { st.createIndex('t', 't');
+          if (e.oldVersion > 0) st.openCursor().onsuccess = ev => { const c = ev.target.result; if (!c) return; if (!String(c.key).startsWith('lg_') && !c.value.t) c.delete(); c.continue(); }; } };
       q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch(e){ this.ok=false; } return this.db; },
   async tx(s, mode, fn){ const d = await this.open(); return new Promise((res,rej)=>{ const r = fn(d.transaction(s, mode).objectStore(s)); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
   async get(s,k){ if(!(await this.open())) return this.mem[s].get(k)??null; const r = await this.tx(s,'readonly',st=>st.get(k)); return r? r.v : null; },
-  async put(s,k,v){ v = clone(v); if(!(await this.open())) { this.mem[s].set(k,v); return; } return this.tx(s,'readwrite',st=>st.put({key:k,v})); },
+  async put(s,k,v){ v = clone(v); if(!(await this.open())) { this.mem[s].set(k,v); return; } return this.tx(s,'readwrite',st=>st.put(s==='imgs' ? {key:k,v,t:Date.now()} : {key:k,v})); },
   async del(s,k){ if(!(await this.open())) { this.mem[s].delete(k); return; } return this.tx(s,'readwrite',st=>st.delete(k)); },
   async clear(s){ if(!(await this.open())) { this.mem[s].clear(); return; } return this.tx(s,'readwrite',st=>st.clear()); },
   async all(s){ if(!(await this.open())) return [...this.mem[s].values()].map(clone); const r = await this.tx(s,'readonly',st=>st.getAll()); return (r||[]).map(x=>x.v); }
 };
+/* Chỉ mục ngày từ máy chủ dạng gọn {r,s,t} → {reports, subs, testDays} */
+const ST_DEC = {l:'locked', d:'draft', s:'submitted', r:'returned', a:'accepted', p:'pending', v:'approved'}, dec1 = v => ST_DEC[v] || v || '';
+function idxDec(e){ if (!e || !e.r) return e || null;
+  return { reports: e.r.map(x=>({date:x[0], status:dec1(x[1]), version:x[2], review:dec1(x[3])})), subs: e.s.map(x=>({date:x[0], uid:x[1], status:dec1(x[2])})), testDays: e.t || [] }; }
+/* Ảnh đệm trên máy: giữ tối đa IMG_KEEP ảnh / IMG_DAYS ngày gần nhất (logo giữ nguyên) – ảnh vẫn còn trên Drive */
+const IMG_KEEP = 800, IMG_DAYS = 60;
+async function pruneImgs(){ const d = await IDB.open(); if (!d || !d.objectStoreNames.contains('imgs')) return 0;
+  return new Promise(res=>{ let n = 0; try { const st = d.transaction('imgs','readwrite').objectStore('imgs'); if (!st.indexNames.contains('t')) return res(0);
+    const cut = Date.now() - IMG_DAYS*864e5, cq = st.index('t').count();
+    cq.onsuccess = () => { let left = cq.result; const cur = st.index('t').openKeyCursor();
+      cur.onsuccess = () => { const c = cur.result; if (!c) return res(n);
+        if (String(c.primaryKey).startsWith('lg_')) { c.continue(); return; }
+        if (c.key < cut || left > IMG_KEEP) { st.delete(c.primaryKey); n++; left--; c.continue(); } else res(n); };
+      cur.onerror = () => res(n); }; } catch(e){ res(n); } }); }
 const pinHash = (uidv, pin) => sha('bcn|' + uidv + '|' + pin);
 const stripImgs = o => { const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layouts||[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; };
 let TOKEN = '';
@@ -867,7 +884,7 @@ const refreshIdx = async () => renderDateSel();
 function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date===o.date && (kind==='reports' || x.uid===o.uid)); if (i>=0) L[i] = o; else L.push(o); }
 /* Gói dữ liệu → trạng thái màn hình (không gọi máy chủ) */
 function applyBundle(b, mode, u){
-  IDX = b.index || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
+  IDX = idxDec(b.index) || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
   if ('others' in b) othersBanner(b.others);
   R = b.report ? normReport(b.report) : null;
   const pm = R && R.status==='locked' ? null : prevMerged();
@@ -1448,6 +1465,7 @@ async function saveS_(silent){
 async function saveR_(silent){
   if (!R || !isChot() || CONFL.R) return; clearTimeout(saveTimer.R); dirty.R = false; setSave('saving');
   try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); if (FORCE.R) payload.force = true; if (ACCEPT.length) payload.acceptSubs = ACCEPT.slice();
+    if (IS_GAS && !saveR_.warned && JSON.stringify(payload).length > 150000) { saveR_.warned = 1; toast('⚠ Báo cáo ngày rất lớn (gần giới hạn lưu 180.000 ký tự) – nên gộp bớt việc/kế hoạch trùng', 8000); }
     const res = await Store.saveReport(payload); ACCEPT = [];
     if (res && res.accepted) res.accepted.forEach((u,i)=>{ const sb = SUBS.find(x=>x.uid===u); if (sb) sb.rev = res.subRevs[i]; }); delete R.wbsMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
     if (res && res.layouts) res.layouts.forEach((f,i)=>{ if (R.layouts[i] && f) R.layouts[i].fileId = f; }); if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
@@ -2054,7 +2072,7 @@ async function boot(){
   const c = b && b.config;
   if (qv && c) { CFG = Object.assign(clone(GENERIC_CFG), c); const v = await Store.verify(qv); return showVerify(Object.assign({code:qv, project:c.project.code, projectName:c.project.name, consultant:c.project.consultantShort}, v)); }
   if (!c || !c.setupDone) { CFG = clone(GENERIC_CFG); return showSetup(); }
-  CFG = Object.assign(clone(GENERIC_CFG), c); IDX = b.index || IDX; setSub();
+  CFG = Object.assign(clone(GENERIC_CFG), c); IDX = idxDec(b.index) || IDX; setSub();
   const ss = sessLoad();
   if (ss && ss.code === CFG.project.code && CFG.users.find(u=>u.id===ss.uid)) {
     if (idleOver()) { sessClear(); showLogin(); return toast(`Đã tự đăng xuất do không thao tác quá ${idleH()} giờ`, 5000); }
@@ -2062,6 +2080,7 @@ async function boot(){
   showLogin();
 }
 window.addEventListener('beforeunload', ()=>{ flush(); });
+if (IS_GAS) setTimeout(()=>pruneImgs().catch(()=>{}), 20000);   // dọn ảnh đệm cũ sau khi app đã mở xong
 boot();
 </script>
 </body>

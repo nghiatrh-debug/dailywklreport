@@ -19,8 +19,8 @@ const TOKEN_DAYS = 30;
 const CACHE_TTL = 21600;   // 6 giờ (tối đa của CacheService)
 
 const SCHEMA = {
-  BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json','tvgs_kiem_tra','ma_xac_thuc'],
-  PhieuKS:   ['khoa','ngay','ma_nguoi','ten','khu_vuc','trang_thai','nop_luc','nhap_thay_boi','ghi_chu','tra_lai_ghi_chu','so_viec','so_anh','cap_nhat_luc','json'],
+  BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json','tvgs_kiem_tra','ma_xac_thuc','json_2','json_3','json_4'],
+  PhieuKS:   ['khoa','ngay','ma_nguoi','ten','khu_vuc','trang_thai','nop_luc','nhap_thay_boi','ghi_chu','tra_lai_ghi_chu','so_viec','so_anh','cap_nhat_luc','json','json_2','json_3','json_4'],
   CongViec:  ['ngay','loai','bo_mon','khu_vuc','stt','noi_dung','vi_tri','ma_wbs','dvt','kl_ngay','tien_do_text','tien_do_pct','tien_do_truoc','lap_lai','nguoi_bao_cao','ma_tien_do','kh_hom_nay','thuc_hien','chenh_lech','du_kien_them'],
   NhanLuc:   ['ngay','chuc_danh','so_luong'],
   ThietBi:   ['ngay','thiet_bi','so_luong'],
@@ -42,7 +42,7 @@ function doGet(e) {
   try {
     const v = e && e.parameter && e.parameter.v;
     // ?v=<mã xác thực>: trang xác thực công khai (quét QR trên PDF) – không cần đăng nhập
-    boot = JSON.stringify(v ? { config: publicCfg_(), verify: verify_(v) } : { config: cfg_(), index: index_() }).replace(/</g, '\\u003c');
+    boot = JSON.stringify(v ? { config: publicCfg_(), verify: verify_(v) } : { config: cfg_(), index: idxEnc_(index_()) }).replace(/</g, '\\u003c');
   } catch (err) { boot = ''; }
   t.boot = boot;
   return t.evaluate()
@@ -60,7 +60,7 @@ function setup() {
 }
 
 /* ======================= CẤU HÌNH, ĐĂNG NHẬP ======================= */
-function apiBoot() { return JSON.stringify({ config: cfg_(), index: index_() }); }
+function apiBoot() { return JSON.stringify({ config: cfg_(), index: idxEnc_(index_()) }); }
 function apiPublicConfig() { return kv_('config'); }
 
 function apiSetup(cfgJson, pin) {
@@ -140,7 +140,7 @@ function bundle_(me, date, mode, uid) {
   if (me.role === 'ks') subs = subs.filter(s => s.uid === me.id);
   const before = all.filter(d => d < date).sort(), pd = before[before.length - 1] || '';
   const prev = pd ? dayData_(pd) : null;
-  const out = { date: date, index: idx, report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+  const out = { date: date, index: idxEnc_(idx, me.role === 'ks' ? me.id : ''), report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
   if (me.role === 'admin') out.links = links_();
   return out;
 }
@@ -179,22 +179,51 @@ function apiSaveSub(token, json) {
   } finally { lock.releaseLock(); }
 }
 
+/* Ô Google Sheet tối đa 50.000 ký tự → JSON dài chia sang cột json_2..json_4 (mỗi ô 45.000, tối đa ~180.000 ký tự) */
+const JMAX = 45000;
+function jsonCells_(o, what) {
+  const s = JSON.stringify(o);
+  if (s.length > JMAX * 4) throw new Error((what || 'Dữ liệu') + ' quá lớn (' + Math.round(s.length / 1000) + ' nghìn ký tự, tối đa 180) – tách bớt việc/ảnh sang ngày khác hoặc liên hệ quản trị');
+  // cột phụ có tiền tố "~" để Sheet không hiểu nhầm thành công thức/số
+  return [s.slice(0, JMAX)].concat([1, 2, 3].map(k => { const p = s.slice(JMAX * k, JMAX * (k + 1)); return p ? '~' + p : ''; }));
+}
+function jsonOf_(name, row) {
+  const H = SCHEMA[name]; let s = String(row[H.indexOf('json')] || '');
+  ['json_2', 'json_3', 'json_4'].forEach(k => { const v = String(row[H.indexOf(k)] || ''); if (v) s += v.charAt(0) === '~' ? v.slice(1) : v; });
+  return s ? JSON.parse(s) : null;
+}
+
 /** Ghi 1 phiếu vào Sheet + cập nhật luôn bộ đệm ngày/chỉ mục (không xóa → lần mở/lưu sau khỏi đọc lại Sheet). */
 function writeSub_(s, c, day) {
-  const d = s.date, store = strip_(s);
+  const d = s.date, store = strip_(s); ensureHeader_('PhieuKS');
   const zones = c.zones.filter(z => z.owner === s.uid).map(z => z.name + ' (' + z.section + ')').join(', ');
   upsertRow_('PhieuKS', 0, s.key, [s.key, d, s.uid, userName_(c, s.uid), zones, s.status, s.submittedAt || '', s.enteredBy ? userName_(c, s.enteredBy) : '',
-    s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_(), JSON.stringify(store)]);
+    s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_()].concat(jsonCells_(store, 'Phiếu ' + d)));
   const i = day.subs.findIndex(x => x.uid === s.uid); if (i >= 0) day.subs[i] = store; else day.subs.push(store);
   dayPut_(d, day); idxPatch_('subs', { date: d, uid: s.uid, status: s.status });
 }
 function dayPut_(d, day) { cdel_(['day:' + d]); MEMO['c:day:' + d] = day; cput_('day:' + d, day); }
 /** Sửa 1 dòng trong chỉ mục đang đệm (nếu có); quá lớn không đệm được thì xóa để lần sau dựng lại. */
 function idxPatch_(kind, rec) {
-  const idx = MEMO.idx || cget_('idx'); if (!idx) return;
+  const idx = MEMO.idx || idxDec_(cget_('idx')); if (!idx) return;
   const L = idx[kind], i = L.findIndex(x => x.date === rec.date && (kind === 'reports' || x.uid === rec.uid));
   if (i >= 0) L[i] = Object.assign(L[i], rec); else L.push(rec);
-  cdel_(['idx']); MEMO.idx = idx; cput_('idx', idx);
+  cdel_(['idx']); MEMO.idx = idx; cput_('idx', idxEnc_(idx));
+}
+/* Chỉ mục gửi/đệm dạng gọn: {r:[[ngày,tt,bản,tvgs]], s:[[ngày,người,tt]], t:[ngày thử]} – nhỏ ~3 lần */
+const IDX_DAYS = 120;
+const ST_ = { locked: 'l', draft: 'd', submitted: 's', returned: 'r', accepted: 'a', pending: 'p', approved: 'v' };
+const TS_ = Object.keys(ST_).reduce((o, k) => (o[ST_[k]] = k, o), {});
+const enc1_ = v => ST_[v] || v || '', dec1_ = v => TS_[v] || v || '';
+function idxEnc_(idx, uid) {
+  if (!idx) return null;
+  return { r: idx.reports.map(x => [x.date, enc1_(x.status), x.version || 0, enc1_(x.review)]),
+           s: idx.subs.filter(x => !uid || x.uid === uid).map(x => [x.date, x.uid, enc1_(x.status)]), t: idx.testDays || [] };
+}
+function idxDec_(e) {
+  if (!e || !e.r) return e && e.reports ? e : null;
+  return { reports: e.r.map(x => ({ date: x[0], status: dec1_(x[1]), version: x[2], review: dec1_(x[3]) })),
+           subs: e.s.map(x => ({ date: x[0], uid: x[1], status: dec1_(x[2]) })), testDays: e.t || [] };
 }
 
 function apiSaveReport(token, json) {
@@ -236,13 +265,13 @@ const pctOf_ = v => { const s = String(v == null ? '' : v).trim(); return /^-?\d
 const REVIEW_TXT = { pending: 'CHO_KIEM_TRA', returned: 'YEU_CAU_SUA', approved: 'DA_XAC_NHAN' };
 /** Ghi 1 dòng BaoCao (dùng chung cho người chốt và TVGS). */
 function writeReport_(r, c) {
-  const d = r.date, store = strip_(r), tasks = r.tasks || [], rv = r.review || {};
+  const d = r.date, store = strip_(r), tasks = r.tasks || [], rv = r.review || {}, jc = jsonCells_(store, 'Báo cáo ngày ' + d);
   const pdf = (rowOf_('BaoCao', 0, d) || [])[12] || '';
   ensureHeader_('BaoCao');
   upsertRow_('BaoCao', 0, d, [d, r.status, r.version || 0, r.lockedBy ? userName_(c, r.lockedBy) : '', r.lockedAt || '', r.weather.am, r.weather.pm, r.weather.temp,
     (r.manpower || []).reduce((s, m) => s + (Number(m.qty) || 0), 0), (r.equipment || []).filter(m => Number(m.qty) > 0).length,
-    tasks.length, tasks.filter(t => pctOf_(t.progress) !== '' && pctOf_(t.progress) >= 100).length, pdf, now_(), JSON.stringify(store),
-    REVIEW_TXT[rv.status] || '', rv.status === 'approved' ? rv.code : '']);
+    tasks.length, tasks.filter(t => pctOf_(t.progress) !== '' && pctOf_(t.progress) >= 100).length, pdf, now_(), jc[0],
+    REVIEW_TXT[rv.status] || '', rv.status === 'approved' ? rv.code : '', jc[1], jc[2], jc[3]]);
 }
 
 /** Chống ghi đè: bản gửi lên mang baseRev = rev lúc mở. Máy chủ đã có rev khác → từ chối (CONFLICT|giờ|người).
@@ -401,23 +430,23 @@ function apiDeleteDay(token, date) {
 /** Báo cáo trong khoảng ngày (không ảnh) + phần nhập tay của kỳ – 1 lần gọi. */
 function apiPeriod(token, from, to, key) {
   auth_(token);
-  const j = SCHEMA.BaoCao.indexOf('json'), sh = sheet_('BaoCao'), keys = col_('BaoCao', 0);
+  const W = SCHEMA.BaoCao.length, sh = sheet_('BaoCao'), keys = col_('BaoCao', 0);
   const rowsIdx = []; keys.forEach((k, i) => { if (k >= from && k <= to) rowsIdx.push(i); });
   let reports = [];
   if (rowsIdx.length) {
     const a = Math.min.apply(null, rowsIdx), b = Math.max.apply(null, rowsIdx);
-    const vals = sh.getRange(a + 2, j + 1, b - a + 1, 1).getValues();
-    reports = rowsIdx.map(i => ({ d: keys[i], r: JSON.parse(vals[i - a][0]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
+    const vals = sh.getRange(a + 2, 1, b - a + 1, Math.min(W, sh.getLastColumn())).getValues();
+    reports = rowsIdx.map(i => ({ d: keys[i], r: jsonOf_('BaoCao', vals[i - a]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
   }
   let manual = null;
   if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? JSON.parse(row[SCHEMA.TongHopKy.indexOf('json')]) : null; }
   // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
   const locked = {}; reports.forEach(r => { if (r && r.status === 'locked') locked[r.date] = 1; });
-  const pk = col_('PhieuKS', 1), pj = SCHEMA.PhieuKS.indexOf('json'), pi = [];
+  const pk = col_('PhieuKS', 1), PW = SCHEMA.PhieuKS.length, pi = [];
   pk.forEach((k, i) => { if (k >= from && k <= to && !locked[k]) pi.push(i); });
   let subs = [];
   if (pi.length) { const a = Math.min.apply(null, pi), b = Math.max.apply(null, pi);
-    const vals = sheet_('PhieuKS').getRange(a + 2, pj + 1, b - a + 1, 1).getValues(); subs = pi.map(i => JSON.parse(vals[i - a][0])); }
+    const ps = sheet_('PhieuKS'), vals = ps.getRange(a + 2, 1, b - a + 1, Math.min(PW, ps.getLastColumn())).getValues(); subs = pi.map(i => jsonOf_('PhieuKS', vals[i - a])); }
   return JSON.stringify({ reports: reports, manual: manual, subs: subs });
 }
 function apiSavePeriod(token, json) {
@@ -489,7 +518,7 @@ function mergeWbs_(add) {
 }
 function index_() {
   if (MEMO.idx) return MEMO.idx;
-  let idx = cget_('idx');
+  let idx = idxDec_(cget_('idx'));
   if (!idx) {
     const rb = sheet_('BaoCao'), nb = rb.getLastRow() - 1, rp = sheet_('PhieuKS'), np = rp.getLastRow() - 1;
     const b = nb > 0 ? rb.getRange(2, 1, nb, 3).getValues() : [], p = np > 0 ? rp.getRange(2, 2, np, 5).getValues() : [];
@@ -497,7 +526,11 @@ function index_() {
     const RV = { CHO_KIEM_TRA: 'pending', YEU_CAU_SUA: 'returned', DA_XAC_NHAN: 'approved' };
     idx = { reports: b.map((r, i) => ({ date: String(r[0]), status: r[1], version: r[2], review: RV[(rv[i] || [])[0]] || '' })).filter(r => r.date),
             subs: p.filter(r => r[0]).map(r => ({ date: String(r[0]), uid: r[1], status: r[4] })), testDays: testDays_() };
-    cput_('idx', idx);
+    // Phiếu của ngày đã chốt quá IDX_DAYS ngày: bỏ chi tiết (ngày vẫn còn trong danh sách báo cáo) → chỉ mục không phình theo thời gian
+    const cut = Utilities.formatDate(new Date(Date.now() - IDX_DAYS * 864e5), TZ, 'yyyy-MM-dd'), lk = {};
+    idx.reports.forEach(r => { if (r.status === 'locked') lk[r.date] = 1; });
+    idx.subs = idx.subs.filter(x => !(x.date < cut && lk[x.date]));
+    cput_('idx', idxEnc_(idx));
   }
   return (MEMO.idx = idx);
 }
@@ -508,12 +541,12 @@ function dayData_(d) {
   let v = cget_(ck);
   if (!v) {
     const row = rowOf_('BaoCao', 0, d);
-    const report = row ? JSON.parse(row[SCHEMA.BaoCao.indexOf('json')]) : null;
-    const keys = col_('PhieuKS', 1), sh = sheet_('PhieuKS'), j = SCHEMA.PhieuKS.indexOf('json');
+    const report = row ? jsonOf_('BaoCao', row) : null;
+    const keys = col_('PhieuKS', 1), sh = sheet_('PhieuKS'), W = SCHEMA.PhieuKS.length;
     const ri = []; keys.forEach((k, i) => { if (k === String(d)) ri.push(i); });
     let subs = [];
     if (ri.length) { const a = Math.min.apply(null, ri), b = Math.max.apply(null, ri);
-      const vals = sh.getRange(a + 2, j + 1, b - a + 1, 1).getValues(); subs = ri.map(i => JSON.parse(vals[i - a][0])); }
+      const vals = sh.getRange(a + 2, 1, b - a + 1, Math.min(W, sh.getLastColumn())).getValues(); subs = ri.map(i => jsonOf_('PhieuKS', vals[i - a])); }
     v = { report: report, subs: subs };
     cput_(ck, v);
   }
@@ -530,7 +563,7 @@ function sheet_(name) {
     sh.setFrozenRows(1);
     sh.getRange('A:B').setNumberFormat('@');
     if (name === 'TongHopKy') sh.getRange('C:D').setNumberFormat('@');
-    if (h[h.length - 1] === 'json') sh.hideColumns(h.length);
+    ['json', 'json_2', 'json_3', 'json_4'].forEach(k => { const i = h.indexOf(k); if (i >= 0) sh.hideColumns(i + 1); });
   }
   return (MEMO['sh:' + name] = sh);
 }
@@ -556,8 +589,9 @@ function upsertRow_(name, keyCol, key, row) {
 /** Xóa các dòng có cột keyCol = d (xóa theo khối liền nhau, từ dưới lên) rồi thêm các dòng mới cuối bảng. */
 function replaceDay_(name, d, rows, keyCol) {
   keyCol = keyCol || 0;
-  const sh = sheet_(name), w = SCHEMA[name].length, keys = col_(name, keyCol);
-  const idx = []; keys.forEach((k, i) => { if (k === String(d)) idx.push(i + 2); });
+  const sh = sheet_(name), w = SCHEMA[name].length, n = sh.getLastRow() - 1;
+  // tìm dòng của ngày bằng TextFinder (Google tìm phía máy chủ) – không đọc cả cột, bảng lớn vẫn nhanh
+  const idx = n > 0 ? sh.getRange(2, keyCol + 1, n, 1).createTextFinder(String(d)).matchEntireCell(true).findAll().map(c => c.getRow()).sort((a, b) => a - b) : [];
   for (let e = idx.length - 1; e >= 0;) { let s = e; while (s > 0 && idx[s - 1] === idx[s] - 1) s--; sh.deleteRows(idx[s], e - s + 1); e = s - 1; }
   if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, w).setValues(rows.map(r => r.map(v => v == null ? '' : v)));
   forget_(name);
@@ -565,7 +599,8 @@ function replaceDay_(name, d, rows, keyCol) {
 /** Bảng cũ thiếu cột mới (nâng cấp phiên bản) → ghi lại dòng tiêu đề. */
 function ensureHeader_(name) {
   const sh = sheet_(name), h = SCHEMA[name];
-  if (sh.getLastColumn() < h.length) sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#eef2ff');
+  if (sh.getLastColumn() < h.length) { sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#eef2ff');
+    const j2 = h.indexOf('json_2'); if (j2 >= 0) try { sh.hideColumns(j2 + 1, 3); } catch (e) {} }
 }
 function setCell_(name, key, col, val) {
   const i = col_(name, 0).indexOf(String(key));

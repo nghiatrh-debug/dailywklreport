@@ -154,3 +154,9 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 - Lưu tuần tự, gộp yêu cầu trùng (tối đa 1 lượt chờ).
 - PDF: ảnh đã có trên máy gửi kèm; ảnh còn lại máy chủ đọc từ Drive (mỗi ảnh 1 lần). Ảnh mặt bằng 2000 px.
 - Cài đặt → **⏱ Đo tốc độ** (`apiPing`): mạng + Google, đọc Sheet, bộ đệm.
+
+## 7. Dữ liệu lớn dần theo thời gian (bổ sung 16/11/2026)
+- **Chỉ mục ngày** gửi/đệm dạng gọn `{r:[[ngày,tt,bản,tvgs]], s:[[ngày,người,tt]], t}` (mã 1 ký tự). Kỹ sư chỉ nhận phiếu của mình. Phiếu của ngày đã chốt quá 120 ngày bỏ khỏi chỉ mục (ngày vẫn còn qua danh sách báo cáo).
+- **Ô JSON > 45.000 ký tự** chia sang cột ẩn `json_2..json_4` (BaoCao, PhieuKS) – tối đa ~180.000 ký tự; vượt → báo lỗi rõ. Giao diện cảnh báo khi báo cáo > 150.000.
+- **Chốt ngày** tìm dòng các bảng chuẩn hóa bằng `TextFinder` (không đọc cả cột).
+- **Ảnh đệm trên máy** (IndexedDB v3, mốc `t`): giữ tối đa 800 ảnh / 60 ngày, logo giữ nguyên; ảnh đệm cũ không có mốc xóa 1 lần khi nâng cấp.

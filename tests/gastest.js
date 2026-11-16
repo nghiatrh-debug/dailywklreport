@@ -1,7 +1,7 @@
 const { ctx: C, sheets, files, props, cacheStore, shared, stats } = require('./gasmock.js');
 const ctx = new Proxy(C, { get(o,k){ const f=o[k]; return typeof f==='function' && String(k).startsWith('api') ? (...a)=>{ o.__resetMemo(); return f(...a); } : f; } });
 const A = (c)=>{ if(!c[0]) { console.log('FAIL', c[1]); process.exitCode=1; } else console.log('ok', c[1]); };
-const J = s=>JSON.parse(s);
+const J = s=>{ const o = JSON.parse(s); if (o && o.index && o.index.r) o.index = C.idxDec_(o.index); return o; };
 ctx.setup();
 const cfg = { project:{code:'TST',name:'Test'}, users:[{id:'uA',name:'Admin',role:'admin',active:true}], zones:[], wbs:[], setupDone:true, manpower:[], equipment:[] };
 const s1 = J(ctx.apiSetup(JSON.stringify(cfg), '1234')); A([s1.token, 'setup token']);
@@ -158,6 +158,29 @@ console.log('Đợt 5: xong');
   const pg = J(ctx.apiPing(tk, true)); A([pg.role === 'admin' && pg.total >= 0 && 'sheet' in pg, 'đo tốc độ (apiPing)']);
 })();
 console.log('Tốc độ: xong');
+// ===== Nặng dần theo thời gian: chỉ mục gọn, ô 50.000 ký tự, TextFinder =====
+(() => {
+  const raw = JSON.parse(ctx.apiOpen(tk, '2026-11-15', 'day', '')).index;
+  A([Array.isArray(raw.r) && Array.isArray(raw.s) && !raw.reports, 'chỉ mục gửi dạng gọn {r,s,t}']);
+  const full = C.index_(); A([JSON.stringify(raw).length * 2 < JSON.stringify({ reports: full.reports, subs: full.subs }).length, 'chỉ mục gọn nhỏ hơn ≥2 lần: ' + JSON.stringify(raw).length + ' / ' + JSON.stringify({ reports: full.reports, subs: full.subs }).length]);
+  const ks = JSON.parse(ctx.apiOpen(tkK, '2026-11-15', 'my', '')).index; A([ks.s.every(x => x[1] === 'uK'), 'kỹ sư chỉ nhận chỉ mục phiếu của mình']);
+  // ngày rất lớn: báo cáo > 50.000 ký tự
+  const d = '2026-11-30', long = 'x'.repeat(380);
+  const big = Object.assign({}, rep, { date: d, status: 'draft', version: 0, layouts: [], photos: [], plans: [], baseRev: 0, tasks: Array.from({ length: 300 }, (_, i) => ({ zoneId: 'z1', desc: 'Việc ' + i + ' ' + long, progress: '10%', by: 'uK' })) });
+  ctx.apiSaveReport(tk, JSON.stringify(big));
+  const row = sheets.BaoCao.data.find(r => r[0] === d), H = sheets.BaoCao.data[0];
+  A([row[H.indexOf('json')].length <= 45000 && String(row[H.indexOf('json_2')]).charAt(0) === '~' && row.every(v => String(v).length <= 50000), 'báo cáo > 50.000 ký tự: tự chia sang cột phụ, mỗi ô ≤ 50.000']);
+  ctx.__resetMemo(); Object.keys(cacheStore).forEach(k => delete cacheStore[k]);
+  const back = J(ctx.apiOpen(tk, d, 'day', '')).report; A([back.tasks.length === 300 && back.tasks[299].desc.endsWith(long), 'đọc lại ghép đủ 300 việc']);
+  A([J(ctx.apiPeriod(tk, d, d, '')).reports[0].tasks.length === 300, 'báo cáo tuần đọc được ngày lớn']);
+  let err = ''; try { ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, big, { baseRev: 1, tasks: Array.from({ length: 600 }, (_, i) => ({ zoneId: 'z1', desc: long, by: 'uK' })) }))); } catch (e) { err = e.message; }
+  A([/quá lớn/.test(err), 'vượt 180.000 ký tự → báo lỗi rõ, không ghi hỏng']);
+  // chốt ngày: tìm dòng bằng TextFinder, thay đúng dòng
+  const f0 = stats.finds || 0; const nCV = sheets.CongViec.data.length;
+  ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, rep, { date: '2026-11-15', status: 'locked', version: 3, baseRev: null, force: true, layouts: [] })));
+  A([(stats.finds || 0) > f0 && sheets.CongViec.data.length === nCV, 'chốt lại: tìm dòng bằng TextFinder, không nhân đôi dòng']);
+})();
+console.log('Dung lượng: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);
