@@ -19,13 +19,13 @@ const TOKEN_DAYS = 30;
 const CACHE_TTL = 21600;   // 6 giờ (tối đa của CacheService)
 
 const SCHEMA = {
-  BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json'],
+  BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json','tvgs_kiem_tra','ma_xac_thuc'],
   PhieuKS:   ['khoa','ngay','ma_nguoi','ten','khu_vuc','trang_thai','nop_luc','nhap_thay_boi','ghi_chu','tra_lai_ghi_chu','so_viec','so_anh','cap_nhat_luc','json'],
   CongViec:  ['ngay','loai','bo_mon','khu_vuc','stt','noi_dung','vi_tri','ma_wbs','dvt','kl_ngay','tien_do_text','tien_do_pct','tien_do_truoc','lap_lai','nguoi_bao_cao','ma_tien_do','kh_hom_nay','thuc_hien','chenh_lech','du_kien_them'],
   NhanLuc:   ['ngay','chuc_danh','so_luong'],
   ThietBi:   ['ngay','thiet_bi','so_luong'],
   NghiemThu: ['ngay','loai','khu_vuc','noi_dung','vi_tri','ket_qua_hoac_thoi_gian','nguoi_bao_cao'],
-  ThiNghiem: ['ngay','khu_vuc','noi_dung','vi_tri','ket_qua','nguoi_bao_cao'],
+  ThiNghiem: ['ngay','khu_vuc','noi_dung','vi_tri','ket_qua','nguoi_bao_cao','loai'],
   VatTu:     ['ngay','chung_loai','quy_cach','dvt','so_luong'],
   AnToan:    ['ngay','noi_dung','bien_phap'],
   HinhAnh:   ['ngay','nguon','khu_vuc','chu_thich','chup_luc','canh_bao','file_id','url'],
@@ -144,7 +144,7 @@ function apiSaveSub(token, json) {
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     const s = JSON.parse(json), d = s.date;
-    const day = dayData_(d);
+    const day = dayData_(d); markTest_(d, day);
     if (day.report && day.report.status === 'locked') throw new Error('Báo cáo ngày ' + d + ' đã chốt – không sửa phiếu được');
     const old = day.subs.find(x => x.uid === s.uid);
     if (me.role === 'ks') {
@@ -172,7 +172,12 @@ function apiSaveReport(token, json) {
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     const r = JSON.parse(json), d = r.date, c = cfg_();
-    const old = dayData_(d).report;
+    const dd = dayData_(d), old = dd.report; markTest_(d, dd);
+    // Trạng thái TVGS do máy chủ quản lý – giao diện không tự đặt được
+    const kept = old && old.review ? old.review : null;
+    if (old && old.status === 'locked' && old.review && old.review.status === 'approved' && r.status === 'locked') throw new Error('Báo cáo đã được TVGS xác nhận – mở khóa trước khi sửa');
+    if (r.status === 'locked') r.review = (!old || old.status !== 'locked') ? (reviewOn_(c) ? { status: 'pending', since: now_(), lastNote: kept && kept.status === 'returned' ? kept.note : '' } : null) : kept;
+    else r.review = kept && kept.status === 'returned' ? kept : null;
     mergeWbs_(r.wbsMem); delete r.wbsMem;
     const need = (r.layout && !r.layout.fileId && r.layout.img) || (r.extraPhotos || []).some(p => !p.fileId && p.img);
     if (need) { const folder = subFolder_(rootFolder_(), 'HinhAnh', d);
@@ -180,18 +185,95 @@ function apiSaveReport(token, json) {
     // ảnh bổ sung vừa tải lên → cập nhật fileId trong mảng gộp
     const ex = {}; (r.extraPhotos || []).forEach(p => { if (p.id) ex[p.id] = p.fileId; });
     (r.photos || []).forEach(p => { if (!p.fileId && p.id && ex[p.id]) p.fileId = ex[p.id]; });
-    const store = strip_(r);
-    const pctOf = v => { const s = String(v == null ? '' : v).trim(); return /^-?\d+([.,]\d+)?\s*%?$/.test(s) ? parseFloat(s.replace(',', '.')) : ''; };
-    const tasks = r.tasks || [];
-    const pdf = (rowOf_('BaoCao', 0, d) || [])[12] || '';
-    upsertRow_('BaoCao', 0, d, [d, r.status, r.version || 0, r.lockedBy ? userName_(c, r.lockedBy) : '', r.lockedAt || '', r.weather.am, r.weather.pm, r.weather.temp,
-      (r.manpower || []).reduce((s, m) => s + (Number(m.qty) || 0), 0), (r.equipment || []).filter(m => Number(m.qty) > 0).length,
-      tasks.length, tasks.filter(t => pctOf(t.progress) !== '' && pctOf(t.progress) >= 100).length, pdf, now_(), JSON.stringify(store)]);
-    if (r.status === 'locked') writeNormalized_(r, c, pctOf);     // bảng chuẩn hóa = số liệu đã chốt
+    writeReport_(r, c);
+    if (r.status === 'locked') writeNormalized_(r, c, pctOf_);     // bảng chuẩn hóa = số liệu đã chốt
     cdel_(['idx', 'day:' + d]);
     if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, '');
-    return JSON.stringify({ ok: true, layout: r.layout ? r.layout.fileId || '' : '', extra: (r.extraPhotos || []).map(p => p.fileId || '') });
+    return JSON.stringify({ ok: true, review: r.review || null, layout: r.layout ? r.layout.fileId || '' : '', extra: (r.extraPhotos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
+}
+
+const pctOf_ = v => { const s = String(v == null ? '' : v).trim(); return /^-?\d+([.,]\d+)?\s*%?$/.test(s) ? parseFloat(s.replace(',', '.')) : ''; };
+const REVIEW_TXT = { pending: 'CHO_KIEM_TRA', returned: 'YEU_CAU_SUA', approved: 'DA_XAC_NHAN' };
+/** Ghi 1 dòng BaoCao (dùng chung cho người chốt và TVGS). */
+function writeReport_(r, c) {
+  const d = r.date, store = strip_(r), tasks = r.tasks || [], rv = r.review || {};
+  const pdf = (rowOf_('BaoCao', 0, d) || [])[12] || '';
+  ensureHeader_('BaoCao');
+  upsertRow_('BaoCao', 0, d, [d, r.status, r.version || 0, r.lockedBy ? userName_(c, r.lockedBy) : '', r.lockedAt || '', r.weather.am, r.weather.pm, r.weather.temp,
+    (r.manpower || []).reduce((s, m) => s + (Number(m.qty) || 0), 0), (r.equipment || []).filter(m => Number(m.qty) > 0).length,
+    tasks.length, tasks.filter(t => pctOf_(t.progress) !== '' && pctOf_(t.progress) >= 100).length, pdf, now_(), JSON.stringify(store),
+    REVIEW_TXT[rv.status] || '', rv.status === 'approved' ? rv.code : '']);
+}
+
+/* ======================= TVGS KIỂM TRA NỘI DUNG ======================= */
+/** Bắt buộc TVGS kiểm tra khi: công tắc bật (mặc định) và có ít nhất 1 tài khoản TVGS đang hoạt động. */
+function reviewOn_(c) { return !!c && (c.settings || {}).requireReview !== false && c.users.some(u => u.role === 'tvgs' && u.active !== false); }
+/** Mã xác thực = 8 ký tự đầu SHA-256 của nội dung báo cáo (không gồm trạng thái kiểm tra, link PDF). */
+function vcode_(r) {
+  const o = JSON.parse(JSON.stringify(r)); delete o.review; delete o.pdfUrl;
+  const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(o), Utilities.Charset.UTF_8);
+  const h = b.map(x => ((x + 256) % 256).toString(16).padStart(2, '0')).join('').toUpperCase();
+  return h.slice(0, 4) + '-' + h.slice(4, 8);
+}
+/** TVGS: action = 'approve' (xác nhận nội dung đúng) | 'return' (yêu cầu nhà thầu sửa, bắt buộc ghi chú). */
+function apiReview(token, date, action, note) {
+  const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const r = dayData_(date).report;
+    if (!r || r.status !== 'locked') throw new Error('Báo cáo ngày ' + date + ' chưa được nhà thầu chốt');
+    if (r.review && r.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo đã được xác nhận');
+    if (action === 'approve') {
+      r.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(r), version: r.version || 1 };
+      log_(me.id, 'TVGS_XAC_NHAN', date, r.review.code + ' · v' + r.review.version);
+    } else {
+      if (!String(note || '').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
+      r.review = { status: 'returned', by: me.id, at: now_(), note: String(note).trim(), version: r.version || 1 };
+      r.status = 'draft';
+      log_(me.id, 'TVGS_YEU_CAU_SUA', date, r.review.note);
+    }
+    writeReport_(r, c);
+    cdel_(['idx', 'day:' + date]);
+    return JSON.stringify(r.review);
+  } finally { lock.releaseLock(); }
+}
+/** Tra mã xác thực in trên PDF. */
+function apiVerify(token, code) {
+  auth_(token);
+  const k = String(code || '').toUpperCase().replace(/[^0-9A-F]/g, ''); if (k.length !== 8) return JSON.stringify({ ok: false });
+  const cd = k.slice(0, 4) + '-' + k.slice(4), i = col_('BaoCao', SCHEMA.BaoCao.indexOf('ma_xac_thuc')).indexOf(cd);
+  if (i >= 0) { const r = dayData_(col_('BaoCao', 0)[i]).report; return JSON.stringify({ ok: 'current', date: r.date, version: r.review.version, by: userName_(cfg_(), r.review.by), at: r.review.at }); }
+  const sh = sheet_('NhatKy'), n = sh.getLastRow() - 1, rows = n > 0 ? sh.getRange(2, 1, n, 5).getValues() : [];
+  const h = rows.filter(x => x[2] === 'TVGS_XAC_NHAN' && String(x[4]).indexOf(cd) === 0).pop();
+  return JSON.stringify(h ? { ok: 'old', date: String(h[3]), by: h[1], at: h[0] } : { ok: false });
+}
+
+/* ======================= LOGO, NGÀY THỬ ======================= */
+/** Logo đơn vị (đã thu nhỏ ở giao diện) → thư mục Drive "Logo"; trả fileId. */
+function apiSaveLogo(token, kind, dataUrl, oldId) {
+  auth_(token, ['admin']);
+  if (['consultant', 'client', 'contractor'].indexOf(kind) < 0) throw new Error('Loại logo không hợp lệ');
+  if (oldId) { try { DriveApp.getFileById(oldId).setTrashed(true); } catch (e) {} }
+  if (!dataUrl) return '';
+  const m = String(dataUrl).match(/^data:(.+?);base64,(.*)$/); if (!m) throw new Error('Ảnh logo không hợp lệ');
+  return subFolder_(rootFolder_(), 'Logo').createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], 'logo_' + kind + (m[1].indexOf('png') > 0 ? '.png' : '.jpg'))).getId();
+}
+const testDays_ = () => JSON.parse(kv_('testDays') || '[]');
+/** Chế độ thử nghiệm: ghi nhận ngày THỬ (chỉ những ngày trước đó chưa có dữ liệu thật). */
+function markTest_(d, day) {
+  const c = cfg_(); if (!c || !(c.settings || {}).testMode) return;
+  const L = testDays_(); if (L.indexOf(d) >= 0) return;
+  if (day.report || (day.subs || []).length) return;
+  L.push(d); setKv_('testDays', JSON.stringify(L)); cdel_(['idx']); delete MEMO.idx;
+}
+function apiClearTestDays(token) {
+  const me = auth_(token, ['admin']), L = testDays_();
+  L.forEach(d => { NORMALIZED.concat(['BaoCao']).forEach(n => replaceDay_(n, d, [])); replaceDay_('PhieuKS', d, [], 1); });
+  setKv_('testDays', '[]');
+  cdel_(['idx'].concat(L.map(d => 'day:' + d)));
+  log_(me.id, 'XOA_NGAY_THU', '', L.join(', '));
+  return L.length;
 }
 
 function writeNormalized_(r, c, pctOf) {
@@ -209,7 +291,9 @@ function writeNormalized_(r, c, pctOf) {
   replaceDay_('ThietBi', d, (r.equipment || []).map(m => [d, m.name, Number(m.qty) || 0]));
   replaceDay_('NghiemThu', d, (r.inspections || []).map(x => [d, 'TRONG_NGAY', zn(x.zoneId), x.desc, x.loc, x.result, userName_(c, x.by)])
     .concat((r.inspectionPlans || []).map(x => [d, 'KE_HOACH', zn(x.zoneId), x.desc, x.loc, x.time, userName_(c, x.by)])));
-  replaceDay_('ThiNghiem', d, (r.tests || []).map(x => [d, zn(x.zoneId), x.desc, x.loc, x.result, userName_(c, x.by)]));
+  ensureHeader_('ThiNghiem');
+  replaceDay_('ThiNghiem', d, (r.tests || []).map(x => [d, zn(x.zoneId), x.desc, x.loc, x.result, userName_(c, x.by), 'TRONG_NGAY'])
+    .concat((r.testPlans || []).map(x => [d, zn(x.zoneId), x.desc, x.loc, x.time, userName_(c, x.by), 'KE_HOACH'])));
   replaceDay_('VatTu', d, (r.materials || []).map(x => [d, x.name, x.spec, x.unit, Number(x.qty) || 0]));
   replaceDay_('AnToan', d, [[d, (r.safety && r.safety.summary) || '', '']].concat(((r.safety && r.safety.issues) || []).map(x => [d, x.desc, x.action])));
   const img = [];
@@ -222,6 +306,7 @@ function apiDeleteDay(token, date) {
   const me = auth_(token, ['admin']);
   NORMALIZED.concat(['BaoCao']).forEach(n => replaceDay_(n, date, []));
   replaceDay_('PhieuKS', date, [], 1);
+  const L = testDays_(); if (L.indexOf(date) >= 0) setKv_('testDays', JSON.stringify(L.filter(x => x !== date)));
   cdel_(['idx', 'day:' + date]);
   log_(me.id, 'XOA_NGAY', date, '');
   return true;
@@ -258,7 +343,9 @@ function apiSavePeriod(token, json) {
 
 /** HTML → PDF. Ảnh được giao diện đánh dấu src="fid:<fileId>" → máy chủ tự chèn từ Drive (đỡ gửi dữ liệu nặng từ điện thoại). */
 function apiExportPdf(token, html, fileName, key, kind) {
-  const me = auth_(token, ['admin', 'chot']);
+  const me = auth_(token, ['admin', 'chot']), c = cfg_();
+  if (kind === 'day' && reviewOn_(c)) { const r = dayData_(key).report;
+    if (!r || !r.review || r.review.status !== 'approved') throw new Error('Báo cáo chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
   html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + dataUrl_(id) + '"'; } catch (e) { return 'src=""'; } });
   const folder = subFolder_(rootFolder_(), 'PDF', kind === 'day' ? String(key).slice(0, 7) : (kind === 'week' ? 'Tuan' : 'Thang'));
   const old = folder.getFilesByName(fileName); while (old.hasNext()) old.next().setTrashed(true);
@@ -317,8 +404,10 @@ function index_() {
   if (!idx) {
     const rb = sheet_('BaoCao'), nb = rb.getLastRow() - 1, rp = sheet_('PhieuKS'), np = rp.getLastRow() - 1;
     const b = nb > 0 ? rb.getRange(2, 1, nb, 3).getValues() : [], p = np > 0 ? rp.getRange(2, 2, np, 5).getValues() : [];
-    idx = { reports: b.filter(r => r[0]).map(r => ({ date: String(r[0]), status: r[1], version: r[2] })),
-            subs: p.filter(r => r[0]).map(r => ({ date: String(r[0]), uid: r[1], status: r[4] })) };
+    const rc = SCHEMA.BaoCao.indexOf('tvgs_kiem_tra'), rv = nb > 0 && rb.getLastColumn() > rc ? rb.getRange(2, rc + 1, nb, 1).getValues() : [];
+    const RV = { CHO_KIEM_TRA: 'pending', YEU_CAU_SUA: 'returned', DA_XAC_NHAN: 'approved' };
+    idx = { reports: b.map((r, i) => ({ date: String(r[0]), status: r[1], version: r[2], review: RV[(rv[i] || [])[0]] || '' })).filter(r => r.date),
+            subs: p.filter(r => r[0]).map(r => ({ date: String(r[0]), uid: r[1], status: r[4] })), testDays: testDays_() };
     cput_('idx', idx);
   }
   return (MEMO.idx = idx);

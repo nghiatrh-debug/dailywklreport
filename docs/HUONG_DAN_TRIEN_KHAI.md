@@ -72,19 +72,33 @@ Kiểm thử gồm 2 phần chạy song song: **máy chủ** (`tests/gastest.js`
 ## 4b. Cách tính % và so sánh kế hoạch (từ đợt 2)
 | Ô trên phiếu | Ai nhập | Cách tính |
 |---|---|---|
-| Lũy kế hôm qua | Tự động, khóa | Lũy kế cuối ngày trước của cùng việc |
-| KH hôm nay | Tự động, khóa | “% dự kiến làm thêm” kỹ sư đặt hôm qua |
+| Lũy kế hôm qua | Tự động, khóa (việc mới: kỹ sư nhập 1 lần, trống = 0%) | Lũy kế cuối ngày trước của cùng việc |
+| KH hôm nay | Tự động, khóa | “% dự kiến thực hiện” kỹ sư đặt hôm qua |
 | **% làm được hôm nay** | **Kỹ sư** | — |
 | Lũy kế hôm nay | Tự động, khóa | Lũy kế hôm qua + % hôm nay (tối đa 100%) |
 | So với KH | Tự động | Đạt / Vượt / Hụt; hụt từ 2 ngày liền thì báo “hụt N ngày liên tiếp” |
 
-- **Việc mới thêm giữa chừng** (đã làm được một phần trước khi đưa vào app): nhập **% đã làm trước đó** một lần. Sau khi nộp, chỉ người chốt sửa được.
+- **Việc mới**: nhập **Lũy kế hôm qua** một lần (bỏ trống = 0%, việc mới triển khai). Sau khi nộp, chỉ người chốt sửa được.
 - **Việc theo dõi / lặp lại** (quan trắc, vệ sinh…): tick ô “Việc theo dõi” trong mục Chi tiết, rồi nhập kết quả dạng chữ (VD `CK11`).
-- **Kế hoạch ngày mai** (thanh **Ngày mai** trên điện thoại): nhập **% dự kiến làm thêm**; lũy kế dự kiến tự tính. Nút **⚡ Tự sinh** lấy tốc độ hôm nay làm mức dự kiến.
+- **Kế hoạch ngày mai** (thanh **Ngày mai** trên điện thoại): nhập **% dự kiến thực hiện**; lũy kế dự kiến tự tính. Nút **⚡ Tự sinh** lấy tốc độ hôm nay làm mức dự kiến.
 - Sửa số của ngày trước thì ngày sau **tự cập nhật** lũy kế khi mở phiếu.
 - KL ngày và ĐVT không bắt buộc, nằm trong mục **Chi tiết**.
 - Thêm mới (việc, kế hoạch, nhân lực, thiết bị, vật tư) luôn **hiện ở đầu danh sách**. Trên điện thoại có nút **＋** nổi ở góc phải.
 - **Người chốt quên chốt**: màn hình chốt hiện banner **“Còn N ngày chưa chốt”**, bấm vào ngày để mở. Báo cáo tuần/tháng vẫn gom các ngày này từ phiếu kỹ sư và ghi rõ **“số liệu tạm”**. PDF ngày chốt muộn ghi **“trễ N ngày”**.
+
+## 4c. TVGS kiểm tra nội dung (từ đợt 3)
+1. Quản trị thêm tài khoản vai trò **TVGS – kiểm tra nội dung** (Cấu hình → Người dùng & PIN), đặt PIN.
+2. Nhà thầu chốt ngày → báo cáo chuyển **Chờ TVGS kiểm tra**. App gợi ý tin nhắn Zalo nhắc TVGS.
+3. TVGS đăng nhập → **Kiểm tra báo cáo ngày** → xem bản báo cáo → bấm:
+   - **✔ Xác nhận nội dung**: PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” và **mã xác thực**; nhà thầu được lưu PDF chính thức và gửi link.
+   - **↩ Yêu cầu sửa** (ghi rõ chỗ sai): ngày mở lại cho nhà thầu sửa, chốt lại thì TVGS kiểm tra lần nữa.
+4. CĐT bấm **🔎 Tra mã xác thực**, nhập mã trên PDF để biết đó có phải bản TVGS đã kiểm tra.
+- Sửa báo cáo đã xác nhận: nhà thầu **Mở khóa** → dấu cũ bị hủy → chốt lại → TVGS xác nhận lại (bản v2).
+- Không cần bước này: tắt **Bắt buộc TVGS xác nhận** trong Cấu hình → Cài đặt.
+
+## 4d. Logo và chế độ thử nghiệm
+- **Logo**: Cấu hình → Dự án → Logo các đơn vị (TVGS, CĐT, Nhà thầu). Nên dùng PNG nền trong suốt.
+- **Chế độ thử nghiệm**: Cấu hình → Cài đặt → bật → chọn được ngày bất kỳ để thử báo cáo nhiều ngày liên tiếp. Thử xong bấm **Xóa toàn bộ ngày thử**, rồi tắt chế độ thử. Ngày đã có dữ liệu thật không bao giờ bị tính là ngày thử.
 
 ## 5. Dữ liệu (các tab trong Google Sheet)
 | Tab | Nội dung |

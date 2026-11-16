@@ -54,9 +54,47 @@ A([JSON.parse(sheets.BaoCao.data[1][14]).layout.img==='','json stripped imgs']);
 const url = ctx.apiExportPdf(tk,'<img src="fid:'+r.layout+'">','BCN_TST_2026-11-15.pdf','2026-11-15','day'); A([sheets.BaoCao.data[1][12]===url,'pdf url saved']);
 ctx.apiSavePeriod(tk, JSON.stringify({key:'W-2026-11-09',kind:'week',from:'2026-11-09',to:'2026-11-15',evaluation:'Đạt'})); A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-15','W-2026-11-09')).manual.evaluation==='Đạt','period manual']);
 A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]);
+// ===== Đợt 3: TVGS kiểm tra nội dung, mã xác thực, ngày thử, logo =====
+(() => {
+  const c3 = J(ctx.apiPublicConfig()); c3.users.push({ id:'uT', name:'TVGS', role:'tvgs', active:true }); ctx.apiSaveConfig(tk, JSON.stringify(c3)); ctx.__resetMemo && ctx.__resetMemo();
+  ctx.apiSetPin(tk, 'uT', '3333'); const tkT = J(ctx.apiLogin('uT', '3333')).token;
+  const d = '2026-11-20', base = Object.assign({}, rep, { date:d, status:'locked', version:1, tasks:[], plans:[], photos:[], layout:{caption:''} });
+  ctx.apiSaveReport(tk, JSON.stringify(base));
+  let r = J(ctx.apiOpen(tk, d, 'day')).report;
+  A([r.review && r.review.status === 'pending', 'chốt khi có TVGS → chờ kiểm tra']);
+  let err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'a.pdf', d, 'day'); } catch (e) { err = e.message; }
+  A([/TVGS/.test(err), 'chưa xác nhận → chặn xuất PDF']);
+  err = ''; try { ctx.apiReview(tk.replace(/./,'x'), d, 'approve'); } catch (e) { err = e.message; } A([/AUTH/.test(err), 'review cần đăng nhập']);
+  const kId = J(ctx.apiLogin('uK','1111')).token; err = ''; try { ctx.apiReview(kId, d, 'approve'); } catch (e) { err = e.message; } A([/quyền/.test(err), 'kỹ sư không xác nhận được']);
+  err = ''; try { ctx.apiReview(tkT, d, 'return', ''); } catch (e) { err = e.message; } A([/Ghi rõ/.test(err), 'yêu cầu sửa bắt buộc ghi chú']);
+  const ret = J(ctx.apiReview(tkT, d, 'return', 'Sai nhân lực'));
+  r = J(ctx.apiOpen(tk, d, 'day')).report; A([ret.status === 'returned' && r.status === 'draft' && r.review.note === 'Sai nhân lực', 'TVGS yêu cầu sửa → mở lại cho nhà thầu']);
+  const idx3 = J(ctx.apiOpen(tk, d, 'day')).index; A([idx3.reports.find(x=>x.date===d).review === 'returned', 'index có trạng thái TVGS']);
+  ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'locked', version:2, review:{ status:'approved', code:'GIAM-AO00' } })));
+  r = J(ctx.apiOpen(tk, d, 'day')).report; A([r.review.status === 'pending' && r.review.lastNote === 'Sai nhân lực', 'chốt lại → chờ kiểm tra lại; giao diện không tự đặt “đã xác nhận”']);
+  const ok3 = J(ctx.apiReview(tkT, d, 'approve')); A([/^[0-9A-F]{4}-[0-9A-F]{4}$/.test(ok3.code), 'xác nhận → mã xác thực ' + ok3.code]);
+  A([typeof ctx.apiExportPdf(tk, '<p>x</p>', 'a.pdf', d, 'day') === 'string', 'đã xác nhận → xuất PDF được']);
+  A([J(ctx.apiVerify(tk, ok3.code.toLowerCase())).ok === 'current', 'tra mã: bản hiện hành']);
+  err = ''; try { ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'locked', note:'sửa lén' }))); } catch (e) { err = e.message; } A([/mở khóa/.test(err), 'đã xác nhận → không sửa thẳng được']);
+  ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'draft' })));
+  A([J(ctx.apiVerify(tk, ok3.code)).ok === 'old' && J(ctx.apiOpen(tk, d, 'day')).report.review === null, 'mở khóa → hủy dấu; mã cũ báo “bản cũ”']);
+  A([J(ctx.apiVerify(tk, '0000-0000')).ok === false, 'tra mã sai']);
+  const bh = sheets.BaoCao.data[0]; A([bh.indexOf('ma_xac_thuc') > 0, 'BaoCao có cột mã xác thực']);
+  // ngày thử
+  const c4 = J(ctx.apiPublicConfig()); c4.settings = Object.assign({}, c4.settings, { testMode:true }); ctx.apiSaveConfig(tk, JSON.stringify(c4));
+  ctx.apiSaveSub(kId, JSON.stringify({ key:'2027-01-05|uK', date:'2027-01-05', uid:'uK', status:'draft', tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[{zoneId:'z1',desc:'Nén mẫu',time:'Chiều'}], photos:[] }));
+  ctx.apiSaveSub(kId, JSON.stringify({ key:'2026-11-20|uK', date:'2026-11-20', uid:'uK', status:'draft', tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[] }));
+  const td = J(ctx.apiOpen(tk, '2027-01-05', 'day')).index.testDays; A([td.length === 1 && td[0] === '2027-01-05', 'chế độ thử: chỉ ngày chưa có dữ liệu mới là ngày thử']);
+  A([ctx.apiClearTestDays(tk) === 1 && J(ctx.apiOpen(tk, '2027-01-05', 'day')).index.subs.every(x=>x.date !== '2027-01-05') && J(ctx.apiOpen(tk, '2026-11-20', 'day')).index.subs.some(x=>x.date === '2026-11-20'), 'xóa ngày thử, giữ ngày thật']);
+  // logo
+  const lid = ctx.apiSaveLogo(tk, 'client', 'data:image/png;base64,iVBORw0KGgo=', ''); A([!!lid, 'lưu logo lên Drive']);
+  err = ''; try { ctx.apiSaveLogo(kId, 'client', 'data:image/png;base64,iVBORw0KGgo=', ''); } catch (e) { err = e.message; } A([/quyền/.test(err), 'chỉ Quản trị đổi logo']);
+})();
+console.log('Đợt 3: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);
 A([J(ctx.apiSetup(JSON.stringify(cfg),'5678')).token,'setup again after reset']);
 
 const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
+

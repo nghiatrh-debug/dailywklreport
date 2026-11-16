@@ -41,3 +41,48 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026) · Áp dụng cho mọi dự án dù
 - Tab `CongViec` thêm cột: `kh_hom_nay`, `thuc_hien`, `chenh_lech`, `du_kien_them`.
 - `apiPeriod` trả thêm `subs` của các ngày chưa chốt trong kỳ.
 - Kiểm thử: `tests/gastest.js` (máy chủ) + `tests/ui.mjs` (giao diện, Playwright: 375/390/412 px + máy tính) chạy trong GitHub Actions; ảnh chụp lưu ở artifact “ui-screenshots”.
+
+
+---
+
+# ĐẶC TẢ – Đợt 3: TVGS kiểm tra nội dung, logo, chế độ thử nghiệm
+
+Trạng thái: **ĐÃ CHỐT** (16/11/2026).
+
+## 1. TVGS kiểm tra nội dung trước khi phát hành
+| Bước | Ai | Việc |
+|---|---|---|
+| 1 | Kỹ sư (nhà thầu) | Lập phiếu, nộp |
+| 2 | Người chốt (nhà thầu chính) | Tổng hợp, **Chốt** → *Chờ TVGS kiểm tra* |
+| 3a | TVGS | **Yêu cầu sửa** (bắt buộc ghi chú) → ngày mở lại cho nhà thầu sửa, chốt lại → quay lại bước 3 |
+| 3b | TVGS | **Xác nhận nội dung** (không sửa số) → sinh **mã xác thực** |
+| 4 | Người chốt | Lưu PDF chính thức lên Drive, gửi link cho các bên |
+| 5 | CĐT | Xem dấu TVGS trên PDF; tra mã trong app |
+
+- Vai trò mới `tvgs` (“TVGS – kiểm tra nội dung”). Quản trị cũng xác nhận được (dự phòng).
+- Dấu trên PDF: khung “ĐÃ KIỂM TRA NỘI DUNG – TVGS” (đơn vị, người kiểm tra, giờ, bản vN, **mã xác thực**). Chưa xác nhận: dải đỏ “CHƯA KIỂM TRA – TVGS”; bị trả: “TVGS YÊU CẦU SỬA”.
+- Mã xác thực = 8 ký tự đầu SHA-256 của nội dung báo cáo lúc xác nhận. **Tra mã**: hiện hành / bản cũ (đã sửa sau đó) / không tồn tại.
+- Máy chủ chặn xuất PDF ngày khi chưa xác nhận; giao diện không tự đặt được trạng thái TVGS; mở khóa bản đã xác nhận → hủy dấu, phải kiểm tra lại.
+- Banner: TVGS “N ngày chờ kiểm tra”; nhà thầu “N ngày TVGS yêu cầu sửa” + nội dung. Nút **Sao chép tin nhắn Zalo** soạn sẵn sau khi chốt / xác nhận / yêu cầu sửa.
+- Nhật ký (tab NhatKy): `CHOT_BAO_CAO_Vn`, `TVGS_XAC_NHAN` (mã · bản), `TVGS_YEU_CAU_SUA` (ghi chú).
+- Tuần/tháng: ghi số ngày chưa được TVGS xác nhận.
+- Công tắc **Bắt buộc TVGS xác nhận** (Cấu hình → Cài đặt, mặc định bật). Không có tài khoản TVGS → bước này tự tắt.
+
+## 2. Logo
+- 3 đơn vị, tải ở khai báo lần đầu và Cấu hình → Dự án. Lưu Drive (thư mục Logo), app thu nhỏ còn cao ≤160 px.
+- Thứ tự trên mọi PDF: **TVGS (trái) – CĐT (giữa) – Nhà thầu (phải)**. Chưa có logo → hiện tên ngắn như cũ.
+
+## 3. Chế độ thử nghiệm (Cấu hình → Cài đặt, chỉ Quản trị)
+- Chọn **ngày bất kỳ** (kể cả tương lai): ô ngày có “📅 Chọn ngày bất kỳ…” và luôn có ngày kế tiếp.
+- Ngày thử = ngày **chưa có dữ liệu thật** được lưu khi đang bật chế độ thử. Dải vàng đầu màn hình; PDF ghi “BẢN THỬ”.
+- Nút **Xóa toàn bộ ngày thử** (chỉ xóa ngày thử, giữ ngày thật).
+
+## 4. Cấu hình & phiếu kỹ sư
+- Thứ tự thẻ: Dự án → **Người dùng & PIN** → Khu vực & phân công → Danh mục → **Cài đặt** → Sao lưu.
+- Việc mới: ô **Lũy kế hôm qua** (nhập 1 lần; bỏ trống = 0%).
+- “% dự kiến làm thêm” → **“% dự kiến thực hiện”**.
+- Thẻ Nghiệm thu: Nghiệm thu → **Thí nghiệm** → KH nghiệm thu ngày mai → **KH thí nghiệm ngày mai** (mới, `testPlans`; hôm sau tự thành “Thí nghiệm trong ngày”). Sheet `ThiNghiem` thêm cột `loai` (TRONG_NGAY / KE_HOACH).
+
+## Kỹ thuật
+- API mới: `apiReview(token,date,'approve'|'return',note)`, `apiVerify(token,code)`, `apiSaveLogo(token,kind,dataUrl,oldId)`, `apiClearTestDays(token)`.
+- `BaoCao` thêm cột `tvgs_kiem_tra`, `ma_xac_thuc`; index trả `review` từng ngày và `testDays`.

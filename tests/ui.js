@@ -58,6 +58,68 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.locator('#st-0').count() === 1, 'Việc mới có ô “% đã làm trước đó”');
     await shot(pg, 'desk_ks');
 
+    /* ---- Đợt 3: TVGS kiểm tra nội dung ---- */
+    await login(pg, 'u_tvgs', '3333');
+    ok(/Kiểm tra báo cáo ngày/.test(await pg.innerText('#nav')), 'TVGS: menu “Kiểm tra báo cáo ngày”');
+    await pg.selectOption('#dateSel', '2026-06-26'); await wait(600);
+    ok(/CHƯA KIỂM TRA – TVGS/.test(await pg.innerText('#doc')), 'PDF đã chốt chưa kiểm tra: dải “CHƯA KIỂM TRA – TVGS”');
+    ok(await pg.isVisible('#pane [data-act=approveRep]'), 'TVGS: có nút Xác nhận ở ngày chờ kiểm tra');
+    await pg.click('#pane [data-act=approveRep]'); await wait(300); await pg.click('#mOk'); await wait(700);
+    const zt = await pg.inputValue('#zaloTxt'); const code = (zt.match(/Mã xác thực: ([0-9A-F]{4}-[0-9A-F]{4})/) || [])[1];
+    ok(!!code, 'Xác nhận → tin nhắn Zalo soạn sẵn có mã xác thực ' + code);
+    await pg.evaluate(() => closeModal());
+    const d26 = await pg.innerText('#doc');
+    ok(/ĐÃ KIỂM TRA NỘI DUNG – TVGS/.test(d26) && d26.includes(code), 'PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” + mã');
+    await pg.click('[data-act=verify]'); await wait(300); await pg.fill('#pIn', code.toLowerCase()); await pg.click('#mOk'); await wait(500);
+    ok(/Mã hợp lệ/.test(await pg.innerText('#modalBody')), 'Tra mã xác thực: hợp lệ');
+    await pg.evaluate(() => closeModal());
+    await pg.click('[data-act=verify]'); await wait(300); await pg.fill('#pIn', 'ABCD-1234'); await pg.click('#mOk'); await wait(500);
+    ok(/Không tìm thấy mã/.test(await pg.innerText('#modalBody')), 'Tra mã sai: báo không tìm thấy');
+    await pg.evaluate(() => closeModal());
+    await shot(pg, 'desk_tvgs_approved');
+    // Nhà thầu chốt 27/06 → TVGS yêu cầu sửa → nhà thầu thấy ghi chú
+    await login(pg, 'u_chot', '1234');
+    await pg.selectOption('#dateSel', '2026-06-27'); await wait(600);
+    await pg.click('#dayActs [data-act=lock]'); await wait(300);
+    for (let k = 0; k < 3 && await pg.isVisible('#mOk'); k++) { await pg.click('#mOk'); await wait(500); }
+    ok(await pg.isVisible('#zaloTxt'), 'Chốt khi bật TVGS → gợi ý tin nhắn nhắc TVGS');
+    await pg.evaluate(() => closeModal());
+    await pg.click('#dayPrevBar [data-act=drive]'); await wait(300);
+    ok(/Chờ TVGS xác nhận/.test(await pg.innerText('body')), 'Chưa xác nhận → chặn xuất PDF chính thức');
+    await login(pg, 'u_tvgs', '3333');
+    await pg.selectOption('#dateSel', '2026-06-27'); await wait(600);
+    await pg.click('#pane [data-act=returnRep]'); await wait(300); await pg.fill('#pIn', 'Zone B thiếu nghiệm thu cốt thép giằng'); await pg.click('#mOk'); await wait(700);
+    await pg.evaluate(() => closeModal());
+    await login(pg, 'u_chot', '1234');
+    await pg.selectOption('#dateSel', '2026-06-27'); await wait(600);
+    const pn27 = await pg.innerText('#pane');
+    ok(/TVGS .* yêu cầu sửa/.test(pn27) && /thiếu nghiệm thu cốt thép/.test(pn27) && await pg.isVisible('#dayActs [data-act=lock]'), 'Nhà thầu thấy yêu cầu sửa của TVGS, ngày mở lại để chốt lại');
+    ok(/TVGS YÊU CẦU SỬA/.test(await pg.innerText('#doc')), 'PDF bị trả lại: dải “TVGS YÊU CẦU SỬA”');
+    await shot(pg, 'desk_chot_returned');
+
+    /* ---- Cấu hình: thứ tự thẻ, logo, chế độ thử nghiệm ---- */
+    await pg.click('[data-view=config]'); await wait(300);
+    const tabsTxt = await pg.innerText('#cfgTabs');
+    ok(tabsTxt.indexOf('Người dùng') < tabsTxt.indexOf('Khu vực') && /Cài đặt/.test(tabsTxt), 'Cấu hình: Người dùng & PIN đứng trước Khu vực; có thẻ Cài đặt');
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAIAAAB/FOjAAAAAH0lEQVR42mNk+M+ABzAxEAEYGRgYGBkZGBj/MxDUMAMAqwgCCTL0vDMAAAAASUVORK5CYII=', 'base64');
+    await pg.setInputFiles('input[data-logo=consultant]', { name: 'tvgs.png', mimeType: 'image/png', buffer: PNG }); await wait(700);
+    ok(await pg.locator('.lbox img').count() === 1, 'Tải logo TVGS: hiện xem trước');
+    await pg.click('[data-view=day]'); await wait(600);
+    ok(await pg.evaluate(() => { const td = document.querySelectorAll('#doc .logos2 td'); return td.length === 3 && !!td[0].querySelector('img') && /TƯ VẤN GIÁM SÁT/.test(td[0].innerText) && /CHỦ ĐẦU TƯ/.test(td[1].innerText) && /NHÀ THẦU/.test(td[2].innerText); }), 'PDF: logo TVGS (trái) – CĐT (giữa) – Nhà thầu (phải)');
+    await pg.click('[data-view=config]'); await wait(300); await pg.click('[data-cfgtab=settings]'); await wait(300);
+    await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
+    ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');
+    await pg.click('[data-view=day]'); await wait(600);
+    const next = await pg.evaluate(() => addDays([...document.querySelectorAll('#dateSel option')].map(o=>o.value).filter(v=>v!=='__pick').sort().pop(), 0));
+    ok(next > await pg.evaluate(() => today()) && await pg.locator('#dateSel option[value=__pick]').count() === 1, 'Chế độ thử: có ngày tương lai ' + next + ' + “Chọn ngày bất kỳ”');
+    await pg.selectOption('#dateSel', next); await wait(700);
+    await pg.click('#dayPrevBar [data-act=saveDay]'); await wait(500);
+    ok(/BẢN THỬ/.test(await pg.innerText('#doc')), 'Ngày thử: PDF ghi BẢN THỬ');
+    await pg.click('[data-view=config]'); await wait(300); await pg.click('[data-cfgtab=settings]'); await wait(300);
+    await pg.click('[data-act=clearTest]'); await wait(300); await pg.click('#mOk'); await wait(700);
+    ok(await pg.evaluate(() => !(IDX.testDays||[]).length && !IDX.reports.some(r=>r.date>today())), 'Xóa toàn bộ ngày thử');
+    await pg.uncheck('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(400);
+
     await login(pg, 'u_chot', '1234');
     await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
@@ -91,8 +153,11 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     const p0 = await pg.locator('#myPane .tcard').count();
     await pg.click('#fab'); await wait(300);
     ok(await pg.locator('#myPane .tcard').count() === p0 + 1, `${n}: Ngày mai – ＋ thêm kế hoạch`);
+    ok(/% dự kiến thực hiện/.test(await pg.innerText('#myPane')), `${n}: nhãn “% dự kiến thực hiện”`);
     await shot(pg, `m_${n}_tomorrow`);
     await pg.click('#mBottom [data-mytab=qa]'); await wait(300);
+    const zb = await pg.$$eval('#myPane .zbar span:first-child', e => e.map(x => x.textContent));
+    ok(/Nghiệm thu trong ngày/.test(zb[0]) && /Thí nghiệm trong ngày/.test(zb[1]) && /Kế hoạch nghiệm thu/.test(zb[2]) && /Kế hoạch thí nghiệm/.test(zb[3]), `${n}: thứ tự Nghiệm thu → Thí nghiệm → KH nghiệm thu → KH thí nghiệm`);
     ok(await pg.isVisible('#fab'), `${n}: nút ＋ ở thẻ Nghiệm thu`);
     const q0 = await pg.locator('#myPane .tcard').count();
     await pg.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -110,7 +175,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
       ok(await pg.inputValue('[data-path="manpower.0.title"]') === '', 'ip chốt: nhân lực mới ở đầu danh sách');
       await shot(pg, 'm_ip_chot_people');
       await pg.click('[data-tab=tasks]'); await wait(300);
-      if (await pg.locator('[data-act=gotoDate]').count()) { await pg.click('[data-act=gotoDate] >> nth=0'); await wait(700); await pg.click('[data-tab=tasks]'); await wait(300); }
+      if (await pg.locator('[data-act=gotoDate]').count()) { await pg.click('[data-act=gotoDate][data-d="2026-06-27"]'); await wait(700); await pg.click('[data-tab=tasks]'); await wait(300); }
       ok(await pg.inputValue('#dateSel') === '2026-06-27' && await pg.locator('#pane .rcard .jd').count() > 0, 'ip chốt: bấm banner “ngày chưa chốt” → mở ngày đó, có so sánh KH');
       await shot(pg, 'm_ip_chot_tasks');
     }

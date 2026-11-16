@@ -163,6 +163,12 @@ table.ed .in:focus{background:#fff}
 .zpick{display:grid;gap:8px;margin-top:10px}.zpick .btn{justify-content:flex-start;min-height:46px;font-size:15px}
 .tcard.fresh{border-color:var(--ac);box-shadow:0 0 0 3px #c7d2fe}
 .ulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.lbox{border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center;background:#fff}
+.lbox .lprev{height:64px;display:flex;align-items:center;justify-content:center;width:100%}.lbox .lprev img{max-height:60px;max-width:100%}.lbox .lprev span{font-size:11.5px;color:var(--mu)}
+.swrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--bd);border-radius:12px;background:#fff;margin:6px 0;cursor:pointer}.swrow input{width:20px;height:20px;margin-top:2px;flex:none}
+#testBar{display:none;background:#fde047;color:#713f12;font-weight:800;text-align:center;font-size:13px;padding:6px 10px}#testBar.on{display:block}
+@media (max-width:767px){.lgrid{grid-template-columns:1fr}}
 details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6px}details.dt[open] summary{color:var(--ac2)}
 /* ===== DOCUMENT (dùng chung cho xem trước, in và xuất PDF) ===== */
 </style>
@@ -200,6 +206,11 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .phc img{width:100%;display:block;border:1px solid #e2e8f0}
 .doc .noph{border:1px dashed #cbd5e1;height:150px;color:#94a3b8;font-size:10px}
 .doc .sign td{width:50%;text-align:center;padding-top:22px;font-size:10.5px;vertical-align:top}
+.doc .stamp{border:2.5px double #1e3a8a;color:#1e3a8a;padding:5px 10px;text-align:center;font-size:9px;line-height:1.45;width:230px}
+.doc .stamp b{font-size:11.5px;letter-spacing:.3px}.doc .stamp .cd{font-family:monospace;font-size:12px;font-weight:bold;letter-spacing:1px}
+.doc .unv{border:1.5px dashed #dc2626;color:#dc2626;text-align:center;font-weight:bold;font-size:12px;padding:5px;margin:4px 0;letter-spacing:.5px}
+.doc .testmk{border:1.5px dashed #ca8a04;color:#a16207;background:#fefce8;text-align:center;font-weight:bold;font-size:11px;padding:4px;margin:4px 0}
+.doc .logos2 img{max-height:44px;max-width:150px;display:block;margin:0 auto 4px}
 .doc .sign .nm{font-weight:bold;margin-top:52px}
 @media print{@page{size:A4;margin:8mm}}
 </style>
@@ -303,6 +314,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 </style>
 </head>
 <body>
+<div id="testBar">🧪 CHẾ ĐỘ THỬ NGHIỆM – chọn được ngày bất kỳ · dữ liệu ngày thử xóa được trong Cấu hình → Cài đặt</div>
 <div class="top"><div class="top-in">
   <div class="brand" style="justify-content:space-between">
     <div class="brand">
@@ -342,7 +354,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
   <!-- TỔNG HỢP & CHỐT NGÀY -->
   <div id="v-day" class="cols hide">
     <div>
-      <div class="sec-h"><h2>TỔNG HỢP & CHỐT BÁO CÁO NGÀY</h2><span>Gộp phiếu các kỹ sư + phần chung</span></div>
+      <div class="sec-h"><h2 id="dayH">TỔNG HỢP & CHỐT BÁO CÁO NGÀY</h2><span id="dayHs">Gộp phiếu các kỹ sư + phần chung</span></div>
       <div class="card"><div class="tabs" id="tabs"></div><div class="pane" id="pane"></div></div>
     </div>
     <div class="prevcol">
@@ -411,7 +423,7 @@ function prompt2(title, msg, ph='', type='text'){ return new Promise(res=>{ moda
 async function sha(s){ try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
   catch(e){ let h=5381; for (const c of s) h=((h<<5)+h+c.charCodeAt(0))|0; return 'x'+(h>>>0).toString(16); } }
 
-const ROLES = {admin:'Quản trị (chốt + cấu hình)', chot:'Người tổng hợp / chốt', ks:'Kỹ sư hiện trường', xem:'Chỉ xem (CĐT, TVGS…)'};
+const ROLES = {admin:'Quản trị (chốt + cấu hình)', chot:'Người tổng hợp / chốt (nhà thầu)', ks:'Kỹ sư hiện trường', tvgs:'TVGS – kiểm tra nội dung', xem:'Chỉ xem (CĐT…)'};
 const SECTIONS = [
   {k:'XD',  t:'A. XÂY DỰNG / CIVIL & STRUCTURAL WORKS', p:'A. XÂY DỰNG / CIVIL & STRUCTURAL PLANS', cls:'grp', label:'Xây dựng'},
   {k:'MEP', t:'B. MEP (CƠ ĐIỆN) / MECHANICAL, ELECTRICAL & PLUMBING', p:'B. MEP (CƠ ĐIỆN) / M&E PLANS', cls:'grp2', label:'MEP'}
@@ -437,8 +449,8 @@ const SAMPLE_CFG = Object.assign(clone(GENERIC_CFG), {
     clientShort:'Phú Mỹ Hưng', consultantShort:'DSPCons', contractorShort:'VICONS' },
   signers:{ contractor:'Phạm Minh Thương', supervisor:'Đặng Hoàng Nghĩa' },
   users:[ {id:'u_chot',name:'Người chốt (demo)',role:'admin',active:true}, {id:'u_than',name:'Thân',role:'ks',active:true},
-          {id:'u_lam',name:'Lâm',role:'ks',active:true}, {id:'u_cdt',name:'CĐT – xem (demo)',role:'xem',active:true} ],
-  demoPins:{u_chot:'1234',u_than:'1111',u_lam:'2222',u_cdt:'0000'},
+          {id:'u_lam',name:'Lâm',role:'ks',active:true}, {id:'u_tvgs',name:'DSPCons – TVGS (demo)',role:'tvgs',active:true}, {id:'u_cdt',name:'CĐT – xem (demo)',role:'xem',active:true} ],
+  demoPins:{u_chot:'1234',u_than:'1111',u_lam:'2222',u_tvgs:'3333',u_cdt:'0000'},
   zones:[ {id:'zA',name:'Zone A',section:'XD',owner:'u_than'}, {id:'zB',name:'Zone B',section:'XD',owner:'u_than'},
           {id:'zC',name:'Zone C',section:'XD',owner:'u_lam'}, {id:'zS',name:'Site',section:'MEP',owner:'u_lam'} ],
   wbs:[ {code:'01',name:'Công tác chuẩn bị & quản lý chung'},{code:'02',name:'Cọc khoan nhồi & tường vây'},{code:'03.1',name:'Đào đất tầng hầm'},
@@ -457,20 +469,20 @@ function blankReport(date){
     manpower: CFG.manpower.map(t=>({title:t, qty:0})), equipment: CFG.equipment.map(t=>({name:t, qty:0})),
     materials:[], safety:{summary:CFG.safetyDefault, issues:[]},
     layout:{img:'', fileId:'', caption:'Mặt bằng thi công công trường'}, extraPhotos:[],
-    tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[] };
+    tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[], photos:[] };
 }
-function blankSub(date, uidv){ return { key:date+'|'+uidv, date, uid:uidv, status:'draft', tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[], note:'', returnNote:'', rolledFrom:'', submittedAt:'', enteredBy:'', updatedAt:'' }; }
+function blankSub(date, uidv){ return { key:date+'|'+uidv, date, uid:uidv, status:'draft', tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[], photos:[], note:'', returnNote:'', rolledFrom:'', submittedAt:'', enteredBy:'', updatedAt:'' }; }
 function normReport(r){ const o = Object.assign(blankReport(r.date), r);
   o.weather = Object.assign({am:'',pm:'',temp:''}, r.weather||{}); o.safety = Object.assign({summary:'',issues:[]}, r.safety||{});
   o.layout = Object.assign({img:'',fileId:'',caption:''}, r.layout||{});
-  ['tasks','plans','inspections','inspectionPlans','tests','photos','materials','manpower','equipment','extraPhotos','log'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
-function normSub(s){ const o = Object.assign(blankSub(s.date, s.uid), s); ['tasks','plans','inspections','inspectionPlans','tests','photos'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
+  ['tasks','plans','inspections','inspectionPlans','tests','testPlans','photos','materials','manpower','equipment','extraPhotos','log'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
+function normSub(s){ const o = Object.assign(blankSub(s.date, s.uid), s); ['tasks','plans','inspections','inspectionPlans','tests','testPlans','photos'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
 
 /* ===================== MÔ HÌNH % (lũy kế hôm qua + % hôm nay = lũy kế hôm nay) =====================
-   task: prevProgress (lũy kế hôm qua, khóa) · planToday (KH hôm nay = % dự kiến làm thêm đặt hôm qua, khóa)
-         dayPct (% làm được hôm nay – kỹ sư nhập) · startPct (% đã làm trước đó, việc mới thêm giữa chừng)
+   task: prevProgress (lũy kế hôm qua, khóa) · planToday (KH hôm nay = % dự kiến thực hiện đặt hôm qua, khóa)
+         dayPct (% làm được hôm nay – kỹ sư nhập) · startPct (lũy kế hôm qua do kỹ sư nhập cho việc mới; trống = 0%)
          progress (= lũy kế hôm nay, tự tính) · recurring (= việc theo dõi: kết quả dạng chữ, không tính %)
-   plan: add (% dự kiến làm thêm) · target (= lũy kế dự kiến, tự tính) · mon (kế hoạch của việc theo dõi)      */
+   plan: add (% dự kiến thực hiện) · target (= lũy kế dự kiến, tự tính) · mon (kế hoạch của việc theo dõi)      */
 const isMon = t => !!t.recurring;
 const hasV = v => v !== '' && v != null && String(v).trim() !== '';
 const baseOf = t => { const pp = pct(t.prevProgress); return pp !== null ? pp : (hasV(t.startPct) ? num(t.startPct) : 0); };
@@ -512,6 +524,25 @@ function judgeHtml(t, long){
   return `<span class="jd short">▼ Hụt ${sgn(d)}${n >= 2 ? ' · ' + n + ' ngày liên tiếp' : ''}</span>`;
 }
 function planStats(tasks){ const s = {n:0, ok:0, short:[]}; tasks.forEach(t=>{ const j = judge(t); if (!j) return; s.n++; if (j !== 'short') s.ok++; else s.short.push(t); }); return s; }
+const REV_TXT = {pending:['b-sub','⏳ Chờ TVGS kiểm tra'], returned:['b-ret','↩ TVGS yêu cầu sửa'], approved:['b-acc','✔ TVGS đã xác nhận']};
+const revBadge = r => reviewOn() && REV_TXT[revOf(r)] ? ` <span class="badge ${REV_TXT[revOf(r)][0]}">${REV_TXT[revOf(r)][1]}</span>` : '';
+const dayBtns = L => L.slice(0,8).map(d=>`<button class="btn sm" data-act="gotoDate" data-d="${d}">${vi(d).slice(0,5)}</button>`).join('') + (L.length>8?' …':'');
+/* Banner TVGS: việc cần làm của từng bên + trạng thái ngày đang mở */
+function reviewNotes(){
+  if (!reviewOn() || !R) return ''; let h = ''; const rv = revOf(R), rw = R.review || {};
+  const pend = IDX.reports.filter(x=>x.review==='pending' && x.date!==R.date).map(x=>x.date).sort();
+  const ret = IDX.reports.filter(x=>x.review==='returned' && x.date!==R.date).map(x=>x.date).sort();
+  if (canReview() && pend.length) h += `<div class="note"><div class="ulk">🔎 Còn <b>${pend.length}</b> ngày chờ TVGS kiểm tra:${dayBtns(pend)}</div></div>`;
+  if (isChot() && ret.length) h += `<div class="note w"><div class="ulk">↩ TVGS yêu cầu sửa <b>${ret.length}</b> ngày:${dayBtns(ret)}</div></div>`;
+  if (rv==='returned') h += `<div class="note w" style="background:#fff7ed;border-color:#fdba74"><b>↩ TVGS ${esc(userName(rw.by))} yêu cầu sửa</b> (${esc(rw.at)}):<div style="white-space:pre-wrap;margin:6px 0;font-weight:600">${esc(rw.note)}</div>${isChot()?'Sửa xong bấm <b>Chốt báo cáo ngày</b> để gửi TVGS kiểm tra lại.':''}</div>`;
+  if (rv==='pending') { const ps = planStats(R.tasks), w = allWarn(R.tasks);
+    h += canReview() ? `<div class="note" style="border-color:#93c5fd"><b>🔎 Nhà thầu đã chốt – chờ bạn kiểm tra nội dung.</b> Xem bản báo cáo${isMobile()?' (nút 👁 Xem)':' bên phải'}, đối chiếu thực tế công trường.
+        <div class="hint" style="padding:6px 0">Đạt KH: <b>${ps.n?ps.ok+'/'+ps.n:'—'}</b> · Lỗi số liệu: <b>${w.e}</b> · Cảnh báo: <b>${w.w}</b>${R.review.lastNote?` · Lần trước yêu cầu sửa: <i>${esc(R.review.lastNote)}</i>`:''}</div>
+        <div class="bar" style="margin:0"><button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu nhà thầu sửa</button></div></div>`
+      : `<div class="note">⏳ Đã chốt lúc ${esc(R.lockedAt)} – <b>đang chờ TVGS kiểm tra nội dung</b>. TVGS xác nhận xong mới xuất PDF chính thức được.</div>`; }
+  if (rv==='approved') h += `<div class="note g">✔ TVGS <b>${esc(userName(rw.by))}</b> đã xác nhận nội dung lúc ${esc(rw.at)} · mã xác thực <b>${esc(rw.code)}</b>.${isChot()?' Có thể <b>Lưu PDF</b> và gửi link cho các bên.':''}</div>`;
+  return h;
+}
 function shortNote(ps){
   if (!ps.short.length) return ps.n ? `<div class="note g">✔ Tất cả ${ps.n} việc có kế hoạch đều đạt hoặc vượt.</div>` : '';
   return `<div class="note w"><b>▼ ${ps.short.length} việc hụt kế hoạch:</b><ul style="margin:6px 0 0;padding-left:18px">${ps.short.map(t=>`<li>${esc(t.desc)} <span class="hint">(${esc(locText(t))}${t.by?' · '+esc(userName(t.by)):''})</span> – làm ${fp(num(t.dayPct))} / KH ${fp(num(t.planToday))}${streakOf(t)>=2?` · <b style="color:var(--bad)">hụt ${streakOf(t)} ngày liên tiếp</b>`:''}</li>`).join('')}</ul></div>`;
@@ -567,6 +598,10 @@ const Store = IS_GAS ? {
   allReports: async () => (J(await gas('apiPeriod', TOKEN, '0000-01-01', '9999-12-31', '')) || {}).reports || [],
   savePeriod: p => gas('apiSavePeriod', TOKEN, JSON.stringify(p)),
   exportPdf: (html, name, key, kind) => gas('apiExportPdf', TOKEN, html, name, key, kind),
+  review: async (d, act, note) => J(await gas('apiReview', TOKEN, d, act, note||'')),
+  verify: async code => J(await gas('apiVerify', TOKEN, code)),
+  saveLogo: (kind, data, oldId) => gas('apiSaveLogo', TOKEN, kind, data, oldId||''),
+  clearTestDays: () => gas('apiClearTestDays', TOKEN),
   resetAll: () => gas('apiResetAll', TOKEN)
 } : {
   boot: async () => ({ config: await IDB.get('kv','config'), index: await localIndex() }),
@@ -583,9 +618,25 @@ const Store = IS_GAS ? {
   images: async () => ({}),
   saveConfig: async c => { const old = await IDB.get('kv','config') || {}; c = clone(c); c.pins = old.pins || {}; await IDB.put('kv','config',c); },
   setPin: async (u, pin) => { const c = await IDB.get('kv','config'); c.pins = c.pins||{}; c.pins[u] = await pinHash(u, pin); await IDB.put('kv','config',c); },
-  saveSub: async s => { await IDB.put('subs', s.key, s); return {ok:true}; },
-  saveReport: async r => { await IDB.put('reports', r.date, r); return {ok:true}; },
-  deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key); },
+  saveSub: async s => { await markTestL(s.date); await IDB.put('subs', s.key, s); return {ok:true}; },
+  saveReport: async r => { await markTestL(r.date); const old = await IDB.get('reports', r.date), kept = old && old.review || null;
+    if (r.status==='locked') r.review = (!old || old.status!=='locked') ? (reviewOn() ? {status:'pending', since:nowStr(), lastNote: kept && kept.status==='returned' ? kept.note : ''} : null) : kept;
+    else r.review = kept && kept.status==='returned' ? kept : null;
+    await IDB.put('reports', r.date, r); return {ok:true, review:r.review}; },
+  deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key);
+    const L = await IDB.get('kv','testDays') || []; await IDB.put('kv','testDays', L.filter(x=>x!==d)); },
+  review: async (d, act, note) => { const r = await IDB.get('reports', d); if (!r || r.status!=='locked') throw new Error('Báo cáo chưa được nhà thầu chốt');
+    if (act==='approve'){ const o = clone(r); delete o.review; const h = (await sha(JSON.stringify(o))).toUpperCase().replace(/[^0-9A-F]/g,'').padEnd(8,'0');
+      r.review = {status:'approved', by:ME.id, at:nowStr(), code:h.slice(0,4)+'-'+h.slice(4,8), version:r.version||1};
+      const vl = await IDB.get('kv','vlog') || []; vl.push({code:r.review.code, date:d, by:ME.name, at:r.review.at}); await IDB.put('kv','vlog', vl); }
+    else { if (!String(note||'').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); r.review = {status:'returned', by:ME.id, at:nowStr(), note:String(note).trim(), version:r.version||1}; r.status = 'draft'; }
+    await IDB.put('reports', d, r); return r.review; },
+  verify: async code => { const k = String(code||'').toUpperCase().replace(/[^0-9A-F]/g,''); if (k.length!==8) return {ok:false}; const cd = k.slice(0,4)+'-'+k.slice(4);
+    const r = (await IDB.all('reports')).find(x=>x.review && x.review.status==='approved' && x.review.code===cd);
+    if (r) return {ok:'current', date:r.date, version:r.review.version, by:userName(r.review.by), at:r.review.at};
+    const h = (await IDB.get('kv','vlog') || []).filter(x=>x.code===cd).pop(); return h ? {ok:'old', date:h.date, by:h.by, at:h.at} : {ok:false}; },
+  saveLogo: async (kind, data, oldId) => { if (oldId) try { await IDB.del('imgs', oldId); } catch(e){} if (!data) return ''; const id = 'lg_' + uid(); await IDB.put('imgs', id, data); IMGMEM[id] = data; return id; },
+  clearTestDays: async () => { const L = await IDB.get('kv','testDays') || []; for (const d of L) await Store.deleteDay(d); await IDB.put('kv','testDays', []); return L.length; },
   period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
     return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)) }; },
   allReports: async () => (await IDB.all('reports')).sort((x,y)=>x.date.localeCompare(y.date)),
@@ -593,7 +644,10 @@ const Store = IS_GAS ? {
   exportPdf: async () => { throw new Error('LOCAL'); },
   resetAll: async () => { for (const st of ['reports','subs','periods','kv']) await IDB.clear(st); return ''; }
 };
-async function localIndex(){ return { reports:(await IDB.all('reports')).map(r=>({date:r.date,status:r.status,version:r.version})), subs:(await IDB.all('subs')).map(s=>({date:s.date,uid:s.uid,status:s.status})) }; }
+async function localIndex(){ return { reports:(await IDB.all('reports')).map(r=>({date:r.date,status:r.status,version:r.version,review:revOf(r)})), subs:(await IDB.all('subs')).map(s=>({date:s.date,uid:s.uid,status:s.status})), testDays: await IDB.get('kv','testDays') || [] }; }
+/* Chế độ thử nghiệm (bản độc lập): ghi nhận ngày thử – chỉ ngày chưa có dữ liệu */
+async function markTestL(d){ if (!testMode()) return; const L = await IDB.get('kv','testDays') || []; if (L.includes(d)) return;
+  if (await IDB.get('reports', d) || (await IDB.all('subs')).some(x=>x.date===d)) return; L.push(d); await IDB.put('kv','testDays', L); IDX.testDays = L; }
 
 /* ===================== TRẠNG THÁI ===================== */
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
@@ -604,6 +658,13 @@ let EDIT = 'R', RO = false;                                       // gốc dữ 
 
 const isChot = () => ME && (ME.role==='admin' || ME.role==='chot');
 const isAdmin = () => ME && ME.role==='admin';
+const isTvgs = () => ME && ME.role==='tvgs';
+const canReview = () => ME && (ME.role==='tvgs' || ME.role==='admin');
+/* TVGS kiểm tra nội dung: bắt buộc khi công tắc bật (mặc định) và có tài khoản TVGS đang hoạt động */
+const reviewOn = () => (CFG.settings||{}).requireReview !== false && CFG.users.some(u=>u.role==='tvgs' && u.active!==false);
+const revOf = r => r && r.review ? r.review.status || '' : '';
+const testMode = () => !!(CFG.settings||{}).testMode;
+const isTestDay = d => (IDX.testDays||[]).includes(d) || (testMode() && d > today());
 const zonesOf = u => CFG.zones.filter(z=>z.owner===u);
 const zoneById = id => CFG.zones.find(z=>z.id===id);
 const userName = u => (CFG.users.find(x=>x.id===u)||{}).name || u;
@@ -631,7 +692,7 @@ function checks(t){
   if (isMon(t)) { if (!String(t.progress ?? '').trim()) w.push({m:'Chưa nhập kết quả hôm nay'}); return w; }
   if (!hasV(t.dayPct)) w.push({m:'Chưa nhập % làm được hôm nay'});
   else { const v = num(t.dayPct); if (v < 0) w.push({e:1, m:'% hôm nay không được âm'}); if (baseOf(t) + v > 100.0001) w.push({e:1, m:'Lũy kế vượt 100%'}); }
-  if (hasV(t.startPct) && (num(t.startPct) < 0 || num(t.startPct) > 100)) w.push({e:1, m:'% đã làm trước đó phải từ 0 đến 100'});
+  if (hasV(t.startPct) && (num(t.startPct) < 0 || num(t.startPct) > 100)) w.push({e:1, m:'Lũy kế hôm qua phải từ 0 đến 100'});
   return w;
 }
 const warnHtml = t => checks(t).map(x=>`<span class="warn ${x.e?'e':''}">${x.e?'⛔':'⚠'} ${esc(x.m)}</span>`).join('');
@@ -640,11 +701,11 @@ const allWarn = tasks => tasks.reduce((a,t)=>{ checks(t).forEach(x=> x.e ? a.e++
 /* ===================== GỘP PHIẾU ===================== */
 function zoneOrder(id){ const i = CFG.zones.findIndex(z=>z.id===id); return i<0 ? 999 : i; }
 function mergeSubs(subs, onlyFinal){
-  const out = {tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[]};
+  const out = {tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[], photos:[]};
   subs.filter(s => !onlyFinal || s.status==='submitted' || s.status==='accepted')
       .sort((a,b)=> Math.min(...zonesOf(a.uid).map(z=>zoneOrder(z.id)),999) - Math.min(...zonesOf(b.uid).map(z=>zoneOrder(z.id)),999))
       .forEach(s => Object.keys(out).forEach(k => (s[k]||[]).forEach(x => out[k].push(Object.assign({}, x, {by:s.uid})))));
-  ['tasks','plans','inspections','inspectionPlans','tests'].forEach(k => out[k].sort((a,b)=> zoneOrder(a.zoneId) - zoneOrder(b.zoneId)));
+  ['tasks','plans','inspections','inspectionPlans','tests','testPlans'].forEach(k => out[k].sort((a,b)=> zoneOrder(a.zoneId) - zoneOrder(b.zoneId)));
   return out;
 }
 function applyMerge(){ if (!R || repLocked()) return; const m = mergeSubs(SUBS, true); Object.assign(R, m); R.photos = m.photos.concat(R.extraPhotos||[]); }
@@ -673,11 +734,12 @@ function rollTasks(prev, zoneIds){
   pT.forEach(t => { const c = cumOf(t); if (!isMon(t) && c !== null && c < 100) push(t); });
   pT.forEach(t => { if (isMon(t)) push(t); });
   const insp = prev.inspectionPlans.filter(x=>Z.has(x.zoneId)).map(x=>({id:uid(), zoneId:x.zoneId, desc:x.desc, loc:x.loc||'', result:''}));
-  return {tasks, inspections:insp};
+  const tst = (prev.testPlans||[]).filter(x=>Z.has(x.zoneId)).map(x=>({id:uid(), zoneId:x.zoneId, desc:x.desc, loc:x.loc||'', result:''}));
+  return {tasks, inspections:insp, tests:tst};
 }
 function newSub(date, u){
   const s = blankSub(date, u); const prev = prevMerged();
-  if (prev){ const r = rollTasks(prev, zonesOf(u).map(z=>z.id)); s.tasks = r.tasks; s.inspections = r.inspections; s.rolledFrom = prev.date; }
+  if (prev){ const r = rollTasks(prev, zonesOf(u).map(z=>z.id)); s.tasks = r.tasks; s.inspections = r.inspections; s.tests = r.tests; s.rolledFrom = prev.date; }
   return s;
 }
 function newReport(date){
@@ -736,7 +798,7 @@ function navItems(){
   if (!ME) return [];
   const it = [];
   if (ME.role==='ks' || zonesOf(ME.id).length) it.push(['my','Phiếu của tôi']);
-  if (ME.role!=='ks') it.push(['day', isChot() ? 'Tổng hợp & chốt ngày' : 'Báo cáo ngày']);
+  if (ME.role!=='ks') it.push(['day', isChot() ? 'Tổng hợp & chốt ngày' : isTvgs() ? 'Kiểm tra báo cáo ngày' : 'Báo cáo ngày']);
   it.push(['period','Tuần / Tháng']);
   if (isAdmin()) it.push(['config','Cấu hình']);
   return it;
@@ -753,6 +815,7 @@ function renderNav(){
   renderChip();
   $('#userChip').innerHTML = ME ? `<span class="uchip">👤 ${esc(ME.name)} <span class="rl">${esc(ROLES[ME.role])}</span><button class="btn sm ghost" data-act="logout">Đăng xuất</button></span>` : '';
   $('#dayBar').classList.toggle('hide', !(VIEW==='my' || VIEW==='day'));
+  $('#testBar').classList.toggle('on', !!ME && testMode());
   const ub = $('#umenuBtn'); if (ub) ub.style.display = ME ? '' : 'none'; renderMobileBar();
   ['my','day','period','config'].forEach(v=> $('#v-'+v).classList.toggle('hide', v!==VIEW));
 }
@@ -765,8 +828,9 @@ async function go(view){
 }
 function renderDateSel(){
   let ds = VIEW==='my' ? IDX.subs.filter(s=>s.uid===(S?S.uid:ME.id)).map(s=>s.date) : IDX.reports.map(r=>r.date).concat(IDX.subs.map(s=>s.date));
-  ds = [...new Set(ds.concat([today(), DATE]))].sort().reverse();
-  $('#dateSel').innerHTML = ds.map(d=>{ const rp = IDX.reports.find(r=>r.date===d); const ic = rp && rp.status==='locked' ? ' 🔒' : '';
+  const nx = testMode() ? [addDays([...ds, DATE, today()].sort().pop(), 1)] : [];   // chế độ thử: luôn có "ngày tiếp theo"
+  ds = [...new Set(ds.concat([today(), DATE], nx))].sort().reverse();
+  $('#dateSel').innerHTML = (testMode() ? '<option value="__pick">📅 Chọn ngày bất kỳ…</option>' : '') + ds.map(d=>{ const rp = IDX.reports.find(r=>r.date===d); const ic = (rp && rp.status==='locked' ? ' 🔒' : '') + (isTestDay(d) ? ' 🧪' : '');
     const n = IDX.subs.filter(s=>s.date===d && (s.status==='submitted'||s.status==='accepted')).length;
     return `<option value="${d}" ${d===DATE?'selected':''}>${vi(d)}${d===today()?(isMobile()?' •':' (hôm nay)'):''}${ic}${VIEW==='day'&&n&&!isMobile()?' · '+n+' phiếu':''}</option>`; }).join('');
 }
@@ -805,8 +869,8 @@ const canStart = t => !RO && !t.carried && (isChot() || !t.startLocked);
 const pinp = (path, val, id, dis, extra='') => `<input class="in" type="number" step="any" min="0" max="100" inputmode="decimal" data-num="1" data-root="${EDIT}" data-path="${path}" ${id?`id="${id}"`:''} value="${esc(val)}" placeholder="0" ${dis?'disabled':''} ${extra}>`;
 const khTxt = t => hasV(t.planToday) ? '+' + r1(num(t.planToday)) + '%' : '—';
 const prevBox = (t, i) => t.carried || !canStart(t) && !hasV(t.startPct)
-  ? `<div class="lk"><span>${t.carried ? 'Lũy kế hôm qua' : 'Đã làm trước đó'}</span><b>${t.carried ? (showPct(t.prevProgress) || '0%') : fp(num(t.startPct))}</b></div>`
-  : `<label style="margin:0">% đã làm trước đó ${canStart(t) ? '' : '🔒'}${pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, !canStart(t))}</label>`;
+  ? `<div class="lk"><span>Lũy kế hôm qua</span><b>${t.carried ? (showPct(t.prevProgress) || '0%') : fp(num(t.startPct))}</b></div>`
+  : `<label style="margin:0">Lũy kế hôm qua ${canStart(t) ? '' : '🔒'}${pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, !canStart(t), 'title="Bỏ trống = 0% (việc mới triển khai)"')}</label>`;
 const cumBox = (t, i) => `<div class="lk cum ${(cumOf(t)??0)>=100?'full':''}" id="cum-${i}"><span>Lũy kế hôm nay</span><b>${esc(t.progress) || '—'}</b></div>`;
 function taskCard(t, i, n){
   const ws = checks(t), cls = (ws.some(x=>x.e) || ws.length>1 ? ' warned' : '') + (t._fresh ? ' fresh' : '');
@@ -830,7 +894,7 @@ function planCard(pl, i, zOpts){
   return `<div class="tcard${pl._fresh?' fresh':''}" id="pc-${i}"><div class="tc-h"><span class="n">#${i+1}</span>${pl.mon?'<span class="tag">Theo dõi</span>':''}<span class="sp"></span>${delBtn('plans',i)}</div>
     ${mf('Nội dung', ta(`plans.${i}.desc`,pl.desc,'Nội dung kế hoạch',2))}<div class="g2" style="grid-template-columns:1fr 1fr">${mf('Khu vực', sel(`plans.${i}.zoneId`,pl.zoneId,zOpts))}${mf('Vị trí', inp(`plans.${i}.loc`,pl.loc))}</div>
     ${pl.mon ? `<div class="tc-row" style="grid-template-columns:1fr"><label>Kế hoạch (dạng chữ)${inp(`plans.${i}.target`,pl.target,'VD: CK12')}</label></div>`
-      : `<div class="tc-row"><label>% dự kiến làm thêm${pinp(`plans.${i}.add`, pl.add, 'pa-'+i, RO)}</label><div class="lk cum" id="pt-${i}"><span>Lũy kế dự kiến</span><b>${esc(pl.target)||'—'}</b></div></div>
+      : `<div class="tc-row"><label>% dự kiến thực hiện${pinp(`plans.${i}.add`, pl.add, 'pa-'+i, RO)}</label><div class="lk cum" id="pt-${i}"><span>Lũy kế dự kiến</span><b>${esc(pl.target)||'—'}</b></div></div>
       ${RO ? '' : `<div class="qbtns">${QUICK.map(v=>`<button data-act="bumpPlan" data-i="${i}" data-v="${v}">+${v}</button>`).join('')}</div>`}`}</div>`;
 }
 /* Cập nhật tại chỗ sau khi nhập % (không dựng lại cả trang) */
@@ -861,8 +925,9 @@ function renderMobileBar0(){
   const el = $('#mBottom'); if (!el) return;
   if (isMobile() && ME && VIEW==='day' && R){ el.classList.add('on'); const a = [];
     if (isChot() && !repLocked() && !SYNCING) a.push('<button class="btn" data-act="saveDay">💾 Lưu</button>');
+    if (canReview() && repLocked() && revOf(R)==='pending') a.push('<button class="btn ok" data-act="approveRep" style="flex:2">✔ Xác nhận</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa</button>');
     if (isChot()) a.push(repLocked() ? '<button class="btn" data-act="unlock">🔓 Mở khóa</button>' : '<button class="btn ok" data-act="lock" style="flex:2">✔ Chốt ngày</button>');
-    if (isChot()) a.push('<button class="btn" data-act="drive">☁ PDF</button>');
+    if (isChot()) a.push(`<button class="btn" data-act="drive" ${!reviewOn()||revOf(R)==='approved'?'':'style="opacity:.55"'}>☁ PDF</button>`);
     a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
     el.innerHTML = `<div class="mb-acts">${a.join('')}</div>`; return; }
   if (isMobile() && ME && VIEW==='period'){ el.classList.add('on');
@@ -878,7 +943,7 @@ function renderMobileBar0(){
   }
   a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
   if (S_OTHER) a.unshift('<button class="btn" data-act="backDay">←</button>');
-  const T = [['work','📋','Công việc',S.tasks.length],['qa','✅','Nghiệm thu',S.inspections.length+S.tests.length],['photos','📸','Ảnh',S.photos.length],['note','📝','Ghi chú',S.note?1:0]];
+  const T = [['work','📋','Công việc',S.tasks.length],['qa','✅','Nghiệm thu',S.inspections.length+S.tests.length+S.inspectionPlans.length+S.testPlans.length],['photos','📸','Ảnh',S.photos.length],['note','📝','Ghi chú',S.note?1:0]];
   el.innerHTML = `<div class="mb-acts">${a.join('')}</div><div class="mb-tabs">${T.map(([k,ic,t,n])=>`<button data-mytab="${k}" class="${MYTAB===k?'on':''}"><b>${ic}</b>${t}${n?`<i>${n}</i>`:''}</button>`).join('')}</div>`;
 }
 
@@ -918,7 +983,7 @@ function renderMy(){
       });
     } else {
       h += `<div class="zbar"><span>🗓 Kế hoạch ngày mai</span>${RO?'':'<button class="btn sm pri" data-act="autoPlan">⚡ Tự sinh</button>'}</div>
-        <div class="note">Nhập <b>% dự kiến làm thêm</b> cho ngày mai – lũy kế dự kiến tự tính. Ngày mai số này thành <b>KH hôm nay</b> để so sánh.</div>`
+        <div class="note">Nhập <b>% dự kiến thực hiện</b> cho ngày mai – lũy kế dự kiến tự tính. Ngày mai số này thành <b>KH hôm nay</b> để so sánh.</div>`
         + addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',add:'',target:''}))
         + (S.plans.map((pl,i)=>planCard(pl, i, zOpts)).join('') || '<p class="hint" style="padding:6px 2px">Chưa có kế hoạch – bấm “Tự sinh” hoặc nút ＋.</p>');
     }
@@ -927,17 +992,19 @@ function renderMy(){
     const RES = ['','Đạt','Không đạt','Đạt có điều kiện'];
     h += `<div class="zbar"><span>✅ Nghiệm thu trong ngày</span>${addBtn('inspections','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:'Đạt'}))}</div>`
       + listCards('inspections', S.inspections, (t,i)=> mf('Nội dung', ta(`inspections.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`inspections.${i}.zoneId`,t.zoneId,zOpts))}${mf('Kết quả', sel(`inspections.${i}.result`,t.result,RES))}</div>` + mf('Vị trí', inp(`inspections.${i}.loc`,t.loc)))
+      + `<div class="zbar"><span>🧪 Thí nghiệm trong ngày</span>${addBtn('tests','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:''}))}</div>`
+      + listCards('tests', S.tests, (t,i)=> mf('Nội dung', ta(`tests.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`tests.${i}.zoneId`,t.zoneId,zOpts))}${mf('Kết quả', inp(`tests.${i}.result`,t.result,'Đạt / chờ KQ'))}</div>` + mf('Vị trí / Phòng TN', inp(`tests.${i}.loc`,t.loc)))
       + `<div class="zbar"><span>📅 Kế hoạch nghiệm thu ngày mai</span>${addBtn('inspectionPlans','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',time:''}))}</div>`
       + listCards('inspectionPlans', S.inspectionPlans, (t,i)=> mf('Nội dung', ta(`inspectionPlans.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`inspectionPlans.${i}.zoneId`,t.zoneId,zOpts))}${mf('Thời gian', inp(`inspectionPlans.${i}.time`,t.time,'Sáng / 9h00'))}</div>`)
-      + `<div class="zbar"><span>🧪 Thí nghiệm trong ngày</span>${addBtn('tests','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:''}))}</div>`
-      + listCards('tests', S.tests, (t,i)=> mf('Nội dung', ta(`tests.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`tests.${i}.zoneId`,t.zoneId,zOpts))}${mf('Kết quả', inp(`tests.${i}.result`,t.result,'Đạt / chờ KQ'))}</div>` + mf('Vị trí / Phòng TN', inp(`tests.${i}.loc`,t.loc)));
+      + `<div class="zbar"><span>🧫 Kế hoạch thí nghiệm ngày mai</span>${addBtn('testPlans','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',time:''}))}</div>`
+      + listCards('testPlans', S.testPlans, (t,i)=> mf('Nội dung', ta(`testPlans.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`testPlans.${i}.zoneId`,t.zoneId,zOpts))}${mf('Thời gian', inp(`testPlans.${i}.time`,t.time,'Sáng / 9h00'))}</div>` + mf('Vị trí / Phòng TN', inp(`testPlans.${i}.loc`,t.loc)));
   }
   if (!M && MYTAB==='work'){
     const ps = planStats(S.tasks);
     if (S.rolledFrom) h += `<div class="note">↪ Cuốn chiếu từ ${vi(S.rolledFrom)}: kế thừa <b>${S.tasks.filter(t=>t.carried).length}</b> việc của khu vực bạn phụ trách. Chỉ cần nhập <b>% làm được hôm nay</b> – lũy kế tự tính và so với kế hoạch hôm qua.${ps.n?` Đạt KH: <b>${ps.ok}/${ps.n}</b> việc.`:''}${RO?'':' <button class="btn sm" data-act="reroll" style="margin-left:6px">↻ Cập nhật lại từ ngày trước</button>'}</div>`;
     else if (!RO && !S.tasks.length && IDX.reports.concat(IDX.subs).some(x=>x.date<S.date)) h += `<div class="note">Phiếu trống. <button class="btn sm" data-act="reroll">↪ Lấy việc dở dang từ ngày trước</button></div>`;
     const w = allWarn(S.tasks); if (w.e||w.w) h += `<div class="note w">Kiểm tra số liệu: <b>${w.e}</b> lỗi, <b>${w.w}</b> cảnh báo (xem dưới từng dòng).</div>`;
-    h += `<div class="ph"><h3>📋 Công việc trong ngày</h3><span class="hint">Ô xám tự tính – không sửa được. Việc mới thêm giữa chừng: nhập “% đã làm trước đó” một lần.</span></div>`;
+    h += `<div class="ph"><h3>📋 Công việc trong ngày</h3><span class="hint">Ô xám tự tính – không sửa được. Việc mới: nhập “Lũy kế hôm qua” một lần (bỏ trống = 0%, việc mới triển khai).</span></div>`;
     zlist.forEach(z=>{
       h += `<div class="zwrap"><div class="zhead ${z.section==='MEP'?'mep':''}"><span>📍 ${esc(z.name)} · ${z.section==='MEP'?'MEP':'Xây dựng'}</span>${addBtn('tasks','Thêm việc', JSON.stringify(newTaskTpl(z)), z.section==='MEP'?'add mep':'add')}</div>
       <div class="tw"><table class="ed" style="min-width:740px"><thead><tr><th>STT</th><th>Nội dung công việc</th><th style="width:84px">Lũy kế hôm qua</th><th style="width:62px">KH hôm nay</th><th style="width:86px">% làm được hôm nay</th><th style="width:76px">Lũy kế hôm nay</th><th style="width:104px">So với KH</th><th style="width:30px"></th></tr></thead><tbody>`;
@@ -945,7 +1012,7 @@ function renderMy(){
         const lk = (v, id) => `<div class="cumv" ${id?`id="${id}"`:''}>${v}</div>`;
         const mid = isMon(t)
           ? `<td>${lk(esc(t.prevProgress)||'—')}</td><td>${lk(esc(t.planText)||'—')}</td><td colspan="2">${inp(`tasks.${i}.progress`,t.progress,'Kết quả: CK11…','style="text-align:center;font-weight:700"')}</td><td></td>`
-          : `<td>${t.carried ? lk(showPct(t.prevProgress)||'0%') : canStart(t) ? pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, false, 'title="% đã làm trước đó (nhập 1 lần)"') : lk(fp(num(t.startPct))+' 🔒')}</td><td>${lk(khTxt(t))}</td>
+          : `<td>${t.carried ? lk(showPct(t.prevProgress)||'0%') : canStart(t) ? pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, false, 'title="Lũy kế hôm qua – nhập 1 lần; bỏ trống = 0%"') : lk(fp(num(t.startPct))+' 🔒')}</td><td>${lk(khTxt(t))}</td>
              <td>${pinp(`tasks.${i}.dayPct`, t.dayPct, 'pg-'+i, RO, 'style="text-align:center;font-weight:800"')}</td><td>${lk(esc(t.progress)||'—', 'cv-'+i)}</td><td><div id="jd-${i}" style="padding-top:7px">${judgeHtml(t)}</div></td>`;
         const sum = [t.loc, t.wbs, hasV(t.qtyDay) ? t.qtyDay + ' ' + (t.unit||'') : '', isMon(t) ? 'theo dõi' : ''].filter(Boolean).join(' · ');
         h += `<tr><td class="n">${n}${t.carried?'':'<div class="tag d" style="margin:2px 0 0">Mới</div>'}</td><td>${ta(`tasks.${i}.desc`,t.desc,'Nội dung công việc',1)}<div id="w-${i}">${warnHtml(t)}</div>
@@ -956,22 +1023,23 @@ function renderMy(){
     });
     h += `<div class="ph" style="margin-top:8px"><h3>🗓 Kế hoạch ngày mai</h3>${RO?'':'<button class="btn sm pri" data-act="autoPlan">⚡ Tự sinh từ việc &lt;100%</button>'}</div>
     ${addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',add:'',target:''}))}
-    <div class="tw" style="margin-top:8px"><table class="ed" style="min-width:760px"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí chi tiết</th><th style="width:110px">% dự kiến làm thêm</th><th style="width:96px">Lũy kế dự kiến</th><th style="width:36px"></th></tr></thead><tbody>
+    <div class="tw" style="margin-top:8px"><table class="ed" style="min-width:760px"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí chi tiết</th><th style="width:110px">% dự kiến thực hiện</th><th style="width:96px">Lũy kế dự kiến</th><th style="width:36px"></th></tr></thead><tbody>
     ${S.plans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`plans.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`plans.${i}.desc`,t.desc,'',1)}</td><td>${inp(`plans.${i}.loc`,t.loc)}</td>${t.mon
       ? `<td colspan="2">${inp(`plans.${i}.target`,t.target,'Kế hoạch dạng chữ','style="text-align:center;font-weight:700"')}</td>`
       : `<td>${pinp(`plans.${i}.add`, t.add, 'pa-'+i, RO, 'style="text-align:center;font-weight:800"')}</td><td><div class="cumv" id="pt-${i}">${esc(t.target)||'—'}</div></td>`}<td>${delBtn('plans',i)}</td></tr>`).join('') || '<tr><td colspan="7" class="hint" style="padding:12px">Chưa có kế hoạch – bấm “Tự sinh” hoặc thêm tay.</td></tr>'}
     </tbody></table></div>`;
   }
   if (!M && MYTAB==='qa'){
+    const plan = (key, title, ph) => `<div class="ph"><h3>${title}</h3>${addBtn(key,'Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',time:''}))}</div>
+    <div class="tw"><table class="ed"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung</th><th style="width:100px">Vị trí</th><th style="width:110px">Thời gian</th><th style="width:36px"></th></tr></thead><tbody>
+    ${S[key].map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`${key}.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`${key}.${i}.desc`,t.desc,ph,1)}</td><td>${inp(`${key}.${i}.loc`,t.loc)}</td><td>${inp(`${key}.${i}.time`,t.time,'Sáng / 9h00')}</td><td>${delBtn(key,i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`;
     h += `<div class="ph"><h3>✅ Nghiệm thu trong ngày</h3>${addBtn('inspections','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:'Đạt'}))}</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung nghiệm thu</th><th style="width:90px">Vị trí</th><th style="width:120px">Kết quả</th><th style="width:36px"></th></tr></thead><tbody>
     ${S.inspections.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`inspections.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`inspections.${i}.desc`,t.desc,'',1)}</td><td>${inp(`inspections.${i}.loc`,t.loc)}</td><td>${sel(`inspections.${i}.result`,t.result,['','Đạt','Không đạt','Đạt có điều kiện'])}</td><td>${delBtn('inspections',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>
-    <div class="ph"><h3>📅 Kế hoạch nghiệm thu ngày mai</h3>${addBtn('inspectionPlans','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',time:''}))}</div>
-    <div class="tw"><table class="ed"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung</th><th style="width:90px">Vị trí</th><th style="width:110px">Thời gian</th><th style="width:36px"></th></tr></thead><tbody>
-    ${S.inspectionPlans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`inspectionPlans.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`inspectionPlans.${i}.desc`,t.desc,'',1)}</td><td>${inp(`inspectionPlans.${i}.loc`,t.loc)}</td><td>${inp(`inspectionPlans.${i}.time`,t.time,'Sáng / 9h00')}</td><td>${delBtn('inspectionPlans',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>
     <div class="ph"><h3>🧪 Thí nghiệm trong ngày</h3>${addBtn('tests','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:''}))}</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung thí nghiệm</th><th style="width:100px">Vị trí / Phòng TN</th><th style="width:140px">Kết quả</th><th style="width:36px"></th></tr></thead><tbody>
-    ${S.tests.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`tests.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`tests.${i}.desc`,t.desc,'',1)}</td><td>${inp(`tests.${i}.loc`,t.loc)}</td><td>${inp(`tests.${i}.result`,t.result,'Đạt / chờ KQ')}</td><td>${delBtn('tests',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`;
+    ${S.tests.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`tests.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`tests.${i}.desc`,t.desc,'',1)}</td><td>${inp(`tests.${i}.loc`,t.loc)}</td><td>${inp(`tests.${i}.result`,t.result,'Đạt / chờ KQ')}</td><td>${delBtn('tests',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>
+    ${plan('inspectionPlans','📅 Kế hoạch nghiệm thu ngày mai','')}${plan('testPlans','🧫 Kế hoạch thí nghiệm ngày mai','VD: Nén mẫu bê tông 7 ngày')}`;
   }
   if (MYTAB==='photos'){
     h += `<div class="ph"><h3>🖼 Hình ảnh hiện trường</h3><span class="hint">${S.photos.length} ảnh · tự cắt khung 4:3, đóng dấu ngày giờ + người chụp</span></div>
@@ -995,17 +1063,22 @@ function renderMy(){
   $('#myActs').innerHTML = a.join('');
   renderMyDoc(); renderMobileBar();
 }
-function subAsReport(s){ return Object.assign(blankReport(s.date), {tasks:s.tasks, plans:s.plans, inspections:s.inspections, inspectionPlans:s.inspectionPlans, tests:s.tests, photos:s.photos}); }
+function subAsReport(s){ return Object.assign(blankReport(s.date), {tasks:s.tasks, plans:s.plans, inspections:s.inspections, inspectionPlans:s.inspectionPlans, tests:s.tests, testPlans:s.testPlans, photos:s.photos}); }
 function renderMyDoc(){ $('#mydoc').innerHTML = docHTML(subAsReport(S), {partial:true, who:userName(S.uid), note:S.note}); }
 
 /* ===================== TỔNG HỢP & CHỐT (NGƯỜI CHỐT) ===================== */
 async function openDay(date){ await openBundle(date, 'day', ME.id); }
 function renderDayAll(){ renderDayBar(); renderForm(); renderDoc(); renderMobileBar(); }
 function renderDayBar(){
-  $('#statusBadge').innerHTML = !R ? '' : repLocked() ? `<span class="badge b-lock">🔒 Đã chốt${R.version>1?' – bản v'+R.version:''}</span>` : '<span class="badge b-draft">✎ Chưa chốt</span>';
-  $('#dayActs').innerHTML = !isChot() ? '' : repLocked() ? '<button class="btn" data-act="unlock">🔓 Mở khóa để sửa</button>' : '<button class="btn ok" data-act="lock">✔ Chốt báo cáo ngày</button>';
+  $('#statusBadge').innerHTML = !R ? '' : (repLocked() ? `<span class="badge b-lock">🔒 Đã chốt${R.version>1?' – bản v'+R.version:''}</span>` : '<span class="badge b-draft">✎ Chưa chốt</span>') + revBadge(R);
+  const rv = revOf(R), canAct = canReview() && repLocked() && rv==='pending';
+  $('#dayH').textContent = isTvgs() ? 'KIỂM TRA BÁO CÁO NGÀY (TVGS)' : isChot() ? 'TỔNG HỢP & CHỐT BÁO CÁO NGÀY' : 'BÁO CÁO NGÀY';
+  $('#dayHs').textContent = isTvgs() ? 'Xác nhận nội dung đúng hoặc yêu cầu nhà thầu sửa' : 'Gộp phiếu các kỹ sư + phần chung';
+  $('#dayActs').innerHTML = (canAct ? '<button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa</button>' : '') +
+    (!isChot() ? '' : repLocked() ? '<button class="btn" data-act="unlock">🔓 Mở khóa để sửa</button>' : '<button class="btn ok" data-act="lock">✔ Chốt báo cáo ngày</button>');
+  const pdfOk = !reviewOn() || rv==='approved';
   $('#dayPrevBar').innerHTML = (isChot() && !repLocked() ? '<button class="btn" data-act="saveDay">💾 Lưu</button>' : '') +
-    (isChot() ? '<button class="btn pri" data-act="drive">☁ Lưu PDF vào Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
+    (isChot() ? `<button class="btn ${pdfOk?'pri':''}" data-act="drive" ${pdfOk?'':'style="opacity:.55" title="Chờ TVGS xác nhận nội dung"'}>☁ Lưu PDF vào Google Drive</button>` : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button><button class="btn" data-act="verify">🔎 Tra mã xác thực</button>';
 }
 const DAY_TABS = [ {k:'status', t:'Tình trạng phiếu', i:'📨'}, {k:'general', t:'Thông tin chung', i:'📅'}, {k:'people', t:'Nhân sự & Máy móc', i:'👷'},
   {k:'tasks', t:'Hạng mục công việc', i:'📋'}, {k:'qa', t:'Nghiệm thu & TN', i:'✅'}, {k:'mat', t:'Vật tư & An toàn', i:'🦺'}, {k:'layout', t:'Mặt bằng', i:'🗺'}, {k:'photos', t:'Hình ảnh', i:'🖼'} ];
@@ -1019,6 +1092,7 @@ function renderForm(){
   EDIT = 'R'; RO = repLocked() || !isChot() || SYNCING; let h = ''; const M = isMobile();
   if (SYNCING) h += `<div class="note">⏳ Đang đồng bộ dữ liệu mới nhất…</div>`;
   if (repLocked()) h += `<div class="note g">🔒 Đã chốt${R.lockedBy?' bởi '+esc(userName(R.lockedBy)):''}${R.lockedAt?' lúc '+esc(R.lockedAt):''}${lateDays(R)>0?' – <b>trễ '+lateDays(R)+' ngày</b>':''}. ${isChot()?'Bấm “Mở khóa để sửa” – lần chốt sau sẽ tạo bản v'+((R.version||1)+1)+'.':''}</div>`;
+  h += reviewNotes();
   const ul = isChot() ? unlockedDays().filter(d=>d!==R.date) : [];
   if (ul.length) h += `<div class="note w"><div class="ulk">⚠ Còn <b>${ul.length}</b> ngày chưa chốt:${ul.slice(0,8).map(d=>`<button class="btn sm" data-act="gotoDate" data-d="${d}">${vi(d).slice(0,5)}</button>`).join('')}${ul.length>8?' …':''}</div></div>`;
   if (TAB==='status'){
@@ -1039,7 +1113,7 @@ function renderForm(){
   if (TAB==='general'){
     const p = CFG.project;
     h += `<div class="box soft"><span class="chip">Thông tin dự án cố định</span>
-      <div class="logos"><div class="lg-pmh">❖ ${esc(p.clientShort)}</div><div class="lg-dsp">▮ ${esc(p.consultantShort)}</div><div class="lg-vic">${esc(p.contractorShort)}</div></div>
+      <div class="logos">${LOGO_KINDS.map(([k,,,ic,sh])=>{ const src = logoSrc(k); const cl = {consultant:'lg-dsp', client:'lg-pmh', contractor:'lg-vic'}[k]; return `<div class="${cl}">${src?`<img src="${src}" style="max-height:44px;max-width:100%">`:ic+esc(p[sh])}</div>`; }).join('')}</div>
       <div class="kv"><b>Công trình / Project</b><div>${esc(p.name)}</div></div><div class="kv"><b>Địa điểm / Location</b><div>${esc(p.location)}</div></div>
       <div class="kv"><b>Chủ đầu tư / Client</b><div>${esc(p.client)}</div></div><div class="kv"><b>Tư vấn / Consultant</b><div>${esc(p.consultant)}</div></div><div class="kv"><b>Nhà thầu / Contractor</b><div>${esc(p.contractor)}</div></div></div>
     <div class="box"><b style="font-size:13px">Điều kiện thời tiết & Nhiệt độ (Weather Conditions) – ngày ${vi(R.date)}</b>
@@ -1065,7 +1139,7 @@ function renderForm(){
   }
   if (M && TAB==='qa'){
     const L = (arr, k) => arr.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p ${t[k]==='Không đạt'?'bad':''}">${esc(t[k])}</span></div></div>`).join('') || '<p class="hint">Chưa có.</p>';
-    h += `<div class="zbar"><span>✅ Nghiệm thu trong ngày</span></div>${L(R.inspections,'result')}<div class="zbar"><span>📅 Kế hoạch nghiệm thu ngày mai</span></div>${L(R.inspectionPlans,'time')}<div class="zbar"><span>🧪 Thí nghiệm</span></div>${L(R.tests,'result')}`;
+    h += `<div class="zbar"><span>✅ Nghiệm thu trong ngày</span></div>${L(R.inspections,'result')}<div class="zbar"><span>🧪 Thí nghiệm trong ngày</span></div>${L(R.tests,'result')}<div class="zbar"><span>📅 Kế hoạch nghiệm thu ngày mai</span></div>${L(R.inspectionPlans,'time')}<div class="zbar"><span>🧫 Kế hoạch thí nghiệm ngày mai</span></div>${L(R.testPlans,'time')}`;
   }
   if (M && TAB==='mat'){
     h += `<div class="zbar"><span>📦 Vật tư nhập về</span>${addBtn('materials','Thêm','{"name":"","spec":"","unit":"","qty":""}')}</div>`
@@ -1093,14 +1167,15 @@ function renderForm(){
       ${T.map((t,i)=>{ const c = 'style="padding:8px;text-align:center"'; return `<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}${t.qtyDay!==''&&t.qtyDay!=null?`<div class="hint">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''}<div class="hint" style="padding:2px 0">📍 ${esc(locText(t))} · ${esc(userName(t.by))}</div>${warnHtml(t)}</td>${isMon(t)
         ? `<td ${c}>${esc(t.prevProgress)||'—'}</td><td ${c}>${esc(t.planText)||'—'}</td><td ${c} colspan="2"><b>${esc(t.progress)||'—'}</b></td><td ${c}><span class="hint">Việc theo dõi</span></td>`
         : `<td ${c}>${showPct(t.prevProgress)||(t.carried?'0%':fp(num(t.startPct))+'*')}</td><td ${c}>${khTxt(t)}</td><td ${c}>${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</td><td ${c}><b>${esc(t.progress)||'—'}</b></td><td style="padding:8px">${judgeHtml(t, true)}</td>`}</tr>`; }).join('') || '<tr><td colspan="7" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`; });
-    h += `<div class="hint">* Việc mới thêm giữa chừng: số là “% đã làm trước đó”.</div>`;
+    h += `<div class="hint">* Việc mới: lũy kế hôm qua do kỹ sư nhập (trống = 0%).</div>`;
   }
   if (!M && TAB==='qa'){
     const list = (arr, cols) => arr.map((t,i)=>`<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}</td><td style="padding:8px">${esc(locText(t))}</td><td style="padding:8px">${esc(t[cols])}</td><td style="padding:8px" class="hint">${esc(userName(t.by))}</td></tr>`).join('') || '<tr><td colspan="5" class="hint" style="padding:12px">Chưa có.</td></tr>';
     const head = c => `<div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Nội dung</th><th style="width:110px">Vị trí</th><th style="width:110px">${c}</th><th style="width:90px">Người báo cáo</th></tr></thead><tbody>`;
     h += `<div class="note">Gộp tự động từ phiếu kỹ sư.</div><div class="ph"><h3>✅ Nghiệm thu trong ngày</h3></div>${head('Kết quả')}${list(R.inspections,'result')}</tbody></table></div>
+    <div class="ph"><h3>🧪 Thí nghiệm trong ngày</h3></div>${head('Kết quả')}${list(R.tests,'result')}</tbody></table></div>
     <div class="ph"><h3>📅 Kế hoạch nghiệm thu ngày mai</h3></div>${head('Thời gian')}${list(R.inspectionPlans,'time')}</tbody></table></div>
-    <div class="ph"><h3>🧪 Thí nghiệm</h3></div>${head('Kết quả')}${list(R.tests,'result')}</tbody></table></div>`;
+    <div class="ph"><h3>🧫 Kế hoạch thí nghiệm ngày mai</h3></div>${head('Thời gian')}${list(R.testPlans,'time')}</tbody></table></div>`;
   }
   if (!M && TAB==='mat'){
     h += `<div class="ph"><h3>📦 Vật tư nhập về trong ngày</h3>${addBtn('materials','Thêm vật tư','{"name":"","spec":"","unit":"","qty":""}')}</div>
@@ -1148,9 +1223,20 @@ async function loadImages(){
 const imgSrc = (ph, o) => o && o.pdf && ph.fileId ? 'fid:' + ph.fileId : (ph.img || '');
 
 /* ===================== DOCUMENT ===================== */
-function docHeader(title){
+/* Logo đơn vị: thứ tự TVGS (trái) – CĐT (giữa) – Nhà thầu (phải) */
+const LOGO_KINDS = [['consultant','TƯ VẤN GIÁM SÁT / CONSULTANT','ld','▮ ','consultantShort','TVGS'], ['client','CHỦ ĐẦU TƯ / CLIENT','lp','❖ ','clientShort','Chủ đầu tư'], ['contractor','NHÀ THẦU THI CÔNG / CONTRACTOR','lv','','contractorShort','Nhà thầu']];
+const logoId = k => ((CFG.project.logos||{})[k]) || '';
+const logoSrc = (k, o) => { const id = logoId(k); if (!id) return ''; if (o && o.pdf && IS_GAS && !id.startsWith('lg_')) return 'fid:' + id; return IMGMEM[id] || ''; };
+async function loadLogos(){
+  const miss = LOGO_KINDS.map(([k])=>logoId(k)).filter(id=>id && !IMGMEM[id]); if (!miss.length) return; let got = 0;
+  for (const id of miss){ try { const v = await IDB.get('imgs', id); if (v) { IMGMEM[id] = v; got++; } } catch(e){} }
+  const rest = miss.filter(id=>!IMGMEM[id] && !id.startsWith('lg_'));
+  if (rest.length && IS_GAS) try { const m = await Store.images(rest) || {}; for (const [id,v] of Object.entries(m)) if (v) { IMGMEM[id] = v; got++; try { await IDB.put('imgs', id, v); } catch(e){} } } catch(e){}
+  if (got) { if (VIEW==='day' && R) { renderDoc(); if (TAB==='general') renderForm(); } if (VIEW==='my' && S) renderMyDoc(); if (VIEW==='period' && P.reports) renderPeriod(); if (VIEW==='config') renderConfig(); }
+}
+function docHeader(title, o){
   const p = CFG.project;
-  return `<table class="logos2"><tr><td><div class="lp">❖ ${esc(p.clientShort)}</div>CHỦ ĐẦU TƯ / CLIENT</td><td><div class="ld">▮ ${esc(p.consultantShort)}</div>TƯ VẤN GIÁM SÁT / CONSULTANT</td><td><div class="lv">${esc(p.contractorShort)}</div>NHÀ THẦU THI CÔNG / CONTRACTOR</td></tr></table>
+  return `<table class="logos2"><tr>${LOGO_KINDS.map(([k,lab,cls,ic,sh])=>{ const src = logoSrc(k, o); return `<td>${src ? `<img src="${src}">` : `<div class="${cls}">${ic}${esc(p[sh])}</div>`}${lab}</td>`; }).join('')}</tr></table>
   <h1>${title}</h1><div class="proj">CÔNG TRÌNH / PROJECT: ${esc(p.name)}</div><div class="loc"><b>ĐỊA ĐIỂM / LOCATION:</b> ${esc(p.location)}</div>
   <table class="parties"><tr><td style="width:50%;padding-right:10px"><b>CHỦ ĐẦU TƯ / CLIENT:</b> ${esc(p.client)}</td><td><b>TƯ VẤN GIÁM SÁT / CONSULTANT:</b> ${esc(p.consultant)}</td></tr>
   <tr><td colspan="2"><b>NHÀ THẦU THI CÔNG / CONTRACTOR:</b> ${esc(p.contractor)}</td></tr></table><div class="hr"></div>`;
@@ -1159,8 +1245,8 @@ function docSign(){ const p = CFG.project, s = CFG.signers, c = (p.contractorSho
   return `<table class="sign"><tr><td><b>${esc(c)} CONTRACTOR'S REPRESENTATION</b><br>ĐẠI DIỆN NHÀ THẦU ${esc(c)}<div class="nm">${esc(s.contractor)}</div></td><td><b>${esc(t)} SUPERVISOR</b><br>GIÁM SÁT ${esc(t)}<div class="nm">${esc(s.supervisor)}</div></td></tr></table>`; }
 function docHTML(r, o={}){
   const tm = r.manpower.reduce((s,m)=>s+num(m.qty),0); let h = `<div class="doc">`;
-  h += o.partial ? docHeader('PHIẾU BÁO CÁO HIỆN TRƯỜNG / SITE ENGINEER REPORT') + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}</b></td><td>Kỹ sư / Engineer:<b>${esc(o.who)}</b></td><td style="border:0">Khu vực:<b>${esc(zonesOf(S.uid).map(z=>z.name).join(', '))}</b></td></tr></table>`
-    : docHeader('BÁO CÁO NGÀY / DAILY REPORT') + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>` + lockLine(r);
+  h += o.partial ? docHeader('PHIẾU BÁO CÁO HIỆN TRƯỜNG / SITE ENGINEER REPORT', o) + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}</b></td><td>Kỹ sư / Engineer:<b>${esc(o.who)}</b></td><td style="border:0">Khu vực:<b>${esc(zonesOf(S.uid).map(z=>z.name).join(', '))}</b></td></tr></table>`
+    : docHeader('BÁO CÁO NGÀY / DAILY REPORT', o) + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>` + lockLine(r);
   if (!o.partial) h += `<table><tr><td style="width:49%;vertical-align:top;padding-right:8px"><div class="sec">1. NHÂN LỰC / MANPOWER <span>TỔNG: ${tm} NGƯỜI</span></div>
     <table class="grid"><tr><th class="c">Stt</th><th>Chức vụ / Title</th><th class="c" style="width:60px">Số lượng</th></tr>${r.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c">${num(m.qty)}</td></tr>`).join('')}
     <tr class="tot"><td colspan="2" class="r">TỔNG CỘNG / TOTAL:</td><td class="c v">${tm}</td></tr></table></td><td style="vertical-align:top;padding-left:8px">
@@ -1179,7 +1265,7 @@ function docHTML(r, o={}){
       h += `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}${kl}</td><td>${esc(locText(t))}</td><td class="c">${t.carried||hasV(t.prevProgress)?showPct(t.prevProgress)||'0%':fp(num(t.startPct))}</td><td class="c">${hasV(t.planToday)?fp(num(t.planToday)):'—'}</td><td class="c">${hasV(t.dayPct)?fp(num(t.dayPct)):'—'}</td><td class="c"><b>${esc(t.progress)||'—'}</b></td>
         <td class="c ${j==='short'?'bad':j?'ok':''}">${j ? (j==='ok' && Math.abs(d)<0.05 ? 'Đạt' : sgn(d)) + (n>=2?`<div class="sm bad">hụt ${n} ngày</div>`:'') : ''}</td></tr>`; }); });
   h += `</table><div class="sec">${N[1]}. KẾ HOẠCH NGÀY MAI / TOMORROW'S PLAN</div>
-  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí</th><th class="c" style="width:70px">Dự kiến làm thêm</th><th class="c" style="width:70px">Lũy kế dự kiến</th></tr>`;
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí</th><th class="c" style="width:70px">Dự kiến thực hiện</th><th class="c" style="width:70px">Lũy kế dự kiến</th></tr>`;
   SECTIONS.forEach(S2=>{ const PL = r.plans.filter(t=>sectionOf(t)===S2.k);
     if (o.partial && !PL.length) return;
     h += `<tr><td colspan="5" class="${S2.cls}">${S2.p}</td></tr>`;
@@ -1188,10 +1274,12 @@ function docHTML(r, o={}){
   h += `</table><div class="sec">${N[2]}. NGHIỆM THU & THÍ NGHIỆM / INSPECTION & TESTING</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Công việc đã nghiệm thu trong ngày</th><th style="width:70px">Vị trí</th><th class="c" style="width:70px">Kết quả</th></tr>
   ${r.inspections.length ? r.inspections.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c ${t.result==='Không đạt'?'bad':'ok'}">${esc(t.result)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}
+  <tr><th class="c">Stt</th><th>Công tác thí nghiệm trong ngày</th><th>Vị trí</th><th class="c">Kết quả</th></tr>
+  ${r.tests.length ? r.tests.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.result)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}
   <tr><th class="c">Stt</th><th>Kế hoạch dự trù nghiệm thu ngày mai</th><th>Vị trí</th><th class="c">Thời gian</th></tr>
   ${r.inspectionPlans.length ? r.inspectionPlans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.time)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}
-  <tr><th class="c">Stt</th><th>Công tác thí nghiệm</th><th>Vị trí</th><th class="c">Kết quả</th></tr>
-  ${r.tests.length ? r.tests.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.result)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
+  <tr><th class="c">Stt</th><th>Kế hoạch dự trù thí nghiệm ngày mai</th><th>Vị trí</th><th class="c">Thời gian</th></tr>
+  ${(r.testPlans||[]).length ? r.testPlans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.time)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
   if (!o.partial){
     h += `<div class="sec">6. VẬT TƯ NHẬP VỀ CÔNG TRƯỜNG / MATERIALS DELIVERED</div>
     <table class="grid"><tr><th class="c">Stt</th><th>Chủng loại</th><th>Quy cách</th><th class="c" style="width:50px">ĐVT</th><th class="c" style="width:70px">Số lượng</th></tr>
@@ -1210,6 +1298,16 @@ function docHTML(r, o={}){
   return h + '</div>';
 }
 function lockLine(r){
+  return (isTestDay(r.date) ? `<div class="testmk">🧪 BẢN THỬ – CHẾ ĐỘ THỬ NGHIỆM / TEST DATA – KHÔNG DÙNG CHÍNH THỨC</div>` : '') + lockLine0(r) + stampHtml(r);
+}
+function stampHtml(r){
+  const rv = r.review || {};
+  if (r.status==='locked' && rv.status==='approved') return `<table style="width:100%;margin:4px 0"><tr><td></td><td style="width:240px"><div class="stamp"><b>ĐÃ KIỂM TRA NỘI DUNG – TVGS</b><br>CONTENT VERIFIED BY CONSULTANT<br>${esc(CFG.project.consultantShort||'')} · ${esc(userName(rv.by))}<br>${esc(rv.at)} · bản v${rv.version||1}<br>Mã xác thực: <span class="cd">${esc(rv.code)}</span></div></td></tr></table>`;
+  if (r.status==='locked' && reviewOn()) return `<div class="unv">CHƯA KIỂM TRA – TVGS / NOT YET VERIFIED BY CONSULTANT</div>`;
+  if (rv.status==='returned' && reviewOn()) return `<div class="unv">TVGS YÊU CẦU SỬA – CHƯA PHÁT HÀNH / RETURNED FOR CORRECTION</div>`;
+  return '';
+}
+function lockLine0(r){
   if (r.status !== 'locked') return `<div class="sm" style="text-align:right;color:#b45309;font-weight:bold">BẢN NHÁP – CHƯA CHỐT / DRAFT</div>`;
   const n = lateDays(r);
   return `<div class="sm" style="text-align:right">Chốt${r.lockedBy?' bởi '+esc(userName(r.lockedBy)):''} ${n>0?'ngày':'lúc'} ${esc(r.lockedAt)}${n>0?` – <span class="bad">trễ ${n} ngày</span>`:''}</div>`;
@@ -1238,7 +1336,8 @@ async function saveR(silent){
   try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks);
     const res = await Store.saveReport(payload); delete R.wbsMem;
     if (res && res.layout) R.layout.fileId = res.layout; if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
-    idxSet('reports', {date:R.date, status:R.status, version:R.version}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
+    if (res && 'review' in res) R.review = res.review;
+    idxSet('reports', {date:R.date, status:R.status, version:R.version, review:revOf(R)}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
   } catch(e){ dirty.R = true; setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
 }
 function markDirty(root){ dirty[root] = true; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
@@ -1250,7 +1349,7 @@ function periodRange(){ const d = new Date(P.anchor + 'T00:00:00');
   if (P.kind==='week'){ const wd = (d.getDay()+6)%7, s = addDays(P.anchor, -wd); return {from:s, to:addDays(s,6), key:'W-'+s, title:'BÁO CÁO TUẦN / WEEKLY REPORT'}; }
   const s = iso(new Date(d.getFullYear(), d.getMonth(), 1)), e = iso(new Date(d.getFullYear(), d.getMonth()+1, 0)); return {from:s, to:e, key:'M-'+s.slice(0,7), title:'BÁO CÁO THÁNG / MONTHLY REPORT'}; }
 function aggregate(list){
-  const A = {n:list.length, days:list.map(r=>r.date), unl:list.filter(r=>r.status!=='locked').map(r=>r.date), rain:0, groups:{}, mp:{}, eq:{}, mat:{}, insp:[], tests:[], issues:[], wbsName:{}, plan:{n:0, ok:0, short:{}}};
+  const A = {n:list.length, days:list.map(r=>r.date), unl:list.filter(r=>r.status!=='locked').map(r=>r.date), unv:list.filter(r=>r.status==='locked' && reviewOn() && revOf(r)!=='approved').map(r=>r.date), tst:list.filter(r=>isTestDay(r.date)).map(r=>r.date), rain:0, groups:{}, mp:{}, eq:{}, mat:{}, insp:[], tests:[], issues:[], wbsName:{}, plan:{n:0, ok:0, short:{}}};
   CFG.wbs.forEach(w=>A.wbsName[w.code]=w.name);
   list.forEach(r=>{ if (/mưa|rain|shower/i.test((r.weather.am||'')+' '+(r.weather.pm||''))) A.rain++;
     r.tasks.forEach(t=>{ const G = A.groups[t.wbs||'—'] = A.groups[t.wbs||'—'] || {items:{}}; const k = keyOf(t);
@@ -1279,7 +1378,7 @@ function renderPeriod(){
   $('#perPrevBar').innerHTML = (isChot() ? '<button class="btn" data-act="savePeriod">💾 Lưu phần nhập tay</button><button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
   $('#periodPane').innerHTML = `<div class="bar" style="margin:0 0 14px"><select class="btn" id="pKind"><option value="week" ${P.kind==='week'?'selected':''}>Theo tuần (T2 → CN)</option><option value="month" ${P.kind==='month'?'selected':''}>Theo tháng</option></select>
     <button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button></div>
-  <div class="note">Kỳ <b>${vi(pr.from)} → ${vi(pr.to)}</b>: <b>${A.n}</b> báo cáo ngày${A.n?` (${A.days.map(vi).join(', ')})`:''}.${A.unl.length ? `<br>⚠ <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – đã gom từ phiếu kỹ sư, đánh dấu <b>“số liệu tạm”</b> trên báo cáo.` : ''}</div>
+  <div class="note">Kỳ <b>${vi(pr.from)} → ${vi(pr.to)}</b>: <b>${A.n}</b> báo cáo ngày${A.n?` (${A.days.map(vi).join(', ')})`:''}.${A.unl.length ? `<br>⚠ <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – đã gom từ phiếu kỹ sư, đánh dấu <b>“số liệu tạm”</b> trên báo cáo.` : ''}${A.unv.length ? `<br>⏳ <b>${A.unv.length} ngày đã chốt nhưng chưa được TVGS xác nhận</b> (${A.unv.map(d=>vi(d).slice(0,5)).join(', ')}).` : ''}</div>
   <div class="stat"><div><b>${A.n}</b><span>Ngày có báo cáo</span></div><div><b>${A.n?r1(Object.values(A.mp).reduce((a,b)=>a+b,0)/A.n):0}</b><span>Nhân lực TB/ngày</span></div><div><b>${A.plan.n?Math.round(A.plan.ok*100/A.plan.n)+'%':'—'}</b><span>Tuân thủ KH ngày (${A.plan.ok}/${A.plan.n})</span></div><div><b>${A.rain}</b><span>Ngày có mưa</span></div><div><b>${ok}/${A.insp.length}</b><span>Nghiệm thu đạt</span></div><div><b>${A.issues.length}</b><span>Vi phạm ATLĐ</span></div></div>
   <div class="note w">Tiến độ gom theo <b>đầu mục WBS</b> · Vật tư <b>cộng dồn</b> · Nhân lực & thiết bị <b>trung bình theo số ngày có báo cáo</b> · An toàn, nghiệm thu, thí nghiệm <b>liệt kê đầy đủ</b>.</div>
   <div class="ph"><h3>✍ Phần nhập tay cấp ${P.kind==='week'?'tuần':'tháng'}</h3></div>
@@ -1290,8 +1389,10 @@ function renderPeriod(){
   renderPeriodDoc(A, pr, M); renderMobileBar();
 }
 function renderPeriodDoc(A, pr, M){ const f = r1;
-  let h = `<div class="doc">${docHeader(pr.title)}<table class="meta"><tr><td>Kỳ báo cáo / Period:<b>${vi(pr.from)} – ${vi(pr.to)}</b></td><td>Số ngày có báo cáo:<b>${A.n}</b></td><td>Số ngày mưa:<b>${A.rain}</b></td><td style="border:0">Đánh giá tổng thể:<b class="${M.evaluation==='Không đạt'?'bad':'ok'}">${esc(M.evaluation)||'—'}</b></td></tr></table>
+  let h = `<div class="doc">${docHeader(pr.title, {})}<table class="meta"><tr><td>Kỳ báo cáo / Period:<b>${vi(pr.from)} – ${vi(pr.to)}</b></td><td>Số ngày có báo cáo:<b>${A.n}</b></td><td>Số ngày mưa:<b>${A.rain}</b></td><td style="border:0">Đánh giá tổng thể:<b class="${M.evaluation==='Không đạt'?'bad':'ok'}">${esc(M.evaluation)||'—'}</b></td></tr></table>
+  ${A.tst.length ? `<div class="testmk">🧪 GỒM ${A.tst.length} NGÀY THỬ NGHIỆM – KHÔNG DÙNG CHÍNH THỨC</div>` : ''}
   ${A.unl.length ? `<div class="sm bad" style="text-align:right">⚠ Gồm ${A.unl.length} ngày chưa chốt (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – số liệu tạm</div>` : ''}
+  ${A.unv.length ? `<div class="sm bad" style="text-align:right">⏳ ${A.unv.length} ngày chưa được TVGS xác nhận (${A.unv.map(d=>vi(d).slice(0,5)).join(', ')})</div>` : reviewOn() && A.n && !A.unl.length ? `<div class="sm ok" style="text-align:right">✔ Toàn bộ ${A.n} ngày trong kỳ đã được TVGS xác nhận nội dung</div>` : ''}
   <div class="sec">1. TIẾN ĐỘ THEO ĐẦU MỤC TỔNG (WBS) / PROGRESS BY SUMMARY TASK</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th style="width:70px">Vị trí</th><th class="c" style="width:52px">Đầu kỳ</th><th class="c" style="width:52px">Cuối kỳ</th><th class="c" style="width:48px">Tăng</th><th class="c" style="width:78px">KL trong kỳ</th></tr>`;
   const codes = Object.keys(A.groups).sort((a,b)=> a==='—'?1: b==='—'?-1: a.localeCompare(b, undefined, {numeric:true}));
@@ -1319,7 +1420,20 @@ function renderPeriodDoc(A, pr, M){ const f = r1;
 }
 
 /* ===================== CẤU HÌNH ===================== */
-const CFG_TABS = [['project','Dự án'],['zones','Khu vực & phân công'],['users','Người dùng & PIN'],['lists','Danh mục'],['backup','Sao lưu / Chuyển dự án']];
+const CFG_TABS = [['project','Dự án'],['users','Người dùng & PIN'],['zones','Khu vực & phân công'],['lists','Danh mục'],['settings','Cài đặt'],['backup','Sao lưu / Chuyển dự án']];
+/* Ô tải logo (dùng ở khai báo lần đầu và Cấu hình) */
+function logoBoxes(pending){
+  return `<div class="lgrid">${LOGO_KINDS.map(([k,lab,,,,nm])=>{ const src = pending ? (pending[k]||'') : logoSrc(k);
+    return `<div class="lbox"><div class="lprev">${src?`<img src="${src}">`:'<span>Chưa có logo</span>'}</div><b>${nm}</b>
+      <label class="btn sm">📁 ${src?'Đổi':'Tải'} logo<input type="file" accept="image/*" data-logo="${k}" hidden></label>${src?`<button class="btn sm ghost" data-act="delLogo" data-k="${k}">✕</button>`:''}</div>`; }).join('')}</div>
+    <div class="hint" style="padding:6px 0 0">Thứ tự trên PDF: TVGS (trái) – Chủ đầu tư (giữa) – Nhà thầu (phải). Nên dùng ảnh PNG nền trong suốt; app tự thu nhỏ.</div>`;
+}
+async function fileToLogo(file){
+  const img = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>{ const i = new Image(); i.onload = ()=>res(i); i.onerror = rej; i.src = fr.result; }; fr.onerror = rej; fr.readAsDataURL(file); });
+  const k = Math.min(1, 160 / img.height, 480 / img.width), c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); return c.toDataURL('image/png');
+}
 function renderConfig(){
   $('#cfgTabs').innerHTML = CFG_TABS.map(([k,t])=>`<button class="tab ${CFGTAB===k?'on':''}" data-cfgtab="${k}">${t}</button>`).join('');
   const p = CFG.project, ro = !renderConfig.edit ? 'readonly' : ''; let h = '';
@@ -1330,11 +1444,24 @@ function renderConfig(){
     <div class="g2">${f('code','Mã dự án')}${f('name','Tên công trình')}</div>${f('location','Địa điểm')}
     <div class="g2">${f('client','Chủ đầu tư')}${f('clientShort','Tên ngắn CĐT')}${f('consultant','Tư vấn giám sát')}${f('consultantShort','Tên ngắn TVGS')}${f('contractor','Nhà thầu')}${f('contractorShort','Tên ngắn NT')}</div>
     <div class="g2"><div><label class="l">Đại diện nhà thầu (ký)</label><input class="in" data-cfg="signers.contractor" value="${esc(CFG.signers.contractor)}"></div><div><label class="l">Giám sát TVGS (ký)</label><input class="in" data-cfg="signers.supervisor" value="${esc(CFG.signers.supervisor)}"></div></div>
-    <div class="g2"><div><label class="l">Hạn nộp phiếu hằng ngày</label><input class="in" type="time" data-cfg="settings.deadline" value="${esc(CFG.settings.deadline)}"></div></div>
-    <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu</button></div>`;
+    <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu</button></div>
+    <div class="ph" style="margin-top:14px"><h3>Logo các đơn vị</h3></div>${logoBoxes()}`;
+  }
+  if (CFGTAB==='settings'){
+    const st = CFG.settings || {}, tv = CFG.users.filter(u=>u.role==='tvgs' && u.active!==false);
+    const sw = (path, on, title, desc) => `<label class="swrow"><input type="checkbox" data-cfgchk="${path}" ${on?'checked':''}><span><b>${title}</b><br><span class="hint">${desc}</span></span></label>`;
+    h += `<div class="g2"><div><label class="l">Hạn nộp phiếu hằng ngày</label><input class="in" type="time" data-cfg="settings.deadline" value="${esc(st.deadline||'')}"></div></div>
+    <div class="ph" style="margin-top:12px"><h3>✔ TVGS kiểm tra nội dung</h3></div>
+    ${sw('settings.requireReview', st.requireReview!==false, 'Bắt buộc TVGS xác nhận nội dung trước khi xuất PDF chính thức', 'Nhà thầu chốt → TVGS xác nhận hoặc yêu cầu sửa → PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” và mã xác thực.')}
+    <div class="note ${tv.length?'g':'w'}">${tv.length ? 'Tài khoản TVGS: <b>' + tv.map(u=>esc(u.name)).join(', ') + '</b>' : 'Chưa có tài khoản vai trò <b>TVGS – kiểm tra nội dung</b> → bước kiểm tra đang <b>tắt</b>. Thêm ở thẻ Người dùng & PIN.'}</div>
+    <div class="ph" style="margin-top:12px"><h3>🧪 Chế độ thử nghiệm</h3></div>
+    ${sw('settings.testMode', !!st.testMode, 'Bật chế độ thử nghiệm', 'Mọi người chọn được ngày bất kỳ (kể cả ngày tương lai) để thử báo cáo nhiều ngày liên tiếp. Ngày thử có dải vàng, PDF ghi “BẢN THỬ”. Ngày đã có dữ liệu thật không bị tính là ngày thử.')}
+    <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu cài đặt</button></div>
+    <div class="box soft" style="margin-top:10px"><b>Ngày thử đã tạo:</b> ${(IDX.testDays||[]).length ? (IDX.testDays||[]).slice().sort().map(d=>vi(d).slice(0,5)).join(', ') : '<span class="hint">chưa có</span>'}
+      <div class="bar" style="margin:8px 0 0"><button class="btn" data-act="clearTest" style="color:var(--bad)" ${(IDX.testDays||[]).length?'':'disabled'}>🗑 Xóa toàn bộ ngày thử</button></div></div>`;
   }
   if (CFGTAB==='zones'){
-    const owners = [{v:'',t:'— chưa giao —'}, ...CFG.users.filter(u=>u.active!==false && u.role!=='xem').map(u=>({v:u.id,t:u.name}))];
+    const owners = [{v:'',t:'— chưa giao —'}, ...CFG.users.filter(u=>u.active!==false && u.role!=='xem' && u.role!=='tvgs').map(u=>({v:u.id,t:u.name}))];
     h += `<div class="note">Mỗi <b>khu vực</b> = Zone/hạng mục + bộ môn, giao cho <b>1 kỹ sư phụ trách</b>. Công việc gắn với khu vực, nên đổi người phụ trách thì việc dở dang tự chuyển sang người mới.</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Tên khu vực / hạng mục</th><th style="width:130px">Bộ môn</th><th style="width:200px">Kỹ sư phụ trách</th><th style="width:40px"></th></tr></thead><tbody>
     ${CFG.zones.map((z,i)=>`<tr><td class="n">${i+1}</td><td><input class="in" data-cfg="zones.${i}.name" value="${esc(z.name)}" placeholder="VD: Zone A, Block B, Hầm B2…"></td>
@@ -1397,6 +1524,16 @@ function addItem(root, path, it){
   const el = document.querySelector(`[data-root="${root}"][data-path^="${path}.0."]:not([disabled])`);
   if (el) { try { el.focus({preventScroll:true}); } catch(x){} el.scrollIntoView({block:'center'}); }
 }
+function zaloModal(title, msg, text){
+  modal(`<h3>${title}</h3><div>${msg}</div><textarea class="in" rows="4" id="zaloTxt" style="margin-top:10px">${esc(text)}</textarea><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn pri" id="zaloCp">📋 Sao chép tin nhắn Zalo</button></div>`);
+  $('#zaloCp').onclick = async ()=>{ try { await navigator.clipboard.writeText($('#zaloTxt').value); toast('✔ Đã sao chép – dán vào nhóm Zalo'); } catch(x){ $('#zaloTxt').select(); toast('Nhấn giữ / Ctrl+C để sao chép'); } }; }
+async function verifyFlow(){
+  const code = await prompt2('🔎 Tra mã xác thực', 'Nhập mã in trong dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” trên PDF (VD 7F3A-21C9):', 'XXXX-XXXX'); if (code===null) return;
+  try { const v = await Store.verify(code);
+    modal(v && v.ok==='current' ? `<h3>✔ Mã hợp lệ</h3><p class="note g">Báo cáo ngày <b>${vi(v.date)}</b> – bản v${v.version}. TVGS <b>${esc(v.by)}</b> xác nhận lúc ${esc(v.at)}.<br>Đây là bản hiện hành – nội dung PDF khớp với dữ liệu đã kiểm tra.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`
+      : v && v.ok==='old' ? `<h3>⚠ Mã của bản cũ</h3><p class="note w">Mã từng được TVGS ${esc(v.by)} xác nhận lúc ${esc(v.at)} cho báo cáo ngày <b>${vi(v.date)}</b>, nhưng báo cáo <b>đã được sửa sau đó</b>. Đề nghị dùng PDF bản mới nhất.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`
+      : `<h3>✖ Không tìm thấy mã</h3><p class="note w" style="background:#fef2f2;border-color:#fecaca">Mã không khớp báo cáo nào đã được TVGS xác nhận. PDF có thể không phải bản chính thức.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`);
+  } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
 function pick(title, opts, cb){ pick._cb = cb;
   modal(`<h3>${esc(title)}</h3><div class="zpick">${opts.map(([v,t])=>`<button class="btn" data-act="pick" data-v="${esc(v)}">${esc(t)}</button>`).join('')}</div><div class="acts"><button class="btn" onclick="closeModal()">Hủy</button></div>`); }
 document.addEventListener('input', e=>{
@@ -1412,7 +1549,7 @@ document.addEventListener('input', e=>{
       clearTimeout(renderMobileBar._t); renderMobileBar._t = setTimeout(renderMobileBar, 400); }
     const mp = t.dataset.path.match(/^plans\.(\d+)\.(add|desc|loc|zoneId)$/); if (mp && t.dataset.root==='S'){ const pl = S.plans[+mp[1]];
       if (mp[2]==='add' && v!=='' && v < 0) { pl.add = 0; t.value = 0; } planCalc(pl, S.tasks); const e = $('#pt-'+mp[1]); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; }
-    if (/^(plans|inspections|inspectionPlans|tests)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
+    if (/^(plans|inspections|inspectionPlans|tests|testPlans)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
     markDirty(t.dataset.root); schedulePreview(); return; }
   if (t.dataset.pm && P.manual){ P.manual[t.dataset.pm] = t.value; renderPeriodDoc(aggregate(P.reports), periodRange(), P.manual); clearTimeout(saveTimer.P); saveTimer.P = setTimeout(()=>Store.savePeriod(P.manual), 1500); return; }
   if (t.dataset.cfg){ setPath(CFG, t.dataset.cfg, t.value); }
@@ -1421,11 +1558,23 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('change', async e=>{
   const t = e.target;
+  if (t.id==='dateSel' && t.value==='__pick'){ renderDateSel(); const d = await prompt2('📅 Chọn ngày báo cáo (chế độ thử nghiệm)', 'Chọn ngày bất kỳ, kể cả ngày tương lai:', '', 'date'); if (!d) return;
+    await flush(); DATE = d; R = null; S = null; return VIEW==='my' ? openMy(DATE, ME.id) : openDay(DATE); }
   if (t.id==='dateSel'){ await flush(); DATE = t.value; return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
   if (t.id==='pKind'){ P.kind = t.value; return loadPeriod(); }
   if (t.id==='pAnchor'){ P.anchor = t.value || today(); return loadPeriod(); }
   if (t.id==='loginUser'){ $('#pinIn').focus(); }
   if (t.dataset.cfg && t.tagName==='SELECT'){ setPath(CFG, t.dataset.cfg, t.value); if (CFGTAB==='users') renderConfig(); }
+  if (t.dataset.logo){
+    const f = t.files && t.files[0]; if (!f) return; const k = t.dataset.logo;
+    try { const data = await fileToLogo(f);
+      if (!ME) { showSetup.logos = showSetup.logos || {}; showSetup.logos[k] = data; $('#suLogos').innerHTML = logoBoxes(showSetup.logos); return; }
+      toast('Đang lưu logo…'); CFG.project.logos = CFG.project.logos || {};
+      const id = await Store.saveLogo(k, data, logoId(k)); IMGMEM[id] = data; try { await IDB.put('imgs', id, data); } catch(e){}
+      CFG.project.logos[k] = id; await Store.saveConfig(CFG); renderConfig(); toast('✔ Đã lưu logo');
+    } catch(e){ toast('⚠ Lỗi logo: ' + (e.message||e), 5000); }
+    return;
+  }
   if (t.dataset.img){
     const files = [...t.files]; if (!files.length) return; toast('Đang xử lý ảnh…');
     try {
@@ -1454,8 +1603,8 @@ document.addEventListener('click', async e=>{
       return pick('Thêm việc vào khu vực', zs.map(z=>[z.id, '📍 ' + z.name + ' · ' + (z.section==='MEP'?'MEP':'Xây dựng')]), id=>addItem('S','tasks', newTaskTpl(zoneById(id)))); }
     if (c==='plan') return addItem('S','plans', {zoneId:(zonesOf(S.uid)[0]||CFG.zones[0]||{}).id||'', desc:'', loc:'', wbs:'', add:'', target:''});
     if (c==='qa'){ const z = (zonesOf(S.uid)[0]||CFG.zones[0]||{}).id||'';
-      return pick('Thêm vào', [['inspections','✅ Nghiệm thu trong ngày'],['inspectionPlans','📅 Kế hoạch nghiệm thu ngày mai'],['tests','🧪 Thí nghiệm trong ngày']],
-        k=>addItem('S', k, k==='inspections'?{zoneId:z,desc:'',loc:'',result:'Đạt'}:k==='inspectionPlans'?{zoneId:z,desc:'',loc:'',time:''}:{zoneId:z,desc:'',loc:'',result:''})); }
+      return pick('Thêm vào', [['inspections','✅ Nghiệm thu trong ngày'],['tests','🧪 Thí nghiệm trong ngày'],['inspectionPlans','📅 Kế hoạch nghiệm thu ngày mai'],['testPlans','🧫 Kế hoạch thí nghiệm ngày mai']],
+        k=>addItem('S', k, k==='inspections'?{zoneId:z,desc:'',loc:'',result:'Đạt'}:k==='tests'?{zoneId:z,desc:'',loc:'',result:''}:{zoneId:z,desc:'',loc:'',time:''})); }
     if (c==='people') return pick('Thêm mới', [['manpower','👥 Nhân lực'],['equipment','🔧 Máy móc thiết bị']], k=>addItem('R', k, k==='manpower'?{title:'',qty:0}:{name:'',qty:0}));
     if (c==='mat') return pick('Thêm mới', [['materials','📦 Vật tư nhập về'],['safety.issues','⚠ Nhắc nhở / vi phạm ATLĐ']], k=>addItem('R', k, k==='materials'?{name:'',spec:'',unit:'',qty:''}:{desc:'',action:''})); }
   if (a==='pick'){ closeModal(); const f = pick._cb; pick._cb = null; if (f) f(b.dataset.v); return; }
@@ -1516,11 +1665,32 @@ document.addEventListener('click', async e=>{
     if (w.e && !(await ask('Còn lỗi số liệu', `Báo cáo còn <b>${w.e}</b> lỗi (VD % vượt 100). Vẫn chốt?`, 'Vẫn chốt', true))) return;
     await Promise.all(SUBS.filter(s=>s.status==='submitted').map(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); return Store.saveSub(IS_GAS ? lite(s) : s); }));
     R.lockCount = (R.lockCount||0) + 1; R.version = R.lockCount; R.status='locked'; R.lockedBy = ME.id; R.lockedAt = nowStr(); R.log.push({act:'lock', by:ME.id, at:R.lockedAt, v:R.version});
-    applyMerge(); await saveR(true); renderDateSel(); renderDayAll(); toast(`🔒 Đã chốt báo cáo ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}. Bấm “Lưu PDF vào Google Drive”.`, 5000); }
-  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>, bản cũ trên Drive được giữ lại.`))) return;
+    applyMerge(); await saveR(true); renderDateSel(); renderDayAll();
+    if (reviewOn()) zaloModal('🔒 Đã chốt – chờ TVGS kiểm tra', `Báo cáo đã gửi sang TVGS. Sau khi TVGS xác nhận nội dung mới xuất được PDF chính thức. Có thể sao chép tin nhắn dưới đây gửi nhóm Zalo để nhắc TVGS:`,
+      `📨 [${CFG.project.code}] Nhà thầu đã chốt Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Nhờ TVGS kiểm tra nội dung trên app báo cáo ngày.`);
+    else toast(`🔒 Đã chốt báo cáo ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}. Bấm “Lưu PDF vào Google Drive”.`, 5000); }
+  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>, bản cũ trên Drive được giữ lại.${revOf(R)==='approved'?'<p class="note w" style="margin:10px 0 0">⚠ Báo cáo đã được TVGS xác nhận. Mở khóa sẽ <b>hủy dấu xác nhận</b> – chốt lại xong phải chờ TVGS kiểm tra lại.</p>':''}`))) return;
     R.status='draft'; R.log.push({act:'unlock', by:ME.id, at:nowStr()}); await saveR(true); renderDateSel(); renderDayAll(); }
   if (a==='clearLayout'){ R.layout.img=''; R.layout.fileId=''; markDirty('R'); renderForm(); renderDoc(); }
-  if (a==='drive') toDrive('day');
+  if (a==='drive'){ if (reviewOn() && revOf(R)!=='approved') { toast(repLocked() ? '⏳ Chờ TVGS xác nhận nội dung rồi mới xuất PDF chính thức được' : 'Chốt báo cáo và chờ TVGS xác nhận rồi mới xuất PDF chính thức', 5000); return; } toDrive('day'); }
+  if (a==='approveRep'){ if (!(await ask('Xác nhận nội dung báo cáo', `Xác nhận nội dung <b>Báo cáo ngày ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}</b> là đúng?<p class="hint" style="padding:6px 0 0">PDF sẽ có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” kèm mã xác thực. Nhà thầu được phép xuất PDF và gửi các bên.</p>`, '✔ Xác nhận'))) return;
+    try { R.review = await Store.review(R.date, 'approve'); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'approved'}); renderDateSel(); renderDayAll();
+      zaloModal('✔ Đã xác nhận nội dung', 'Mã xác thực in trên PDF: <b>' + esc(R.review.code) + '</b>. Sao chép tin nhắn gửi nhà thầu:', `✔ [${CFG.project.code}] TVGS ${ME.name} đã xác nhận nội dung Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Mã xác thực: ${R.review.code}. Nhà thầu xuất PDF và gửi các bên.`);
+    } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
+  if (a==='returnRep'){ const note = await prompt2('Yêu cầu nhà thầu sửa – ' + vi(R.date), 'Ghi rõ nội dung sai cần sửa:', 'VD: Zone B thiếu nghiệm thu cốt thép giằng tầng 3; nhân lực ghi 45, thực tế 38'); if (note===null) return;
+    if (!note.trim()) { toast('Cần ghi rõ nội dung cần sửa'); return; }
+    try { R.review = await Store.review(R.date, 'return', note); R.status = 'draft'; idxSet('reports', {date:R.date, status:'draft', version:R.version, review:'returned'}); renderDateSel(); renderDayAll();
+      zaloModal('↩ Đã gửi yêu cầu sửa', 'Báo cáo đã mở lại cho nhà thầu. Sao chép tin nhắn gửi nhà thầu:', `↩ [${CFG.project.code}] TVGS yêu cầu sửa Báo cáo ngày ${vi(R.date)}:\n${note.trim()}\nSửa xong vui lòng chốt lại để TVGS kiểm tra.`);
+    } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
+  if (a==='verify') return verifyFlow();
+  if (a==='delLogo'){ const k = b.dataset.k;
+    if (!ME) { delete (showSetup.logos||{})[k]; $('#suLogos').innerHTML = logoBoxes(showSetup.logos||{}); return; }
+    if (!(await ask('Xóa logo', 'Xóa logo này khỏi báo cáo?', 'Xóa', true))) return;
+    try { await Store.saveLogo(k, '', logoId(k)); CFG.project.logos[k] = ''; await Store.saveConfig(CFG); renderConfig(); toast('Đã xóa logo'); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
+  if (a==='clearTest'){ const L = (IDX.testDays||[]).slice().sort();
+    if (!L.length || !(await ask('Xóa toàn bộ ngày thử', `Xóa vĩnh viễn báo cáo, phiếu, ảnh liên kết của <b>${L.length} ngày thử</b>: ${L.map(d=>vi(d).slice(0,5)).join(', ')}?<p class="hint" style="padding:6px 0 0">Ngày có dữ liệu thật không bị ảnh hưởng.</p>`, 'Xóa ngày thử', true))) return;
+    try { const n = await Store.clearTestDays(); IDX.reports = IDX.reports.filter(x=>!L.includes(x.date)); IDX.subs = IDX.subs.filter(x=>!L.includes(x.date)); IDX.testDays = [];
+      if (L.includes(DATE)) { DATE = today(); R = null; S = null; } renderConfig(); renderDateSel(); toast(`✔ Đã xóa ${n} ngày thử`); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
   if (a==='drivePeriod') toDrive('period');
   if (a==='savePeriod'){ await Store.savePeriod(P.manual); toast('✔ Đã lưu phần nhập tay'); }
   if (a==='refresh'){ await flush(); R = null; S = null; VIEW==='my' ? openMy(DATE, ME.id) : openDay(DATE); }
@@ -1540,7 +1710,7 @@ document.addEventListener('click', async e=>{
     if ($('#mpText')) CFG.manpower = $('#mpText').value.split('\n').map(s=>s.trim()).filter(Boolean);
     if ($('#eqText')) CFG.equipment = $('#eqText').value.split('\n').map(s=>s.trim()).filter(Boolean);
     CFG.zones = CFG.zones.filter(z=>z.name.trim());
-    renderConfig.edit = false; try { await Store.saveConfig(CFG); setSub(); ME = CFG.users.find(u=>u.id===ME.id); renderNav(); renderConfig(); toast('✔ Đã lưu cấu hình'); } catch(err){ toast('⚠ ' + (err.message||err), 5000); } }
+    renderConfig.edit = false; try { await Store.saveConfig(CFG); setSub(); ME = CFG.users.find(u=>u.id===ME.id); renderNav(); renderConfig(); renderDateSel(); toast('✔ Đã lưu cấu hình'); } catch(err){ toast('⚠ ' + (err.message||err), 5000); } }
   if (a==='exportJson'){ const all = await Store.allReports(); const txt = JSON.stringify({project:CFG.project, reports:all.map(stripImgs)}, null, 1);
     modal(`<h3>Dữ liệu JSON (${all.length} báo cáo)</h3><textarea class="in" rows="12" id="jsonOut" readonly>${esc(txt)}</textarea><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn pri" id="cpy">Sao chép</button></div>`);
     $('#cpy').onclick = async ()=>{ try { await navigator.clipboard.writeText(txt); toast('✔ Đã sao chép'); } catch(x){ $('#jsonOut').select(); toast('Nhấn Ctrl+C để sao chép'); } }; }
@@ -1572,14 +1742,15 @@ function showSetup(){
     <p class="lead">Chỉ khai báo <b>một lần</b>, tự điền vào mọi báo cáo ngày/tuần/tháng. Kỹ sư, khu vực phân công thêm sau trong <b>Cấu hình</b>. Chuyển dự án khác: <b>Cấu hình → Reset toàn bộ</b>.</p>
     <div class="step"><h3><b>1</b>Thông tin công trình</h3><div class="g2">${F('project.code')}${F('project.name')}</div>${F('project.location')}</div>
     <div class="step"><h3><b>2</b>Các bên tham gia</h3><div class="g2">${F('project.client')}${F('project.clientShort')}${F('project.consultant')}${F('project.consultantShort')}${F('project.contractor')}${F('project.contractorShort')}</div>
-      <div class="hint" style="padding:8px 0 0">Bỏ trống tên ngắn → tự rút gọn từ tên đầy đủ.</div></div>
+      <div class="hint" style="padding:8px 0 0">Bỏ trống tên ngắn → tự rút gọn từ tên đầy đủ.</div>
+      <label class="l" style="margin-top:12px">Logo các đơn vị <span class="chip">tùy chọn</span></label><div id="suLogos">${logoBoxes({})}</div></div>
     <div class="step"><h3><b>3</b>Người ký báo cáo</h3><div class="g2">${F('signers.contractor')}${F('signers.supervisor')}</div></div>
     <div class="step"><h3><b>4</b>Tài khoản quản trị (người chốt báo cáo)</h3><div class="g2">${F('admin.name')}<div><label class="l">PIN đăng nhập (4–6 số) <i>*</i></label><input class="in pin" id="su-pin" type="password" inputmode="numeric" maxlength="6"></div></div></div>
     <div class="step"><h3><b>5</b>Đầu mục tổng WBS <span class="chip">tùy chọn</span></h3><div class="hint" style="padding:0 0 8px">Mỗi dòng: mã[TAB]tên. Bổ sung sau trong Cấu hình.</div>
       <textarea class="in" rows="4" id="su-wbs" style="font-family:ui-monospace,monospace;font-size:12.5px"></textarea></div>
     <div class="bar" style="justify-content:space-between">${IS_GAS ? '<span></span>' : '<button class="btn" data-act="suSample">✨ Điền mẫu demo CN8-2 (kèm người dùng, khu vực, 3 ngày dữ liệu)</button>'}
       <button class="btn pri" data-act="suStart" style="padding:10px 20px">Bắt đầu sử dụng →</button></div></div>`;
-  $('#setup').classList.add('on'); showSetup.sample = false;
+  $('#setup').classList.add('on'); showSetup.sample = false; showSetup.logos = {};
 }
 function fillSetup(c){ SU_FIELDS.forEach(([k])=>{ const el = $('#su-'+k.replace('.','-')); if (el) el.value = k==='admin.name' ? c.users[0].name : (getPath(c,k)||''); });
   $('#su-pin').value = c.demoPins.u_chot; $('#su-wbs').value = c.wbs.map(w=>w.code+'\t'+w.name).join('\n'); showSetup.sample = true; }
@@ -1595,6 +1766,8 @@ async function finishSetup(){
   c.setupDone = true; c.setupAt = vi(today());
   try { const res = await Store.setup(c, pin); CFG = Object.assign(clone(GENERIC_CFG), c); if (!IS_GAS) { const cc = await IDB.get('kv','config'); if (cc) CFG = cc; }
     if (showSetup.sample && !IS_GAS) await seed();
+    TOKEN = res.token; const lg = showSetup.logos || {};
+    if (Object.keys(lg).length) { CFG.project.logos = {}; for (const [k,data] of Object.entries(lg)) { try { const id = await Store.saveLogo(k, data, ''); IMGMEM[id] = data; try { await IDB.put('imgs', id, data); } catch(e){} CFG.project.logos[k] = id; } catch(e){} } await Store.saveConfig(CFG); }
     $('#setup').classList.remove('on'); startSession(res.token, res.uid); toast('✔ Đã khai báo dự án ' + CFG.project.code);
   } catch(e){ toast('⚠ ' + (e.message||e), 6000); }
 }
@@ -1635,7 +1808,7 @@ async function startSession(token, u, bundle){
   TOKEN = token; try { localStorage.setItem('bcn_session', JSON.stringify({token, uid:u, code:CFG.project.code})); } catch(x){}
   ME = CFG.users.find(x=>x.id===u); if (!ME || ME.active===false) { toast('Tài khoản không còn hoạt động'); return showLogin(); }
   $('#login').classList.remove('on'); setSub(); R = null; S = null;
-  VIEW = navItems()[0][0]; renderNav();
+  VIEW = navItems()[0][0]; renderNav(); loadLogos();
   if (bundle) { applyBundle(bundle, VIEW, ME.id); try { localStorage.setItem(cacheKey(VIEW, ME.id), JSON.stringify(bundle)); } catch(e){} }
   else if (VIEW==='my') await openMy('', ME.id); else await openDay('');
 }
@@ -1661,18 +1834,22 @@ function sampleDay(date, d){
   const ins = d===0 ? [{id:uid(),zoneId:'zB',desc:'Nghiệm thu vật tư đầu vào hệ shoring lớp 3',loc:'',result:'Đạt'}] : d===1 ? [{id:uid(),zoneId:'zC',desc:'Nghiệm thu cao độ đào đất lớp 3',loc:'',result:'Đạt'}] : [{id:uid(),zoneId:'zB',desc:'Nghiệm thu mối hàn liên kết giằng lớp 3',loc:'',result:'Không đạt'}];
   const tests = d===0 ? [{id:uid(),zoneId:'zC',desc:'Chứng kiến nén mẫu và thử thấm bê tông trialmix và bê tông chèn shoring lớp 2',loc:'P.Las 357',result:'Đạt'}] : [];
   const iplans = d===0 ? [{id:uid(),zoneId:'zC',desc:'Nghiệm thu lắp đặt hệ giằng lớp 3',loc:'',time:'Sáng'}] : [];
+  const tplans = d===0 ? [{id:uid(),zoneId:'zB',desc:'Nén mẫu bê tông chèn shoring lớp 3 (7 ngày)',loc:'P.Las 357',time:'Chiều'}] : [];
   if (d===0) r.materials = [{id:uid(),name:'Thép hình H350 (shoring lớp 3)',spec:'SS400',unit:'tấn',qty:12.5},{id:uid(),name:'Bê tông chèn shoring',spec:'B30',unit:'m3',qty:8}];
   if (d===1) r.materials = [{id:uid(),name:'Thép hình H350 (shoring lớp 3)',spec:'SS400',unit:'tấn',qty:20}];
   if (d===2) { r.materials = [{id:uid(),name:'Bê tông chèn shoring',spec:'B30',unit:'m3',qty:6}]; r.safety.issues = [{id:uid(),desc:'Công nhân không đeo dây an toàn khi lắp giằng',action:'Nhắc nhở, lập biên bản, bổ sung giám sát an toàn'}]; }
   const subs = ['u_than','u_lam'].map(u=>{ const Z = new Set(zonesOf(u).map(z=>z.id)); const s = blankSub(date, u);
-    s.tasks = tasks.filter(t=>Z.has(t.zoneId)); s.plans = plans.filter(t=>Z.has(t.zoneId)); s.inspections = ins.filter(t=>Z.has(t.zoneId)); s.tests = tests.filter(t=>Z.has(t.zoneId)); s.inspectionPlans = iplans.filter(t=>Z.has(t.zoneId));
+    s.tasks = tasks.filter(t=>Z.has(t.zoneId)); s.plans = plans.filter(t=>Z.has(t.zoneId)); s.inspections = ins.filter(t=>Z.has(t.zoneId)); s.tests = tests.filter(t=>Z.has(t.zoneId)); s.inspectionPlans = iplans.filter(t=>Z.has(t.zoneId)); s.testPlans = tplans.filter(t=>Z.has(t.zoneId));
     s.photos = (u==='u_than' ? ['Mặt bằng thi công đào đất','Mặt bằng thi công lắp đặt hệ giằng lớp 3'] : ['Mặt bằng thi công dầm mũ tường vây']).map(c=>({id:uid(), zoneId:[...Z][0], img:'', fileId:'', caption:c}));
     s.note = u==='u_than' ? 'Zone A+B: 14 CN đào, 4 CN shoring; 4 xe đào 025, 2 xe đào 07.' : 'Zone C: 10 CN; 2 xe đào 05. Site: 3 CN vệ sinh.';
     s.status = d===0 ? (u==='u_than' ? 'submitted' : 'draft') : 'accepted'; s.submittedAt = s.status!=='draft' ? vi(date)+' 16:45' : ''; s.updatedAt = vi(date)+' 16:40'; return s; });
   r.status = d===0 ? 'draft' : 'locked'; r.version = d===0 ? 0 : 1; r.lockCount = r.version; r.lockedBy = d? 'u_chot':''; r.lockedAt = d ? vi(date)+' 18:10' : '';
   Object.assign(r, mergeSubs(subs, true)); return {r, subs};
 }
-async function seed(){ for (const d of [2,1,0]){ const {r, subs} = sampleDay(addDays('2026-06-27', -d), d); await Store.saveReport(r); for (const s of subs) await Store.saveSub(s); } }
+async function seed(){ for (const d of [2,1,0]){ const {r, subs} = sampleDay(addDays('2026-06-27', -d), d); await Store.saveReport(r); for (const s of subs) await Store.saveSub(s);
+  if (d===2 && r.review) { const o = clone(r); delete o.review; const h = (await sha(JSON.stringify(o))).toUpperCase().replace(/[^0-9A-F]/g,'').padEnd(8,'0');   // 25/06: TVGS đã xác nhận; 26/06: chờ kiểm tra
+    r.review = {status:'approved', by:'u_tvgs', at:'25/06/2026 18:10', code:h.slice(0,4)+'-'+h.slice(4,8), version:1}; await IDB.put('reports', r.date, r);
+    await IDB.put('kv','vlog', [{code:r.review.code, date:r.date, by:'DSPCons – TVGS (demo)', at:r.review.at}]); } } }
 async function boot(){
   renderChip();
   let b = null; try { b = await Store.boot(); } catch(e){}
