@@ -1,7 +1,7 @@
 const crypto = require('crypto'); const fs = require('fs'); const vm = require('vm');
 const sheets = {}; let fileSeq = 0; const files = {}; const props = {}; const cacheStore = {}; const stats = {sheetReads:0, sheetWrites:0};
 function mkSheet(name){ const data = []; const sh = {
-  name, data, getLastRow:()=>data.length, setFrozenRows(){}, hideColumns(){},
+  name, data, getLastRow:()=>data.length, getLastColumn:()=>Math.max(0, ...data.map(r=>r.length)), setFrozenRows(){}, hideColumns(){},
   appendRow(r){ data.push(r.slice()); },
   deleteRows(start, n){ data.splice(start-1, n); stats.sheetWrites++; },
   getRange(a,b,c,d){ if (typeof a==='string') return {setNumberFormat(){return this;}};

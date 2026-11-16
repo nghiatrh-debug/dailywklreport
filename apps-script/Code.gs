@@ -21,7 +21,7 @@ const CACHE_TTL = 21600;   // 6 giờ (tối đa của CacheService)
 const SCHEMA = {
   BaoCao:    ['ngay','trang_thai','phien_ban','nguoi_chot','chot_luc','thoi_tiet_sang','thoi_tiet_chieu','nhiet_do','tong_nhan_luc','so_loai_thiet_bi','so_viec','so_viec_xong','pdf_url','cap_nhat_luc','json'],
   PhieuKS:   ['khoa','ngay','ma_nguoi','ten','khu_vuc','trang_thai','nop_luc','nhap_thay_boi','ghi_chu','tra_lai_ghi_chu','so_viec','so_anh','cap_nhat_luc','json'],
-  CongViec:  ['ngay','loai','bo_mon','khu_vuc','stt','noi_dung','vi_tri','ma_wbs','dvt','kl_ngay','tien_do_text','tien_do_pct','tien_do_truoc','lap_lai','nguoi_bao_cao','ma_tien_do'],
+  CongViec:  ['ngay','loai','bo_mon','khu_vuc','stt','noi_dung','vi_tri','ma_wbs','dvt','kl_ngay','tien_do_text','tien_do_pct','tien_do_truoc','lap_lai','nguoi_bao_cao','ma_tien_do','kh_hom_nay','thuc_hien','chenh_lech','du_kien_them'],
   NhanLuc:   ['ngay','chuc_danh','so_luong'],
   ThietBi:   ['ngay','thiet_bi','so_luong'],
   NghiemThu: ['ngay','loai','khu_vuc','noi_dung','vi_tri','ket_qua_hoac_thoi_gian','nguoi_bao_cao'],
@@ -198,9 +198,12 @@ function writeNormalized_(r, c, pctOf) {
   const d = r.date;
   const zn = id => { const z = c.zones.find(x => x.id === id); return z ? z.name : ''; };
   const secOf = t => { const z = c.zones.find(x => x.id === t.zoneId); return z ? z.section : (t.section || ''); };
-  const cv = [];
-  (r.tasks || []).forEach((t, i) => cv.push([d, 'THUC_HIEN', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, t.unit, t.qtyDay, t.progress, pctOf(t.progress), t.prevProgress, t.recurring ? 'x' : '', userName_(c, t.by), t.scheduleId || '']));
-  (r.plans || []).forEach((t, i) => cv.push([d, 'KE_HOACH', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, '', '', t.target, pctOf(t.target), '', '', userName_(c, t.by), t.scheduleId || '']));
+  const cv = [], nb = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Number(v);
+  (r.tasks || []).forEach((t, i) => { const kh = t.recurring ? '' : nb(t.planToday), th = t.recurring ? '' : nb(t.dayPct);
+    cv.push([d, 'THUC_HIEN', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, t.unit, t.qtyDay, t.progress, pctOf(t.progress), t.prevProgress, t.recurring ? 'x' : '', userName_(c, t.by), t.scheduleId || '',
+      kh, th, kh !== '' && th !== '' ? Math.round((th - kh) * 10) / 10 : '', '']); });
+  (r.plans || []).forEach((t, i) => cv.push([d, 'KE_HOACH', secOf(t), zn(t.zoneId), i + 1, t.desc, t.loc, t.wbs, '', '', t.target, pctOf(t.target), '', t.mon ? 'x' : '', userName_(c, t.by), t.scheduleId || '', '', '', '', t.mon ? '' : nb(t.add)]));
+  ensureHeader_('CongViec');
   replaceDay_('CongViec', d, cv);
   replaceDay_('NhanLuc', d, (r.manpower || []).map(m => [d, m.title, Number(m.qty) || 0]));
   replaceDay_('ThietBi', d, (r.equipment || []).map(m => [d, m.name, Number(m.qty) || 0]));
@@ -237,7 +240,14 @@ function apiPeriod(token, from, to, key) {
   }
   let manual = null;
   if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? JSON.parse(row[SCHEMA.TongHopKy.indexOf('json')]) : null; }
-  return JSON.stringify({ reports: reports, manual: manual });
+  // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
+  const locked = {}; reports.forEach(r => { if (r && r.status === 'locked') locked[r.date] = 1; });
+  const pk = col_('PhieuKS', 1), pj = SCHEMA.PhieuKS.indexOf('json'), pi = [];
+  pk.forEach((k, i) => { if (k >= from && k <= to && !locked[k]) pi.push(i); });
+  let subs = [];
+  if (pi.length) { const a = Math.min.apply(null, pi), b = Math.max.apply(null, pi);
+    const vals = sheet_('PhieuKS').getRange(a + 2, pj + 1, b - a + 1, 1).getValues(); subs = pi.map(i => JSON.parse(vals[i - a][0])); }
+  return JSON.stringify({ reports: reports, manual: manual, subs: subs });
 }
 function apiSavePeriod(token, json) {
   auth_(token, ['admin', 'chot']);
@@ -373,6 +383,11 @@ function replaceDay_(name, d, rows, keyCol) {
   for (let e = idx.length - 1; e >= 0;) { let s = e; while (s > 0 && idx[s - 1] === idx[s] - 1) s--; sh.deleteRows(idx[s], e - s + 1); e = s - 1; }
   if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, w).setValues(rows.map(r => r.map(v => v == null ? '' : v)));
   forget_(name);
+}
+/** Bảng cũ thiếu cột mới (nâng cấp phiên bản) → ghi lại dòng tiêu đề. */
+function ensureHeader_(name) {
+  const sh = sheet_(name), h = SCHEMA[name];
+  if (sh.getLastColumn() < h.length) sh.getRange(1, 1, 1, h.length).setValues([h]).setFontWeight('bold').setBackground('#eef2ff');
 }
 function setCell_(name, key, col, val) {
   const i = col_(name, 0).indexOf(String(key));

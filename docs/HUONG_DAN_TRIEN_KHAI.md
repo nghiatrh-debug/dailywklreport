@@ -38,6 +38,8 @@
 | Đẩy code sang nhánh `release` (`git push origin main:release`), hoặc vào tab **Actions → Kiểm thử & triển khai → Run workflow** và tick *release* | Như trên, sau đó **phát hành lên link chính thức `/exec`**: link giữ nguyên, kỹ sư tải lại app là thấy bản mới |
 | Kiểm thử lỗi | Dừng, **không** đưa code lên. GitHub gửi email báo lỗi cho chủ repo |
 
+Kiểm thử gồm 2 phần chạy song song: **máy chủ** (`tests/gastest.js`) và **giao diện** (`tests/ui.js`: tự mở app ở cỡ điện thoại 375/390/412 px và máy tính, bấm thử các luồng chính). Ảnh chụp màn hình của mỗi lần chạy nằm ở cuối trang lần chạy đó trong tab **Actions**, mục **Artifacts → ui-screenshots** (lưu 14 ngày).
+
 - Xem lịch sử chạy: tab **Actions** của repo.
 - Quay về bản cũ: Apps Script → Triển khai → Quản lý triển khai → ✎ → chọn **phiên bản** trước → Triển khai.
 - Nếu báo lỗi đăng nhập (`invalid_grant`, `unauthorized`): trên máy tính chạy lại `clasp login`, sau đó cập nhật secret `CLASPRC_JSON` bằng nội dung file `%USERPROFILE%\.clasprc.json` mới.
@@ -56,8 +58,8 @@
    - việc chưa đạt 100%;
    - việc lặp lại hằng ngày;
    - kế hoạch nghiệm thu của hôm trước (chuyển thành danh sách cần nhập kết quả).
-2. Kỹ sư nhập KL % lũy kế, KL ngày, nghiệm thu, thí nghiệm, ảnh, và **ghi chú nhân lực/thiết bị** cho người chốt, rồi bấm **Nộp**.
-   - **Kiểm tra số liệu**: app chặn nộp khi % vượt 100. App cảnh báo khi thiếu %, % thấp hơn hôm trước, hoặc % tăng mà không có KL ngày.
+2. Kỹ sư nhập **% làm được hôm nay** (bấm +2 / +5 / +7 / +10 / Xong), nghiệm thu, thí nghiệm, ảnh, và **ghi chú nhân lực/thiết bị** cho người chốt, rồi bấm **Nộp**. Chi tiết cách tính % ở mục 4b.
+   - **Kiểm tra số liệu**: app không cho lũy kế vượt 100%. App cảnh báo khi chưa nhập % hôm nay hoặc kết quả việc theo dõi.
    - **Ảnh** được cắt khung 4:3 và **đóng dấu ngày giờ chụp, người chụp, mã dự án, khu vực**. Ngày giờ lấy từ EXIF của ảnh; ảnh chụp khác ngày báo cáo bị gắn nhãn đỏ.
 3. **Người chốt** mở "Tổng hợp & chốt ngày":
    - Xem tab **Tình trạng phiếu**: Đã nộp / Đang nhập / Bị trả lại / Chưa có.
@@ -66,6 +68,23 @@
    - Bấm **Chốt** để khóa ngày.
    - Bấm **Lưu PDF vào Google Drive**, rồi gửi link qua Zalo.
 4. **Sửa sau khi đã chốt**: bấm **Mở khóa**, sửa, rồi chốt lại. Báo cáo thành bản **v2** (file `BCN_<mã>_<ngày>_v2.pdf`); PDF bản cũ trên Drive được giữ nguyên.
+
+## 4b. Cách tính % và so sánh kế hoạch (từ đợt 2)
+| Ô trên phiếu | Ai nhập | Cách tính |
+|---|---|---|
+| Lũy kế hôm qua | Tự động, khóa | Lũy kế cuối ngày trước của cùng việc |
+| KH hôm nay | Tự động, khóa | “% dự kiến làm thêm” kỹ sư đặt hôm qua |
+| **% làm được hôm nay** | **Kỹ sư** | — |
+| Lũy kế hôm nay | Tự động, khóa | Lũy kế hôm qua + % hôm nay (tối đa 100%) |
+| So với KH | Tự động | Đạt / Vượt / Hụt; hụt từ 2 ngày liền thì báo “hụt N ngày liên tiếp” |
+
+- **Việc mới thêm giữa chừng** (đã làm được một phần trước khi đưa vào app): nhập **% đã làm trước đó** một lần. Sau khi nộp, chỉ người chốt sửa được.
+- **Việc theo dõi / lặp lại** (quan trắc, vệ sinh…): tick ô “Việc theo dõi” trong mục Chi tiết, rồi nhập kết quả dạng chữ (VD `CK11`).
+- **Kế hoạch ngày mai** (thanh **Ngày mai** trên điện thoại): nhập **% dự kiến làm thêm**; lũy kế dự kiến tự tính. Nút **⚡ Tự sinh** lấy tốc độ hôm nay làm mức dự kiến.
+- Sửa số của ngày trước thì ngày sau **tự cập nhật** lũy kế khi mở phiếu.
+- KL ngày và ĐVT không bắt buộc, nằm trong mục **Chi tiết**.
+- Thêm mới (việc, kế hoạch, nhân lực, thiết bị, vật tư) luôn **hiện ở đầu danh sách**. Trên điện thoại có nút **＋** nổi ở góc phải.
+- **Người chốt quên chốt**: màn hình chốt hiện banner **“Còn N ngày chưa chốt”**, bấm vào ngày để mở. Báo cáo tuần/tháng vẫn gom các ngày này từ phiếu kỹ sư và ghi rõ **“số liệu tạm”**. PDF ngày chốt muộn ghi **“trễ N ngày”**.
 
 ## 5. Dữ liệu (các tab trong Google Sheet)
 | Tab | Nội dung |

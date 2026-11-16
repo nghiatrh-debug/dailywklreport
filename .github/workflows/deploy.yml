@@ -1,5 +1,5 @@
 # Tự động kiểm thử và đưa code lên Google Apps Script
-# - Mỗi lần đẩy code lên nhánh main: chạy kiểm thử → đưa code vào Apps Script (bản "Thử nghiệm" /dev).
+# - Mỗi lần đẩy code lên nhánh main: chạy kiểm thử máy chủ + giao diện → đưa code vào Apps Script (bản "Thử nghiệm" /dev).
 #   Link chính thức /exec cho kỹ sư KHÔNG đổi.
 # - Phát hành lên link chính thức /exec: đẩy code sang nhánh "release" (git push origin main:release)
 #   hoặc vào tab Actions → Run workflow → tick "release".
@@ -39,9 +39,31 @@ jobs:
       - name: Chạy kiểm thử
         run: node tests/gastest.js
 
+  test-ui:
+    name: Kiểm thử giao diện (điện thoại 375/390/412 px + máy tính)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Cài Playwright + Chromium
+        run: |
+          npm install --no-save playwright@1
+          npx playwright install --with-deps chromium
+      - name: Chạy kiểm thử giao diện
+        run: node tests/ui.js
+      - name: Lưu ảnh chụp màn hình
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: tests/shots/
+          retention-days: 14
+
   deploy:
     name: Đưa code lên Apps Script
-    needs: test
+    needs: [test, test-ui]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

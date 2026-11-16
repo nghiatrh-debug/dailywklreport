@@ -145,6 +145,25 @@ table.ed .in:focus{background:#fff}
 .ro .in[data-cfg^="project."]{background:#f8fafc;color:#334155}
 .danger{border:1px solid #fecaca;background:#fef2f2;border-radius:12px;padding:14px;margin-top:20px}
 .danger h3{color:#b91c1c}
+/* ===== MÔ HÌNH % / SO SÁNH KẾ HOẠCH ===== */
+.lk{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:10px;padding:6px 8px;text-align:center;color:#334155}
+.lk b{display:block;font-size:17px;font-weight:800}
+.lk span{display:block;font-size:10.5px;color:var(--mu);font-weight:700;text-transform:uppercase}
+.lk.cum{background:#eef2ff;border-style:solid;border-color:#c7d2fe;color:var(--ac2)}
+.lk.cum.full{background:#ecfdf5;border-color:#a7f3d0;color:#047857}
+.jd{font-size:11.5px;font-weight:800;border-radius:99px;padding:2px 9px;display:inline-block;white-space:nowrap}
+.jd.ok{background:#d1fae5;color:#065f46}.jd.over{background:#dbeafe;color:#1e40af}.jd.short{background:#fee2e2;color:#991b1b}.jd.na{background:#f1f5f9;color:#64748b}
+.cumv{font-weight:800;color:var(--ac2);text-align:center;padding-top:9px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#e2e8f0;border-radius:12px;padding:4px;gap:4px;margin:2px 0 10px}
+.seg button{border:0;border-radius:9px;padding:10px 6px;font-weight:700;font-size:14px;background:transparent;color:#475569}
+.seg button.on{background:#fff;color:var(--ac2);box-shadow:0 1px 3px #0f172a26}
+#fab{display:none;position:fixed;right:16px;bottom:130px;width:58px;height:58px;border-radius:50%;background:var(--ac);color:#fff;font-size:32px;line-height:1;border:0;box-shadow:0 8px 20px #4f46e566;z-index:61}
+#fab.on{display:grid;place-items:center}
+#fab:active{transform:scale(.94)}
+.zpick{display:grid;gap:8px;margin-top:10px}.zpick .btn{justify-content:flex-start;min-height:46px;font-size:15px}
+.tcard.fresh{border-color:var(--ac);box-shadow:0 0 0 3px #c7d2fe}
+.ulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6px}details.dt[open] summary{color:var(--ac2)}
 /* ===== DOCUMENT (dùng chung cho xem trước, in và xuất PDF) ===== */
 </style>
 <style id="docCss">
@@ -357,6 +376,7 @@ table.ed .in:focus{background:#fff}
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="mb" id="modalBody"></div></div>
 <div id="mBottom"></div>
+<button id="fab" data-act="fab" aria-label="Thêm mới">＋</button>
 
 <script>
 /* =====================================================================
@@ -443,8 +463,70 @@ function blankSub(date, uidv){ return { key:date+'|'+uidv, date, uid:uidv, statu
 function normReport(r){ const o = Object.assign(blankReport(r.date), r);
   o.weather = Object.assign({am:'',pm:'',temp:''}, r.weather||{}); o.safety = Object.assign({summary:'',issues:[]}, r.safety||{});
   o.layout = Object.assign({img:'',fileId:'',caption:''}, r.layout||{});
-  ['tasks','plans','inspections','inspectionPlans','tests','photos','materials','manpower','equipment','extraPhotos','log'].forEach(k=>o[k]=o[k]||[]); return o; }
-function normSub(s){ const o = Object.assign(blankSub(s.date, s.uid), s); ['tasks','plans','inspections','inspectionPlans','tests','photos'].forEach(k=>o[k]=o[k]||[]); return o; }
+  ['tasks','plans','inspections','inspectionPlans','tests','photos','materials','manpower','equipment','extraPhotos','log'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
+function normSub(s){ const o = Object.assign(blankSub(s.date, s.uid), s); ['tasks','plans','inspections','inspectionPlans','tests','photos'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
+
+/* ===================== MÔ HÌNH % (lũy kế hôm qua + % hôm nay = lũy kế hôm nay) =====================
+   task: prevProgress (lũy kế hôm qua, khóa) · planToday (KH hôm nay = % dự kiến làm thêm đặt hôm qua, khóa)
+         dayPct (% làm được hôm nay – kỹ sư nhập) · startPct (% đã làm trước đó, việc mới thêm giữa chừng)
+         progress (= lũy kế hôm nay, tự tính) · recurring (= việc theo dõi: kết quả dạng chữ, không tính %)
+   plan: add (% dự kiến làm thêm) · target (= lũy kế dự kiến, tự tính) · mon (kế hoạch của việc theo dõi)      */
+const isMon = t => !!t.recurring;
+const hasV = v => v !== '' && v != null && String(v).trim() !== '';
+const baseOf = t => { const pp = pct(t.prevProgress); return pp !== null ? pp : (hasV(t.startPct) ? num(t.startPct) : 0); };
+const cumOf = t => { if (isMon(t)) return null; const p = pct(t.progress); if (p !== null) return p; const pp = pct(t.prevProgress); if (pp !== null) return pp; return hasV(t.startPct) ? num(t.startPct) : null; };
+const fp = v => r1(v) + '%';
+const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + r1(Math.abs(v)) + '%';
+function recalc(t){ if (isMon(t)) return t; t.progress = hasV(t.dayPct) ? fp(Math.min(100, baseOf(t) + num(t.dayPct))) : ''; return t; }
+function normTask(t){
+  if (isMon(t)) return t;
+  const p = pct(t.progress), pp = pct(t.prevProgress);
+  if (t.dayPct === undefined) { t.dayPct = p === null ? '' : r1(p - (pp ?? 0)); if (pp === null && !t.carried) t.startPct = t.startPct ?? 0; }
+  if (t.planToday === undefined) { const tg = pct(t.target); t.planToday = tg !== null && pp !== null ? r1(Math.max(0, tg - pp)) : ''; }
+  return t;
+}
+function planCalc(pl, tasks){
+  if (pl.mon) return pl;
+  const t = (tasks||[]).find(x => !isMon(x) && keyOf(x) === keyOf(pl)), b = t ? (cumOf(t) ?? 0) : 0;
+  pl.base = b; pl.target = hasV(pl.add) ? fp(Math.min(100, b + num(pl.add))) : ''; return pl;
+}
+function normWork(o){
+  (o.tasks||[]).forEach(normTask);
+  (o.plans||[]).forEach(pl => { const t = (o.tasks||[]).find(x => keyOf(x) === keyOf(pl));
+    if (t && isMon(t)) { pl.mon = true; return; }
+    if (pl.add === undefined) { const tg = pct(pl.target); pl.add = tg === null ? '' : r1(Math.max(0, tg - (t ? (cumOf(t) ?? 0) : 0))); } });
+}
+/* So với kế hoạch: ok (đạt) · over (vượt) · short (hụt) · null (không có KH / chưa nhập) */
+function judge(t){
+  if (isMon(t) || !hasV(t.planToday) || !hasV(t.dayPct)) return null;
+  const d = num(t.dayPct) - num(t.planToday);
+  if ((cumOf(t) ?? 0) >= 100) return 'ok';
+  return Math.abs(d) < 0.05 ? 'ok' : d > 0 ? 'over' : 'short';
+}
+const streakOf = t => judge(t) === 'short' ? (t.shortStreak || 0) + 1 : 0;
+function judgeHtml(t, long){
+  const j = judge(t); if (!j) return hasV(t.planToday) || isMon(t) ? '' : (long ? '<span class="jd na">Không có KH</span>' : '');
+  const d = num(t.dayPct) - num(t.planToday), n = streakOf(t);
+  if (j === 'ok') return `<span class="jd ok">✔ Đạt KH</span>`;
+  if (j === 'over') return `<span class="jd over">▲ Vượt ${sgn(d)}</span>`;
+  return `<span class="jd short">▼ Hụt ${sgn(d)}${n >= 2 ? ' · ' + n + ' ngày liên tiếp' : ''}</span>`;
+}
+function planStats(tasks){ const s = {n:0, ok:0, short:[]}; tasks.forEach(t=>{ const j = judge(t); if (!j) return; s.n++; if (j !== 'short') s.ok++; else s.short.push(t); }); return s; }
+function shortNote(ps){
+  if (!ps.short.length) return ps.n ? `<div class="note g">✔ Tất cả ${ps.n} việc có kế hoạch đều đạt hoặc vượt.</div>` : '';
+  return `<div class="note w"><b>▼ ${ps.short.length} việc hụt kế hoạch:</b><ul style="margin:6px 0 0;padding-left:18px">${ps.short.map(t=>`<li>${esc(t.desc)} <span class="hint">(${esc(locText(t))}${t.by?' · '+esc(userName(t.by)):''})</span> – làm ${fp(num(t.dayPct))} / KH ${fp(num(t.planToday))}${streakOf(t)>=2?` · <b style="color:var(--bad)">hụt ${streakOf(t)} ngày liên tiếp</b>`:''}</li>`).join('')}</ul></div>`;
+}
+const dmy2iso = s => { const m = String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0') : ''; };
+function lateDays(r){ const d = dmy2iso(r && r.lockedAt); if (!d || !r.date) return 0; return Math.max(0, Math.round((new Date(d+'T00:00:00') - new Date(r.date+'T00:00:00')) / 864e5)); }
+function unlockedDays(){ const locked = new Set(IDX.reports.filter(r=>r.status==='locked').map(r=>r.date)), td = today();
+  return [...new Set(IDX.reports.map(r=>r.date).concat(IDX.subs.map(s=>s.date)))].filter(d=>d<td && !locked.has(d)).sort(); }
+/* Ngày trước bị sửa → cập nhật lũy kế hôm qua của các việc kế thừa */
+function syncPrev(s, prev){
+  if (!prev || !s) return 0; let n = 0; const by = {}; prev.tasks.forEach(t => by[keyOf(t)] = t);
+  s.tasks.forEach(t => { if (!t.carried || isMon(t)) return; const pt = by[keyOf(t)]; if (!pt) return; const c = cumOf(pt); if (c === null) return;
+    if (pct(t.prevProgress) !== r1(c)) { t.prevProgress = fp(c); recalc(t); n++; } });
+  return n;
+}
 
 /* ===================== LƯU TRỮ ===================== */
 const IDB = { db:null, mem:{reports:new Map(),subs:new Map(),periods:new Map(),kv:new Map(),imgs:new Map()}, ok:true,
@@ -504,7 +586,8 @@ const Store = IS_GAS ? {
   saveSub: async s => { await IDB.put('subs', s.key, s); return {ok:true}; },
   saveReport: async r => { await IDB.put('reports', r.date, r); return {ok:true}; },
   deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key); },
-  period: async (a,b,k) => ({ reports:(await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), manual: await IDB.get('periods', k) }),
+  period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
+    return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)) }; },
   allReports: async () => (await IDB.all('reports')).sort((x,y)=>x.date.localeCompare(y.date)),
   savePeriod: p => IDB.put('periods', p.key, p),
   exportPdf: async () => { throw new Error('LOCAL'); },
@@ -515,7 +598,7 @@ async function localIndex(){ return { reports:(await IDB.all('reports')).map(r=>
 /* ===================== TRẠNG THÁI ===================== */
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
 let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
-let TAB = 'status', MYTAB = 'work', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
+let TAB = 'status', MYTAB = 'work', MYSEG = 'today', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
 let dirty = {R:false, S:false}, saveTimer = {R:null, S:null}, prevTimer = null;
 let EDIT = 'R', RO = false;                                       // gốc dữ liệu & chế độ chỉ đọc cho các ô nhập đang dựng
 
@@ -543,13 +626,12 @@ const W_OPTS = ['', 'Nắng / Sunny','Nắng nhẹ / Sunny','Nhiều mây / Clou
 
 /* ===================== KIỂM TRA SỐ NHẬP ===================== */
 function checks(t){
-  const w = [], p = pct(t.progress), pp = pct(t.prevProgress);
+  const w = [];
   if (!(t.desc||'').trim()) return w;
-  if (!String(t.progress ?? '').trim()) w.push({m:'Chưa nhập KL %'});
-  if (p !== null && p > 100) w.push({e:1, m:'% vượt 100'});
-  if (p !== null && p < 0) w.push({e:1, m:'% âm'});
-  if (p !== null && pp !== null && p < pp) w.push({m:'Thấp hơn hôm trước (' + r1(pp) + '%)'});
-  if (p !== null && p > (pp ?? 0) && (t.qtyDay === '' || t.qtyDay == null) && !t.recurring) w.push({m:'Có tăng % nhưng thiếu KL ngày'});
+  if (isMon(t)) { if (!String(t.progress ?? '').trim()) w.push({m:'Chưa nhập kết quả hôm nay'}); return w; }
+  if (!hasV(t.dayPct)) w.push({m:'Chưa nhập % làm được hôm nay'});
+  else { const v = num(t.dayPct); if (v < 0) w.push({e:1, m:'% hôm nay không được âm'}); if (baseOf(t) + v > 100.0001) w.push({e:1, m:'Lũy kế vượt 100%'}); }
+  if (hasV(t.startPct) && (num(t.startPct) < 0 || num(t.startPct) > 100)) w.push({e:1, m:'% đã làm trước đó phải từ 0 đến 100'});
   return w;
 }
 const warnHtml = t => checks(t).map(x=>`<span class="warn ${x.e?'e':''}">${x.e?'⛔':'⚠'} ${esc(x.m)}</span>`).join('');
@@ -579,12 +661,17 @@ function rollTasks(prev, zoneIds){
   const pT = prev.tasks.filter(t=>Z.has(t.zoneId)), pP = prev.plans.filter(t=>Z.has(t.zoneId));
   const byKey = {}; pT.forEach(t=> byKey[keyOf(t)] = t);
   const seen = new Set();
-  const push = (src, fromPlan) => { const k = keyOf(src); if (seen.has(k)) return; seen.add(k); const pt = byKey[k];
+  const planOf = {}; pP.forEach(pl => planOf[keyOf(pl)] = pl);
+  const push = src => { const k = keyOf(src); if (seen.has(k)) return; seen.add(k); const pt = byKey[k], pl = planOf[k];
+    const mon = pt ? isMon(pt) : !!(pl && pl.mon), cum = pt ? cumOf(pt) : null;
+    const add = !pl || mon ? '' : hasV(pl.add) ? num(pl.add) : (pct(pl.target) !== null ? r1(Math.max(0, pct(pl.target) - (cum ?? 0))) : '');
     tasks.push({ id:uid(), zoneId:src.zoneId, section:sectionOf(src), desc:src.desc, loc:src.loc||'', wbs:src.wbs||(pt&&pt.wbs)||CFG.wbsMemory[(src.desc||'').trim().toLowerCase()]||'', scheduleId:src.scheduleId||'',
-      unit:(pt&&pt.unit)||'', qtyDay:'', progress:'', prevProgress: pt ? pt.progress : '', target: fromPlan ? src.target : '', recurring: !!(pt&&pt.recurring), carried:true }); };
-  pP.forEach(pl => { const pt = byKey[keyOf(pl)]; if (pt && pct(pt.progress)!==null && pct(pt.progress)>=100 && !pt.recurring) return; if ((pl.desc||'').trim()) push(pl, true); });
-  pT.forEach(t => { const p = pct(t.progress); if (p!==null && p<100) push(t, false); });
-  pT.forEach(t => { if (t.recurring) push(t, false); });
+      unit:(pt&&pt.unit)||'', qtyDay:'', recurring:mon, carried:true, startPct:'', dayPct:'', progress:'',
+      prevProgress: mon ? (pt ? pt.progress || pt.prevProgress || '' : '') : (cum !== null ? fp(cum) : ''),
+      planToday: add, planText: mon && pl ? pl.target || '' : '', shortStreak: pt && judge(pt) === 'short' ? streakOf(pt) : 0 }); };
+  pP.forEach(pl => { const pt = byKey[keyOf(pl)]; if (pt && !isMon(pt) && (cumOf(pt) ?? 0) >= 100) return; if ((pl.desc||'').trim()) push(pl); });
+  pT.forEach(t => { const c = cumOf(t); if (!isMon(t) && c !== null && c < 100) push(t); });
+  pT.forEach(t => { if (isMon(t)) push(t); });
   const insp = prev.inspectionPlans.filter(x=>Z.has(x.zoneId)).map(x=>({id:uid(), zoneId:x.zoneId, desc:x.desc, loc:x.loc||'', result:''}));
   return {tasks, inspections:insp};
 }
@@ -601,11 +688,11 @@ function newReport(date){
 }
 function autoPlan(s){
   const have = new Set(s.plans.map(keyOf)); let n=0;
-  s.tasks.forEach(t=>{ const p = pct(t.progress), pp = pct(t.prevProgress); if (!(t.desc||'').trim()) return; let target = null;
-    if (p!==null && p<100){ const rate = (pp!==null && p>pp) ? p-pp : 5; target = Math.min(100, Math.round(p+rate))+'%'; }
-    else if (t.recurring) target = t.progress || ''; else return;
-    if (have.has(keyOf(t))) { const pl = s.plans.find(x=>keyOf(x)===keyOf(t)); if (pl && !pl.target) pl.target = target; return; }
-    s.plans.push({id:uid(), zoneId:t.zoneId, section:t.section, desc:t.desc, loc:t.loc, wbs:t.wbs, target}); have.add(keyOf(t)); n++; });
+  s.tasks.forEach(t=>{ if (!(t.desc||'').trim()) return; const mon = isMon(t); let add = '';
+    if (!mon){ const c = cumOf(t) ?? 0; if (c >= 100) return; const rate = hasV(t.dayPct) && num(t.dayPct) > 0 ? num(t.dayPct) : (hasV(t.planToday) && num(t.planToday) > 0 ? num(t.planToday) : 5); add = r1(Math.min(100 - c, rate)); }
+    if (have.has(keyOf(t))) { const pl = s.plans.find(x=>keyOf(x)===keyOf(t)); if (pl && !mon && !hasV(pl.add)) { pl.add = add; planCalc(pl, s.tasks); } return; }
+    const pl = {id:uid(), zoneId:t.zoneId, section:t.section, desc:t.desc, loc:t.loc, wbs:t.wbs, add: mon ? '' : add, target: mon ? (t.progress||'') : '', mon};
+    planCalc(pl, s.tasks); s.plans.push(pl); have.add(keyOf(t)); n++; });
   return n;
 }
 
@@ -689,8 +776,11 @@ function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date==
 function applyBundle(b, mode, u){
   IDX = b.index || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
   R = b.report ? normReport(b.report) : null;
-  if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); applyMerge(); renderDayAll(); }
-  else { SUBS = (b.subs||[]).map(normSub); const s = SUBS.find(x=>x.uid===u); S = s || newSub(DATE, u); if (!s) SUBS.push(S); S_OTHER = u !== ME.id; renderMy(); }
+  const pm = R && R.status==='locked' ? null : prevMerged();
+  if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); if (pm) SUBS.forEach(s=>syncPrev(s, pm)); applyMerge(); renderDayAll(); }
+  else { SUBS = (b.subs||[]).map(normSub); const s = SUBS.find(x=>x.uid===u); S = s || newSub(DATE, u); if (!s) SUBS.push(S); S_OTHER = u !== ME.id;
+    const n = s && pm ? syncPrev(S, pm) : 0; if (n && !subReadOnly(S) && !SYNCING) { markDirty('S'); toast(`↻ Ngày trước đã sửa – cập nhật lũy kế ${n} việc`, 4000); }
+    renderMy(); }
   renderDateSel(); loadImages();
 }
 function cacheKey(mode, u){ return 'bcn_last_' + CFG.project.code + '_' + mode + '_' + u; }
@@ -709,28 +799,64 @@ const isMobile = () => MQ.matches;
 MQ.addEventListener && MQ.addEventListener('change', ()=>{ document.body.classList.remove('pv'); if (VIEW==='my' && S) renderMy(); else if (VIEW==='day' && R) renderForm(); renderMobileBar(); });
 const QUICK = [2,5,7,10];
 function mf(label, html){ return `<div class="mfield"><span>${label}</span>${html}</div>`; }
+const newTaskTpl = z => ({zoneId:z.id, section:z.section, desc:'', loc:'', wbs:'', unit:'', qtyDay:'', startPct:'', dayPct:'', progress:'', prevProgress:'', planToday:'', recurring:false, scheduleId:'', carried:false});
+/* ---- ô nhập % (khóa tùy trường) ---- */
+const canStart = t => !RO && !t.carried && (isChot() || !t.startLocked);
+const pinp = (path, val, id, dis, extra='') => `<input class="in" type="number" step="any" min="0" max="100" inputmode="decimal" data-num="1" data-root="${EDIT}" data-path="${path}" ${id?`id="${id}"`:''} value="${esc(val)}" placeholder="0" ${dis?'disabled':''} ${extra}>`;
+const khTxt = t => hasV(t.planToday) ? '+' + r1(num(t.planToday)) + '%' : '—';
+const prevBox = (t, i) => t.carried || !canStart(t) && !hasV(t.startPct)
+  ? `<div class="lk"><span>${t.carried ? 'Lũy kế hôm qua' : 'Đã làm trước đó'}</span><b>${t.carried ? (showPct(t.prevProgress) || '0%') : fp(num(t.startPct))}</b></div>`
+  : `<label style="margin:0">% đã làm trước đó ${canStart(t) ? '' : '🔒'}${pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, !canStart(t))}</label>`;
+const cumBox = (t, i) => `<div class="lk cum ${(cumOf(t)??0)>=100?'full':''}" id="cum-${i}"><span>Lũy kế hôm nay</span><b>${esc(t.progress) || '—'}</b></div>`;
 function taskCard(t, i, n){
-  const ws = checks(t), cls = ws.some(x=>x.e) || ws.length>1 ? ' warned' : '';
-  const pv = t.prevProgress ? `Hôm trước: <b>${showPct(t.prevProgress)}</b>` : '';
-  const kh = t.target ? `KH: <b>${esc(t.target)}</b>` : '';
-  return `<div class="tcard${cls}" id="tc-${i}"><div class="tc-h"><span class="n">#${n}</span><span class="sp"></span>${t.recurring?'<span class="tag">Lặp lại</span>':''}${delBtn('tasks',i)}</div>
-    <div class="tc-desc">${ta(`tasks.${i}.desc`,t.desc,'Nội dung công việc',2)}</div>
-    ${pv||kh ? `<div class="hint" style="padding:4px 2px 0">${[pv,kh].filter(Boolean).join(' · ')}</div>` : ''}
-    <div class="tc-row"><label>KL % lũy kế${inp(`tasks.${i}.progress`,t.progress,t.target||'%','inputmode="decimal" id="pg-'+i+'"')}</label>
-      <label>KL ngày<div class="tc-u">${ninp(`tasks.${i}.qtyDay`,t.qtyDay,'0')}<span>${esc(t.unit||'')}</span></div></label></div>
-    ${RO || (t.recurring && pct(t.prevProgress)===null && pct(t.progress)===null) ? '' : `<div class="qbtns">${QUICK.map(v=>`<button data-act="bump" data-i="${i}" data-v="${v}">+${v}</button>`).join('')}<button class="full" data-act="bump" data-i="${i}" data-v="100">100%</button></div>`}
-    <div id="w-${i}">${warnHtml(t)}</div>
-    <details><summary>Chi tiết: vị trí, WBS, ĐVT, lặp lại</summary>
+  const ws = checks(t), cls = (ws.some(x=>x.e) || ws.length>1 ? ' warned' : '') + (t._fresh ? ' fresh' : '');
+  let h = `<div class="tcard${cls}" id="tc-${i}"><div class="tc-h"><span class="n">#${n}</span>${t.carried?'':'<span class="tag d">Mới</span>'}${isMon(t)?'<span class="tag">Theo dõi</span>':''}<span class="sp"></span>${delBtn('tasks',i)}</div>
+    <div class="tc-desc">${ta(`tasks.${i}.desc`,t.desc,'Nội dung công việc',2)}</div>`;
+  if (isMon(t)) h += `<div class="tc-row"><div class="lk"><span>Kết quả hôm trước</span><b>${esc(t.prevProgress)||'—'}</b></div><div class="lk"><span>KH hôm nay</span><b>${esc(t.planText)||'—'}</b></div></div>
+    <div class="tc-row" style="grid-template-columns:1fr"><label>Kết quả hôm nay${inp(`tasks.${i}.progress`, t.progress, 'VD: CK11 / Hoàn thành', 'id="pg-'+i+'"')}</label></div>`;
+  else h += `<div class="tc-row">${prevBox(t,i)}<div class="lk"><span>KH hôm nay</span><b>${khTxt(t)}</b></div></div>
+    <div class="tc-row"><label>% làm được hôm nay${pinp(`tasks.${i}.dayPct`, t.dayPct, 'pg-'+i, RO)}</label>${cumBox(t,i)}</div>
+    ${RO ? '' : `<div class="qbtns">${QUICK.map(v=>`<button data-act="bump" data-i="${i}" data-v="${v}">+${v}</button>`).join('')}<button class="full" data-act="bump" data-i="${i}" data-v="100">Xong</button></div>`}
+    <div id="jd-${i}" style="margin-top:8px">${judgeHtml(t)}</div>`;
+  return h + `<div id="w-${i}">${warnHtml(t)}</div>
+    <details><summary>Chi tiết: vị trí, WBS, KL ngày, việc theo dõi</summary>
       ${mf('Vị trí chi tiết', inp(`tasks.${i}.loc`,t.loc,'Trục, tầng…'))}
       ${mf('Đầu mục WBS', sel(`tasks.${i}.wbs`,t.wbs,wbsOpts()))}
-      <div class="g2">${mf('Đơn vị (ĐVT)', inp(`tasks.${i}.unit`,t.unit,'m3, tấn…'))}${mf('Việc lặp lại hằng ngày', `<label style="display:flex;gap:8px;align-items:center;padding:8px 0">${chk(`tasks.${i}.recurring`,t.recurring)} Có</label>`)}</div>
+      <div class="g2" style="grid-template-columns:1fr 1fr">${mf('KL ngày (tùy chọn)', ninp(`tasks.${i}.qtyDay`,t.qtyDay,'0'))}${mf('Đơn vị (ĐVT)', inp(`tasks.${i}.unit`,t.unit,'m3, tấn…'))}</div>
+      ${mf('Việc theo dõi / lặp lại hằng ngày', `<label style="display:flex;gap:8px;align-items:center;padding:8px 0">${chk(`tasks.${i}.recurring`,t.recurring)} Có – nhập kết quả dạng chữ (quan trắc, vệ sinh…)</label>`)}
     </details></div>`;
+}
+function planCard(pl, i, zOpts){
+  return `<div class="tcard${pl._fresh?' fresh':''}" id="pc-${i}"><div class="tc-h"><span class="n">#${i+1}</span>${pl.mon?'<span class="tag">Theo dõi</span>':''}<span class="sp"></span>${delBtn('plans',i)}</div>
+    ${mf('Nội dung', ta(`plans.${i}.desc`,pl.desc,'Nội dung kế hoạch',2))}<div class="g2" style="grid-template-columns:1fr 1fr">${mf('Khu vực', sel(`plans.${i}.zoneId`,pl.zoneId,zOpts))}${mf('Vị trí', inp(`plans.${i}.loc`,pl.loc))}</div>
+    ${pl.mon ? `<div class="tc-row" style="grid-template-columns:1fr"><label>Kế hoạch (dạng chữ)${inp(`plans.${i}.target`,pl.target,'VD: CK12')}</label></div>`
+      : `<div class="tc-row"><label>% dự kiến làm thêm${pinp(`plans.${i}.add`, pl.add, 'pa-'+i, RO)}</label><div class="lk cum" id="pt-${i}"><span>Lũy kế dự kiến</span><b>${esc(pl.target)||'—'}</b></div></div>
+      ${RO ? '' : `<div class="qbtns">${QUICK.map(v=>`<button data-act="bumpPlan" data-i="${i}" data-v="${v}">+${v}</button>`).join('')}</div>`}`}</div>`;
+}
+/* Cập nhật tại chỗ sau khi nhập % (không dựng lại cả trang) */
+function updTask(i){
+  const t = S.tasks[i]; if (!t) return; recalc(t);
+  const c = $('#cum-'+i); if (c) { c.querySelector('b').textContent = t.progress || '—'; c.classList.toggle('full', (cumOf(t)??0) >= 100); }
+  const cv = $('#cv-'+i); if (cv) cv.textContent = t.progress || '—';
+  const j = $('#jd-'+i); if (j) j.innerHTML = judgeHtml(t);
+  const w = $('#w-'+i); if (w) w.innerHTML = warnHtml(t);
+  S.plans.forEach((pl,k)=>{ if (keyOf(pl)===keyOf(t)) { planCalc(pl, S.tasks); const e = $('#pt-'+k); if (e) e.querySelector('b') ? e.querySelector('b').textContent = pl.target||'—' : e.textContent = pl.target||'—'; } });
 }
 /* Thẻ chung cho danh sách (kế hoạch, nghiệm thu, thí nghiệm) trên điện thoại */
 function listCards(path, arr, fields){
   return arr.map((t,i)=>`<div class="tcard"><div class="tc-h"><span class="n">#${i+1}</span><span class="sp"></span>${delBtn(path,i)}</div>${fields(t,i)}</div>`).join('') || '<p class="hint" style="padding:6px 2px">Chưa có.</p>';
 }
-function renderMobileBar(){
+/* Nút ＋ nổi: Kỹ sư (Công việc) · Người chốt (Nhân sự & Máy móc, Vật tư) */
+function fabCtx(){
+  if (!isMobile() || !ME || document.body.classList.contains('pv')) return '';
+  if (VIEW==='my' && S && !subReadOnly(S) && !SYNCING && MYTAB==='work') return MYSEG==='tomorrow' ? 'plan' : 'task';
+  if (VIEW==='day' && R && isChot() && !repLocked() && !SYNCING) return TAB==='people' ? 'people' : TAB==='mat' ? 'mat' : '';
+  return '';
+}
+function updFab(){ const f = $('#fab'); if (!f) return; const on = !!fabCtx(); f.classList.toggle('on', on);
+  if (on) { const mb = $('#mBottom'); f.style.bottom = ((mb && mb.classList.contains('on') ? mb.offsetHeight : 0) + 16) + 'px'; } }
+function renderMobileBar(){ renderMobileBar0(); updFab(); }
+function renderMobileBar0(){
   const el = $('#mBottom'); if (!el) return;
   if (isMobile() && ME && VIEW==='day' && R){ el.classList.add('on'); const a = [];
     if (isChot() && !repLocked() && !SYNCING) a.push('<button class="btn" data-act="saveDay">💾 Lưu</button>');
@@ -775,18 +901,26 @@ function renderMy(){
   const defZ = (zs[0]||CFG.zones[0]||{}).id || '';
   const M = isMobile();
   if (M) h = h.replace(/<div class="note">📨 Đã nộp lúc [^<]*<b>Rút lại<\/b>[^<]*<\/div>/, `<div class="note">📨 Đã nộp${S.submittedAt?' lúc '+esc(S.submittedAt):''}. Muốn sửa bấm <b>Rút lại</b>.</div>`);
+  const zlist0 = zs.length ? zs : CFG.zones.filter(z=>S.tasks.some(t=>t.zoneId===z.id));
+  const zlist = zlist0.concat(CFG.zones.filter(z=>!zlist0.includes(z) && S.tasks.some(t=>t.zoneId===z.id)));
+  S.plans.forEach(pl=>planCalc(pl, S.tasks));
   if (M && MYTAB==='work'){
-    if (S.rolledFrom) h += `<div class="note">↪ Kế thừa <b>${S.tasks.filter(t=>t.carried).length}</b> việc từ ${vi(S.rolledFrom)}. Bấm <b>+2 / +5 / +7 / +10</b> hoặc nhập % lũy kế.${RO?'':' <button class="btn sm" data-act="reroll">↻ Cập nhật</button>'}</div>`;
-    else if (!RO && !S.tasks.length && IDX.reports.concat(IDX.subs).some(x=>x.date<S.date)) h += `<div class="note">Phiếu trống. <button class="btn sm" data-act="reroll">↪ Lấy việc dở dang</button></div>`;
-    const zlist = (zs.length ? zs : CFG.zones.filter(z=>S.tasks.some(t=>t.zoneId===z.id)));
-    zlist.concat(CFG.zones.filter(z=>!zlist.includes(z) && S.tasks.some(t=>t.zoneId===z.id))).forEach(z=>{
-      h += `<div class="zbar ${z.section==='MEP'?'mep':''}"><span>📍 ${esc(z.name)} · ${z.section==='MEP'?'MEP':'Xây dựng'}</span>${addBtn('tasks','Thêm việc', JSON.stringify({zoneId:z.id,section:z.section,desc:'',loc:'',wbs:'',unit:'',qtyDay:'',progress:'',prevProgress:'',recurring:false,scheduleId:''}), z.section==='MEP'?'add mep':'add')}</div>`;
-      let n=0; S.tasks.forEach((t,i)=>{ if (t.zoneId===z.id) h += taskCard(t, i, ++n); });
-      if (!n) h += '<p class="hint" style="padding:4px 2px">Chưa có việc ở khu vực này.</p>';
-    });
-    h += `<div class="zbar"><span>🗓 Kế hoạch ngày mai</span>${RO?'':'<button class="btn sm pri" data-act="autoPlan">⚡ Tự sinh</button>'}</div>`
-      + listCards('plans', S.plans, (t,i)=> mf('Khu vực', sel(`plans.${i}.zoneId`,t.zoneId,zOpts)) + mf('Nội dung', ta(`plans.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Vị trí', inp(`plans.${i}.loc`,t.loc))}${mf('KL dự kiến %', inp(`plans.${i}.target`,t.target,'%','inputmode="decimal" style="font-weight:800;text-align:center"'))}</div>`)
-      + addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',target:''}));
+    const ps = planStats(S.tasks);
+    h += `<div class="seg"><button class="${MYSEG==='today'?'on':''}" data-act="seg" data-v="today">📋 Hôm nay (${S.tasks.length})</button><button class="${MYSEG==='tomorrow'?'on':''}" data-act="seg" data-v="tomorrow">🗓 Ngày mai (${S.plans.length})</button></div>`;
+    if (MYSEG==='today'){
+      if (S.rolledFrom) h += `<div class="note">↪ Kế thừa <b>${S.tasks.filter(t=>t.carried).length}</b> việc từ ${vi(S.rolledFrom)}. Nhập <b>% làm được hôm nay</b> (bấm +2 / +5 / +7 / +10) – lũy kế tự tính.${ps.n?` Đạt KH: <b>${ps.ok}/${ps.n}</b>.`:''}${RO?'':' <button class="btn sm" data-act="reroll">↻ Cập nhật</button>'}</div>`;
+      else if (!RO && !S.tasks.length && IDX.reports.concat(IDX.subs).some(x=>x.date<S.date)) h += `<div class="note">Phiếu trống. <button class="btn sm" data-act="reroll">↪ Lấy việc dở dang</button></div>`;
+      zlist.forEach(z=>{
+        h += `<div class="zbar ${z.section==='MEP'?'mep':''}"><span>📍 ${esc(z.name)} · ${z.section==='MEP'?'MEP':'Xây dựng'}</span>${addBtn('tasks','Thêm việc', JSON.stringify(newTaskTpl(z)), z.section==='MEP'?'add mep':'add')}</div>`;
+        let n=0; S.tasks.forEach((t,i)=>{ if (t.zoneId===z.id) h += taskCard(t, i, ++n); });
+        if (!n) h += '<p class="hint" style="padding:4px 2px">Chưa có việc ở khu vực này.</p>';
+      });
+    } else {
+      h += `<div class="zbar"><span>🗓 Kế hoạch ngày mai</span>${RO?'':'<button class="btn sm pri" data-act="autoPlan">⚡ Tự sinh</button>'}</div>
+        <div class="note">Nhập <b>% dự kiến làm thêm</b> cho ngày mai – lũy kế dự kiến tự tính. Ngày mai số này thành <b>KH hôm nay</b> để so sánh.</div>`
+        + addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',add:'',target:''}))
+        + (S.plans.map((pl,i)=>planCard(pl, i, zOpts)).join('') || '<p class="hint" style="padding:6px 2px">Chưa có kế hoạch – bấm “Tự sinh” hoặc nút ＋.</p>');
+    }
   }
   if (M && MYTAB==='qa'){
     const RES = ['','Đạt','Không đạt','Đạt có điều kiện'];
@@ -798,25 +932,34 @@ function renderMy(){
       + listCards('tests', S.tests, (t,i)=> mf('Nội dung', ta(`tests.${i}.desc`,t.desc,'',2)) + `<div class="g2">${mf('Khu vực', sel(`tests.${i}.zoneId`,t.zoneId,zOpts))}${mf('Kết quả', inp(`tests.${i}.result`,t.result,'Đạt / chờ KQ'))}</div>` + mf('Vị trí / Phòng TN', inp(`tests.${i}.loc`,t.loc)));
   }
   if (!M && MYTAB==='work'){
-    if (S.rolledFrom) h += `<div class="note">↪ Cuốn chiếu từ ${vi(S.rolledFrom)}: kế thừa <b>${S.tasks.filter(t=>t.carried).length}</b> việc của khu vực bạn phụ trách. Chỉ cần nhập <b>KL % lũy kế</b> và KL ngày.${RO?'':' <button class="btn sm" data-act="reroll" style="margin-left:6px">↻ Cập nhật lại từ ngày trước</button>'}</div>`;
+    const ps = planStats(S.tasks);
+    if (S.rolledFrom) h += `<div class="note">↪ Cuốn chiếu từ ${vi(S.rolledFrom)}: kế thừa <b>${S.tasks.filter(t=>t.carried).length}</b> việc của khu vực bạn phụ trách. Chỉ cần nhập <b>% làm được hôm nay</b> – lũy kế tự tính và so với kế hoạch hôm qua.${ps.n?` Đạt KH: <b>${ps.ok}/${ps.n}</b> việc.`:''}${RO?'':' <button class="btn sm" data-act="reroll" style="margin-left:6px">↻ Cập nhật lại từ ngày trước</button>'}</div>`;
     else if (!RO && !S.tasks.length && IDX.reports.concat(IDX.subs).some(x=>x.date<S.date)) h += `<div class="note">Phiếu trống. <button class="btn sm" data-act="reroll">↪ Lấy việc dở dang từ ngày trước</button></div>`;
     const w = allWarn(S.tasks); if (w.e||w.w) h += `<div class="note w">Kiểm tra số liệu: <b>${w.e}</b> lỗi, <b>${w.w}</b> cảnh báo (xem dưới từng dòng).</div>`;
-    h += `<div class="ph"><h3>📋 Công việc trong ngày</h3></div>`;
-    const zlist = zs.length ? zs : CFG.zones.filter(z=>S.tasks.some(t=>t.zoneId===z.id));
-    const extraZ = CFG.zones.filter(z=>!zlist.includes(z) && S.tasks.some(t=>t.zoneId===z.id));
-    zlist.concat(extraZ).forEach(z=>{
-      h += `<div class="zwrap"><div class="zhead ${z.section==='MEP'?'mep':''}"><span>📍 ${esc(z.name)} · ${z.section==='MEP'?'MEP':'Xây dựng'}</span>${addBtn('tasks','Thêm việc', JSON.stringify({zoneId:z.id,section:z.section,desc:'',loc:'',wbs:'',unit:'',qtyDay:'',progress:'',prevProgress:'',recurring:false,scheduleId:''}), z.section==='MEP'?'add mep':'add')}</div>
-      <div class="tw"><table class="ed" style="min-width:820px"><thead><tr><th>STT</th><th>Nội dung công việc</th><th style="width:90px">Vị trí chi tiết</th><th style="width:140px">Đầu mục WBS</th><th style="width:60px">ĐVT</th><th style="width:78px">KL ngày</th><th style="width:118px">KL % lũy kế</th><th style="width:40px" title="Việc lặp lại hằng ngày">Lặp</th><th style="width:36px"></th></tr></thead><tbody>`;
+    h += `<div class="ph"><h3>📋 Công việc trong ngày</h3><span class="hint">Ô xám tự tính – không sửa được. Việc mới thêm giữa chừng: nhập “% đã làm trước đó” một lần.</span></div>`;
+    zlist.forEach(z=>{
+      h += `<div class="zwrap"><div class="zhead ${z.section==='MEP'?'mep':''}"><span>📍 ${esc(z.name)} · ${z.section==='MEP'?'MEP':'Xây dựng'}</span>${addBtn('tasks','Thêm việc', JSON.stringify(newTaskTpl(z)), z.section==='MEP'?'add mep':'add')}</div>
+      <div class="tw"><table class="ed" style="min-width:740px"><thead><tr><th>STT</th><th>Nội dung công việc</th><th style="width:84px">Lũy kế hôm qua</th><th style="width:62px">KH hôm nay</th><th style="width:86px">% làm được hôm nay</th><th style="width:76px">Lũy kế hôm nay</th><th style="width:104px">So với KH</th><th style="width:30px"></th></tr></thead><tbody>`;
       let n=0; S.tasks.forEach((t,i)=>{ if (t.zoneId!==z.id) return; n++;
-        const pv = t.prevProgress ? `<div class="hint">Hôm trước: <b>${showPct(t.prevProgress)}</b>${t.target?' · KH: '+esc(t.target):''}</div>` : (t.target?`<div class="hint">KH: ${esc(t.target)}</div>`:'');
-        h += `<tr><td class="n">${n}</td><td>${ta(`tasks.${i}.desc`,t.desc,'Nội dung công việc',1)}</td><td>${inp(`tasks.${i}.loc`,t.loc,'Trục, tầng…')}</td><td>${sel(`tasks.${i}.wbs`,t.wbs,wbsOpts())}</td><td>${inp(`tasks.${i}.unit`,t.unit,'m3')}</td><td>${ninp(`tasks.${i}.qtyDay`,t.qtyDay)}</td><td>${inp(`tasks.${i}.progress`,t.progress,t.target||'%','style="text-align:center;font-weight:700"')}${pv}<div id="w-${i}">${warnHtml(t)}</div></td><td style="text-align:center">${chk(`tasks.${i}.recurring`,t.recurring)}</td><td>${delBtn('tasks',i)}</td></tr>`; });
-      if (!n) h += `<tr><td colspan="9" class="hint" style="padding:12px">Chưa có việc ở khu vực này.</td></tr>`;
+        const lk = (v, id) => `<div class="cumv" ${id?`id="${id}"`:''}>${v}</div>`;
+        const mid = isMon(t)
+          ? `<td>${lk(esc(t.prevProgress)||'—')}</td><td>${lk(esc(t.planText)||'—')}</td><td colspan="2">${inp(`tasks.${i}.progress`,t.progress,'Kết quả: CK11…','style="text-align:center;font-weight:700"')}</td><td></td>`
+          : `<td>${t.carried ? lk(showPct(t.prevProgress)||'0%') : canStart(t) ? pinp(`tasks.${i}.startPct`, t.startPct, 'st-'+i, false, 'title="% đã làm trước đó (nhập 1 lần)"') : lk(fp(num(t.startPct))+' 🔒')}</td><td>${lk(khTxt(t))}</td>
+             <td>${pinp(`tasks.${i}.dayPct`, t.dayPct, 'pg-'+i, RO, 'style="text-align:center;font-weight:800"')}</td><td>${lk(esc(t.progress)||'—', 'cv-'+i)}</td><td><div id="jd-${i}" style="padding-top:7px">${judgeHtml(t)}</div></td>`;
+        const sum = [t.loc, t.wbs, hasV(t.qtyDay) ? t.qtyDay + ' ' + (t.unit||'') : '', isMon(t) ? 'theo dõi' : ''].filter(Boolean).join(' · ');
+        h += `<tr><td class="n">${n}${t.carried?'':'<div class="tag d" style="margin:2px 0 0">Mới</div>'}</td><td>${ta(`tasks.${i}.desc`,t.desc,'Nội dung công việc',1)}<div id="w-${i}">${warnHtml(t)}</div>
+          <details class="dt"><summary>Chi tiết${sum?': '+esc(sum):''}</summary><div class="g2" style="grid-template-columns:1fr 1fr;gap:6px;padding:4px 0">${inp(`tasks.${i}.loc`,t.loc,'Vị trí: trục, tầng…')}${sel(`tasks.${i}.wbs`,t.wbs,wbsOpts())}${ninp(`tasks.${i}.qtyDay`,t.qtyDay,'KL ngày')}${inp(`tasks.${i}.unit`,t.unit,'ĐVT: m3, tấn')}</div>
+          <label class="hint" style="display:flex;gap:6px;align-items:center">${chk(`tasks.${i}.recurring`,t.recurring).replace('margin-top:9px','margin:0')} Việc theo dõi / lặp lại (kết quả dạng chữ)</label></details></td>${mid}<td>${delBtn('tasks',i)}</td></tr>`; });
+      if (!n) h += `<tr><td colspan="8" class="hint" style="padding:12px">Chưa có việc ở khu vực này.</td></tr>`;
       h += `</tbody></table></div></div>`;
     });
     h += `<div class="ph" style="margin-top:8px"><h3>🗓 Kế hoạch ngày mai</h3>${RO?'':'<button class="btn sm pri" data-act="autoPlan">⚡ Tự sinh từ việc &lt;100%</button>'}</div>
-    <div class="tw"><table class="ed" style="min-width:700px"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí chi tiết</th><th style="width:96px">KL dự kiến %</th><th style="width:36px"></th></tr></thead><tbody>
-    ${S.plans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`plans.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`plans.${i}.desc`,t.desc,'',1)}</td><td>${inp(`plans.${i}.loc`,t.loc)}</td><td>${inp(`plans.${i}.target`,t.target,'%','style="text-align:center;font-weight:700"')}</td><td>${delBtn('plans',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có kế hoạch – bấm “Tự sinh” hoặc thêm tay.</td></tr>'}
-    </tbody></table></div>${addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',target:''}))}`;
+    ${addBtn('plans','Thêm kế hoạch', JSON.stringify({zoneId:defZ,desc:'',loc:'',wbs:'',add:'',target:''}))}
+    <div class="tw" style="margin-top:8px"><table class="ed" style="min-width:760px"><thead><tr><th>STT</th><th style="width:130px">Khu vực</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí chi tiết</th><th style="width:110px">% dự kiến làm thêm</th><th style="width:96px">Lũy kế dự kiến</th><th style="width:36px"></th></tr></thead><tbody>
+    ${S.plans.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${sel(`plans.${i}.zoneId`,t.zoneId,zOpts)}</td><td>${ta(`plans.${i}.desc`,t.desc,'',1)}</td><td>${inp(`plans.${i}.loc`,t.loc)}</td>${t.mon
+      ? `<td colspan="2">${inp(`plans.${i}.target`,t.target,'Kế hoạch dạng chữ','style="text-align:center;font-weight:700"')}</td>`
+      : `<td>${pinp(`plans.${i}.add`, t.add, 'pa-'+i, RO, 'style="text-align:center;font-weight:800"')}</td><td><div class="cumv" id="pt-${i}">${esc(t.target)||'—'}</div></td>`}<td>${delBtn('plans',i)}</td></tr>`).join('') || '<tr><td colspan="7" class="hint" style="padding:12px">Chưa có kế hoạch – bấm “Tự sinh” hoặc thêm tay.</td></tr>'}
+    </tbody></table></div>`;
   }
   if (!M && MYTAB==='qa'){
     h += `<div class="ph"><h3>✅ Nghiệm thu trong ngày</h3>${addBtn('inspections','Thêm', JSON.stringify({zoneId:defZ,desc:'',loc:'',result:'Đạt'}))}</div>
@@ -874,10 +1017,13 @@ function renderForm(){
   $('#tabs').innerHTML = DAY_TABS.map(t=>`<button class="tab ${TAB===t.k?'on':''}" data-tab="${t.k}"><span>${t.i}</span>${t.t}</button>`).join('');
   EDIT = 'R'; RO = repLocked() || !isChot() || SYNCING; let h = ''; const M = isMobile();
   if (SYNCING) h += `<div class="note">⏳ Đang đồng bộ dữ liệu mới nhất…</div>`;
-  if (repLocked()) h += `<div class="note g">🔒 Đã chốt${R.lockedBy?' bởi '+esc(userName(R.lockedBy)):''}${R.lockedAt?' lúc '+esc(R.lockedAt):''}. ${isChot()?'Bấm “Mở khóa để sửa” – lần chốt sau sẽ tạo bản v'+((R.version||1)+1)+'.':''}</div>`;
+  if (repLocked()) h += `<div class="note g">🔒 Đã chốt${R.lockedBy?' bởi '+esc(userName(R.lockedBy)):''}${R.lockedAt?' lúc '+esc(R.lockedAt):''}${lateDays(R)>0?' – <b>trễ '+lateDays(R)+' ngày</b>':''}. ${isChot()?'Bấm “Mở khóa để sửa” – lần chốt sau sẽ tạo bản v'+((R.version||1)+1)+'.':''}</div>`;
+  const ul = isChot() ? unlockedDays().filter(d=>d!==R.date) : [];
+  if (ul.length) h += `<div class="note w"><div class="ulk">⚠ Còn <b>${ul.length}</b> ngày chưa chốt:${ul.slice(0,8).map(d=>`<button class="btn sm" data-act="gotoDate" data-d="${d}">${vi(d).slice(0,5)}</button>`).join('')}${ul.length>8?' …':''}</div></div>`;
   if (TAB==='status'){
-    const rows = boardRows(), done = rows.filter(r=>r.s && (r.s.status==='submitted'||r.s.status==='accepted')).length;
-    h += `<div class="stat"><div><b>${done}/${rows.length}</b><span>Phiếu đã nộp</span></div><div><b>${CFG.settings.deadline||'—'}</b><span>Hạn nộp</span></div><div><b>${allWarn(R.tasks).e}</b><span>Lỗi số liệu</span></div><div><b>${allWarn(R.tasks).w}</b><span>Cảnh báo</span></div></div>
+    const rows = boardRows(), done = rows.filter(r=>r.s && (r.s.status==='submitted'||r.s.status==='accepted')).length, ps = planStats(R.tasks);
+    h += `<div class="stat"><div><b>${done}/${rows.length}</b><span>Phiếu đã nộp</span></div><div><b>${ps.n?ps.ok+'/'+ps.n:'—'}</b><span>Việc đạt kế hoạch</span></div><div><b>${CFG.settings.deadline||'—'}</b><span>Hạn nộp</span></div><div><b>${allWarn(R.tasks).e}</b><span>Lỗi số liệu</span></div><div><b>${allWarn(R.tasks).w}</b><span>Cảnh báo</span></div></div>
+    ${shortNote(ps)}
     <div class="note">Báo cáo chỉ gộp các phiếu <b>Đã nộp / Đã nhận</b>. Phiếu đang nhập hoặc bị trả lại chưa được đưa vào.</div><div class="board">`;
     rows.forEach(({u,s})=>{ const zs = zonesOf(u).map(z=>z.name+' ('+z.section+')').join(', ') || '—'; const w = s ? allWarn(s.tasks) : {e:0,w:0};
       h += `<div class="brow"><div><div class="nm">${esc(userName(u))}</div><div class="zs">${esc(zs)}</div></div>
@@ -909,11 +1055,12 @@ function renderForm(){
     <div class="sumrow"><span>TỔNG THIẾT BỊ</span><span id="sumEq">${R.equipment.reduce((s,m)=>s+num(m.qty),0)}</span></div>`;
   }
   if (M && TAB==='tasks'){
-    h += `<div class="note">Gộp từ phiếu đã nộp. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa”.</div>`;
+    h += `<div class="note">Gộp từ phiếu đã nộp. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa”.</div>${shortNote(planStats(R.tasks))}`;
     SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k);
       h += `<div class="zbar ${S2.k==='MEP'?'mep':''}"><span>${S2.k==='MEP'?'B. MEP':'A. Xây dựng'}</span><span class="hint">${T.length} việc</span></div>` +
-        (T.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p">${showPct(t.progress)}</span></div>
-          <div class="m"><span>${t.qtyDay!==''&&t.qtyDay!=null?'KL ngày: '+esc(t.qtyDay)+' '+esc(t.unit):''}</span><span>${t.prevProgress?'trước: '+showPct(t.prevProgress):''}</span></div>${warnHtml(t)}</div>`).join('') || '<p class="hint">Chưa có.</p>'); });
+        (T.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p">${isMon(t)?esc(t.progress)||'—':esc(t.progress)||'—'}</span></div>
+          ${isMon(t)?'':`<div class="m"><span>Hôm qua ${showPct(t.prevProgress)||'0%'} · KH ${khTxt(t)} · làm ${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</span><span>${judgeHtml(t)}</span></div>`}
+          ${t.qtyDay!==''&&t.qtyDay!=null?`<div class="m"><span>KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</span></div>`:''}${warnHtml(t)}</div>`).join('') || '<p class="hint">Chưa có.</p>'); });
   }
   if (M && TAB==='qa'){
     const L = (arr, k) => arr.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p ${t[k]==='Không đạt'?'bad':''}">${esc(t[k])}</span></div></div>`).join('') || '<p class="hint">Chưa có.</p>';
@@ -938,11 +1085,14 @@ function renderForm(){
     ${R.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${inp(`equipment.${i}.name`,m.name)}</td><td>${ninp(`equipment.${i}.qty`,m.qty)}</td><td>${delBtn('equipment',i)}</td></tr>`).join('')}</tbody></table></div>`;
   }
   if (!M && TAB==='tasks'){
-    h += `<div class="note">Danh sách gộp tự động từ phiếu đã nộp, sắp theo khu vực. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa” phiếu của kỹ sư đó.</div>`;
+    h += `<div class="note">Danh sách gộp tự động từ phiếu đã nộp, sắp theo khu vực. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa” phiếu của kỹ sư đó.</div>${shortNote(planStats(R.tasks))}`;
     SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k);
       h += `<div class="ph"><h4 class="${S2.k==='MEP'?'mep':''}">${S2.t}</h4><span class="hint">${T.length} việc</span></div>
-      <div class="tw"><table class="ed" style="min-width:700px"><thead><tr><th>STT</th><th>Công việc</th><th style="width:110px">Vị trí</th><th style="width:70px">KL ngày</th><th style="width:80px">KL %</th><th style="width:90px">Người báo cáo</th></tr></thead><tbody>
-      ${T.map((t,i)=>`<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}${warnHtml(t)}</td><td style="padding:8px">${esc(locText(t))}</td><td style="padding:8px;text-align:center">${esc(t.qtyDay)} ${esc(t.unit)}</td><td style="padding:8px;text-align:center;font-weight:700">${showPct(t.progress)}${t.prevProgress?`<div class="hint">trước: ${showPct(t.prevProgress)}</div>`:''}</td><td style="padding:8px" class="hint">${esc(userName(t.by))}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`; });
+      <div class="tw"><table class="ed" style="min-width:720px"><thead><tr><th>STT</th><th>Công việc</th><th style="width:72px">Lũy kế hôm qua</th><th style="width:58px">KH hôm nay</th><th style="width:62px">Thực hiện</th><th style="width:72px">Lũy kế hôm nay</th><th style="width:130px">So với KH</th></tr></thead><tbody>
+      ${T.map((t,i)=>{ const c = 'style="padding:8px;text-align:center"'; return `<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}${t.qtyDay!==''&&t.qtyDay!=null?`<div class="hint">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''}<div class="hint" style="padding:2px 0">📍 ${esc(locText(t))} · ${esc(userName(t.by))}</div>${warnHtml(t)}</td>${isMon(t)
+        ? `<td ${c}>${esc(t.prevProgress)||'—'}</td><td ${c}>${esc(t.planText)||'—'}</td><td ${c} colspan="2"><b>${esc(t.progress)||'—'}</b></td><td ${c}><span class="hint">Việc theo dõi</span></td>`
+        : `<td ${c}>${showPct(t.prevProgress)||(t.carried?'0%':fp(num(t.startPct))+'*')}</td><td ${c}>${khTxt(t)}</td><td ${c}>${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</td><td ${c}><b>${esc(t.progress)||'—'}</b></td><td style="padding:8px">${judgeHtml(t, true)}</td>`}</tr>`; }).join('') || '<tr><td colspan="7" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`; });
+    h += `<div class="hint">* Việc mới thêm giữa chừng: số là “% đã làm trước đó”.</div>`;
   }
   if (!M && TAB==='qa'){
     const list = (arr, cols) => arr.map((t,i)=>`<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}</td><td style="padding:8px">${esc(locText(t))}</td><td style="padding:8px">${esc(t[cols])}</td><td style="padding:8px" class="hint">${esc(userName(t.by))}</td></tr>`).join('') || '<tr><td colspan="5" class="hint" style="padding:12px">Chưa có.</td></tr>';
@@ -1009,23 +1159,32 @@ function docSign(){ const p = CFG.project, s = CFG.signers, c = (p.contractorSho
 function docHTML(r, o={}){
   const tm = r.manpower.reduce((s,m)=>s+num(m.qty),0); let h = `<div class="doc">`;
   h += o.partial ? docHeader('PHIẾU BÁO CÁO HIỆN TRƯỜNG / SITE ENGINEER REPORT') + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}</b></td><td>Kỹ sư / Engineer:<b>${esc(o.who)}</b></td><td style="border:0">Khu vực:<b>${esc(zonesOf(S.uid).map(z=>z.name).join(', '))}</b></td></tr></table>`
-    : docHeader('BÁO CÁO NGÀY / DAILY REPORT') + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>`;
+    : docHeader('BÁO CÁO NGÀY / DAILY REPORT') + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>` + lockLine(r);
   if (!o.partial) h += `<table><tr><td style="width:49%;vertical-align:top;padding-right:8px"><div class="sec">1. NHÂN LỰC / MANPOWER <span>TỔNG: ${tm} NGƯỜI</span></div>
     <table class="grid"><tr><th class="c">Stt</th><th>Chức vụ / Title</th><th class="c" style="width:60px">Số lượng</th></tr>${r.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c">${num(m.qty)}</td></tr>`).join('')}
     <tr class="tot"><td colspan="2" class="r">TỔNG CỘNG / TOTAL:</td><td class="c v">${tm}</td></tr></table></td><td style="vertical-align:top;padding-left:8px">
     <div class="sec">2. THIẾT BỊ / MACHINERY <span>TỔNG LOẠI: ${r.equipment.filter(e=>num(e.qty)>0).length}</span></div>
     <table class="grid"><tr><th class="c">Stt</th><th>Trang thiết bị / Machinery</th><th class="c" style="width:60px">Số lượng</th></tr>${r.equipment.map((m,i)=>`<tr${num(m.qty)?'':' class="mut"'}><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c">${num(m.qty)}</td></tr>`).join('')}</table></td></tr></table>`;
-  h += `<div class="sec">${o.partial?'1':'3'}. CÔNG VIỆC THỰC HIỆN VÀ KẾ HOẠCH NGÀY / WORKS CARRIED OUT - PLAN</div>
-  <table class="grid"><tr><th colspan="4" class="c">CÔNG VIỆC TRONG NGÀY (TODAY'S WORK)</th><th colspan="3" class="c">KẾ HOẠCH NGÀY MAI (TOMORROW'S PLAN)</th></tr>
-  <tr><th class="c">Stt</th><th>Nội dung công việc</th><th style="width:58px">Vị trí</th><th class="c" style="width:44px">KL %</th><th>Nội dung kế hoạch</th><th style="width:58px">Vị trí</th><th class="c" style="width:50px">KL dự kiến %</th></tr>`;
-  SECTIONS.forEach(S2=>{ const T = r.tasks.filter(t=>sectionOf(t)===S2.k), PL = r.plans.filter(t=>sectionOf(t)===S2.k);
-    if (o.partial && !T.length && !PL.length) return;
-    h += `<tr><td colspan="4" class="${S2.cls}">${S2.t}</td><td colspan="3" class="${S2.cls}">${S2.p}</td></tr>`;
-    const n = Math.max(T.length, PL.length, 1);
-    for (let i=0;i<n;i++){ const t=T[i], pl=PL[i];
-      h += `<tr><td class="n">${t?i+1:''}</td><td>${t?esc(t.desc)+(t.qtyDay!==''&&t.qtyDay!=null?`<div class="sm">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''):''}</td><td>${t?esc(locText(t)):''}</td><td class="c"><b>${t?showPct(t.progress):''}</b></td>
-      <td>${pl?esc(pl.desc):''}</td><td>${pl?esc(locText(pl)):''}</td><td class="c"><b>${pl?showPct(pl.target):''}</b></td></tr>`; } });
-  h += `</table><div class="sec">${o.partial?'2':'4'}. NGHIỆM THU & THÍ NGHIỆM / INSPECTION & TESTING</div>
+  const ps = planStats(r.tasks), N = o.partial ? [1,2,3,4,5] : [3,4,5,9,0];
+  h += `<div class="sec">${N[0]}. CÔNG VIỆC THỰC HIỆN TRONG NGÀY / WORKS CARRIED OUT TODAY${ps.n?`<span>ĐẠT KẾ HOẠCH: ${ps.ok}/${ps.n} VIỆC</span>`:''}</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th style="width:70px">Vị trí</th><th class="c" style="width:50px">Lũy kế hôm qua</th><th class="c" style="width:44px">KH hôm nay</th><th class="c" style="width:46px">Thực hiện</th><th class="c" style="width:50px">Lũy kế hôm nay</th><th class="c" style="width:52px">Chênh lệch</th></tr>`;
+  SECTIONS.forEach(S2=>{ const T = r.tasks.filter(t=>sectionOf(t)===S2.k);
+    if (o.partial && !T.length) return;
+    h += `<tr><td colspan="8" class="${S2.cls}">${S2.t}</td></tr>`;
+    if (!T.length) h += '<tr><td></td><td colspan="7" class="mut">Không có</td></tr>';
+    T.forEach((t,i)=>{ const kl = t.qtyDay!==''&&t.qtyDay!=null ? `<div class="sm">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>` : '';
+      if (isMon(t)) { h += `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}${kl}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.prevProgress)}</td><td class="c">${esc(t.planText)}</td><td class="c" colspan="2"><b>${esc(t.progress)}</b></td><td class="c sm">theo dõi</td></tr>`; return; }
+      const j = judge(t), d = j ? num(t.dayPct) - num(t.planToday) : null, n = streakOf(t);
+      h += `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}${kl}</td><td>${esc(locText(t))}</td><td class="c">${t.carried||hasV(t.prevProgress)?showPct(t.prevProgress)||'0%':fp(num(t.startPct))}</td><td class="c">${hasV(t.planToday)?fp(num(t.planToday)):'—'}</td><td class="c">${hasV(t.dayPct)?fp(num(t.dayPct)):'—'}</td><td class="c"><b>${esc(t.progress)||'—'}</b></td>
+        <td class="c ${j==='short'?'bad':j?'ok':''}">${j ? (j==='ok' && Math.abs(d)<0.05 ? 'Đạt' : sgn(d)) + (n>=2?`<div class="sm bad">hụt ${n} ngày</div>`:'') : ''}</td></tr>`; }); });
+  h += `</table><div class="sec">${N[1]}. KẾ HOẠCH NGÀY MAI / TOMORROW'S PLAN</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí</th><th class="c" style="width:70px">Dự kiến làm thêm</th><th class="c" style="width:70px">Lũy kế dự kiến</th></tr>`;
+  SECTIONS.forEach(S2=>{ const PL = r.plans.filter(t=>sectionOf(t)===S2.k);
+    if (o.partial && !PL.length) return;
+    h += `<tr><td colspan="5" class="${S2.cls}">${S2.p}</td></tr>`;
+    if (!PL.length) h += '<tr><td></td><td colspan="4" class="mut">Không có</td></tr>';
+    PL.forEach((pl,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(pl.desc)}</td><td>${esc(locText(pl))}</td>${pl.mon?`<td class="c" colspan="2"><b>${esc(pl.target)}</b></td>`:`<td class="c">${hasV(pl.add)?'+'+fp(num(pl.add)):'—'}</td><td class="c"><b>${showPct(pl.target)||'—'}</b></td>`}</tr>`; }); });
+  h += `</table><div class="sec">${N[2]}. NGHIỆM THU & THÍ NGHIỆM / INSPECTION & TESTING</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Công việc đã nghiệm thu trong ngày</th><th style="width:70px">Vị trí</th><th class="c" style="width:70px">Kết quả</th></tr>
   ${r.inspections.length ? r.inspections.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c ${t.result==='Không đạt'?'bad':'ok'}">${esc(t.result)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}
   <tr><th class="c">Stt</th><th>Kế hoạch dự trù nghiệm thu ngày mai</th><th>Vị trí</th><th class="c">Thời gian</th></tr>
@@ -1033,21 +1192,26 @@ function docHTML(r, o={}){
   <tr><th class="c">Stt</th><th>Công tác thí nghiệm</th><th>Vị trí</th><th class="c">Kết quả</th></tr>
   ${r.tests.length ? r.tests.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.result)}</td></tr>`).join('') : '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
   if (!o.partial){
-    h += `<div class="sec">5. VẬT TƯ NHẬP VỀ CÔNG TRƯỜNG / MATERIALS DELIVERED</div>
+    h += `<div class="sec">6. VẬT TƯ NHẬP VỀ CÔNG TRƯỜNG / MATERIALS DELIVERED</div>
     <table class="grid"><tr><th class="c">Stt</th><th>Chủng loại</th><th>Quy cách</th><th class="c" style="width:50px">ĐVT</th><th class="c" style="width:70px">Số lượng</th></tr>
     ${r.materials.length ? r.materials.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.spec)}</td><td class="c">${esc(t.unit)}</td><td class="c">${esc(t.qty)}</td></tr>`).join('') : '<tr><td></td><td colspan="4" class="mut">Không có vật tư nhập về</td></tr>'}</table>
-    <div class="sec">6. SỨC KHỎE VÀ AN TOÀN / HEALTH AND SAFETY</div><div class="txt">${esc(r.safety.summary)}</div>
+    <div class="sec">7. SỨC KHỎE VÀ AN TOÀN / HEALTH AND SAFETY</div><div class="txt">${esc(r.safety.summary)}</div>
     ${r.safety.issues.length ? `<table class="grid" style="margin-top:6px"><tr><th class="c">Stt</th><th>Nhắc nhở / vi phạm / sự cố</th><th>Biện pháp xử lý</th></tr>${r.safety.issues.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(t.action)}</td></tr>`).join('')}</table>`:''}
-    <div class="sec">7. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>
+    <div class="sec">8. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>
     ${(r.layout.img||r.layout.fileId) ? `<div style="text-align:center"><img src="${imgSrc(r.layout,o)}" style="max-width:100%;max-height:520px"><div class="sm">${esc(r.layout.caption)}</div></div>` : `<table class="phc"><tr><td class="noph">${esc(r.layout.caption)||'Mặt bằng thi công'}</td></tr></table>`}`;
   }
-  h += `<div class="sec">${o.partial?'3':'8'}. HÌNH ẢNH THỰC TẾ TRÊN CÔNG TRƯỜNG / ON-SITE PICTURES</div><table class="phc">`;
+  h += `<div class="sec">${N[3]}. HÌNH ẢNH THỰC TẾ TRÊN CÔNG TRƯỜNG / ON-SITE PICTURES</div><table class="phc">`;
   for (let i=0;i<r.photos.length;i+=2) h += '<tr>' + [r.photos[i], r.photos[i+1]].map(ph => !ph ? '<td></td>' : `<td>${(ph.img||(o.pdf&&ph.fileId))?`<img src="${imgSrc(ph,o)}">`:`<div class="noph" style="display:table;width:100%"><span style="display:table-cell;vertical-align:middle">${ph.fileId?'Đang tải ảnh…':'Ảnh'}</span></div>`}<div style="margin-top:3px">${esc(ph.caption)}</div></td>`).join('') + '</tr>';
   if (!r.photos.length) h += '<tr><td class="mut">Không có hình ảnh</td></tr>';
   h += '</table>';
-  if (o.partial && o.note) h += `<div class="sec">4. GHI CHÚ CHO NGƯỜI CHỐT</div><div class="txt">${esc(o.note)}</div>`;
+  if (o.partial && o.note) h += `<div class="sec">${N[4]}. GHI CHÚ CHO NGƯỜI CHỐT</div><div class="txt">${esc(o.note)}</div>`;
   if (!o.partial) h += docSign();
   return h + '</div>';
+}
+function lockLine(r){
+  if (r.status !== 'locked') return `<div class="sm" style="text-align:right;color:#b45309;font-weight:bold">BẢN NHÁP – CHƯA CHỐT / DRAFT</div>`;
+  const n = lateDays(r);
+  return `<div class="sm" style="text-align:right">Chốt${r.lockedBy?' bởi '+esc(userName(r.lockedBy)):''} ${n>0?'ngày':'lúc'} ${esc(r.lockedAt)}${n>0?` – <span class="bad">trễ ${n} ngày</span>`:''}</div>`;
 }
 function renderDoc(){ $('#doc').innerHTML = R ? docHTML(R) : ''; }
 function schedulePreview(){ clearTimeout(prevTimer); prevTimer = setTimeout(()=>{ if (VIEW==='my') renderMyDoc(); else { renderDoc(); const s=$('#sumMp'); if(s&&R) s.textContent=R.manpower.reduce((a,m)=>a+num(m.qty),0); } }, 150); }
@@ -1085,13 +1249,14 @@ function periodRange(){ const d = new Date(P.anchor + 'T00:00:00');
   if (P.kind==='week'){ const wd = (d.getDay()+6)%7, s = addDays(P.anchor, -wd); return {from:s, to:addDays(s,6), key:'W-'+s, title:'BÁO CÁO TUẦN / WEEKLY REPORT'}; }
   const s = iso(new Date(d.getFullYear(), d.getMonth(), 1)), e = iso(new Date(d.getFullYear(), d.getMonth()+1, 0)); return {from:s, to:e, key:'M-'+s.slice(0,7), title:'BÁO CÁO THÁNG / MONTHLY REPORT'}; }
 function aggregate(list){
-  const A = {n:list.length, days:list.map(r=>r.date), rain:0, groups:{}, mp:{}, eq:{}, mat:{}, insp:[], tests:[], issues:[], wbsName:{}};
+  const A = {n:list.length, days:list.map(r=>r.date), unl:list.filter(r=>r.status!=='locked').map(r=>r.date), rain:0, groups:{}, mp:{}, eq:{}, mat:{}, insp:[], tests:[], issues:[], wbsName:{}, plan:{n:0, ok:0, short:{}}};
   CFG.wbs.forEach(w=>A.wbsName[w.code]=w.name);
   list.forEach(r=>{ if (/mưa|rain|shower/i.test((r.weather.am||'')+' '+(r.weather.pm||''))) A.rain++;
     r.tasks.forEach(t=>{ const G = A.groups[t.wbs||'—'] = A.groups[t.wbs||'—'] || {items:{}}; const k = keyOf(t);
       const it = G.items[k] = G.items[k] || {desc:t.desc, loc:locText(t), unit:t.unit, start:null, startTxt:'', end:null, endTxt:'', qty:0, days:0};
-      const p = pct(t.progress), pp = pct(t.prevProgress); if (it.days===0){ it.start = pp!==null ? pp : p; it.startTxt = t.prevProgress || ''; }
-      it.end = p; it.endTxt = t.progress; it.qty += num(t.qtyDay); it.days++; if (t.unit) it.unit = t.unit; });
+      const p = cumOf(t), pp = isMon(t) ? null : (pct(t.prevProgress) ?? (hasV(t.startPct) ? num(t.startPct) : null)); if (it.days===0){ it.start = pp!==null ? pp : p; it.startTxt = t.prevProgress || ''; }
+      if (p !== null || isMon(t)) { it.end = p; it.endTxt = t.progress || it.endTxt; } it.qty += num(t.qtyDay); it.days++; if (t.unit) it.unit = t.unit;
+      const j = judge(t); if (j) { A.plan.n++; if (j!=='short') A.plan.ok++; else { const s = A.plan.short[k] = A.plan.short[k] || {desc:t.desc, loc:locText(t), days:[], miss:0, maxStreak:0}; s.days.push(r.date); s.miss += num(t.planToday) - num(t.dayPct); s.maxStreak = Math.max(s.maxStreak, streakOf(t)); } } });
     r.manpower.forEach(m=>{ A.mp[m.title] = (A.mp[m.title]||0) + num(m.qty); }); r.equipment.forEach(m=>{ A.eq[m.name] = (A.eq[m.name]||0) + num(m.qty); });
     r.materials.forEach(m=>{ const k = [m.name,m.spec,m.unit].join('|'); A.mat[k] = A.mat[k] || {name:m.name,spec:m.spec,unit:m.unit,qty:0,times:0}; A.mat[k].qty += num(m.qty); A.mat[k].times++; });
     r.inspections.forEach(x=> x.desc && A.insp.push({...x, date:r.date})); r.tests.forEach(x=> x.desc && A.tests.push({...x, date:r.date}));
@@ -1100,7 +1265,11 @@ function aggregate(list){
 }
 async function loadPeriod(){ const pr = periodRange(); setSave('sync');
   const b = await Store.period(pr.from, pr.to, pr.key) || {}; setSave('');
-  P.reports = (b.reports||[]).map(normReport);
+  const by = {}; (b.reports||[]).map(normReport).forEach(r=>by[r.date]=r);
+  const sd = {}; (b.subs||[]).map(normSub).forEach(x=>(sd[x.date]=sd[x.date]||[]).push(x));
+  Object.keys(sd).forEach(d=>{ if (by[d] && by[d].status==='locked') return; const r = by[d] || blankReport(d), L = sd[d];
+    const m = mergeSubs(L, L.some(x=>x.status==='submitted'||x.status==='accepted')); Object.assign(r, m); r.photos = m.photos.concat(r.extraPhotos||[]); r.status = 'draft'; by[d] = r; });
+  P.reports = Object.values(by).sort((x,y)=>x.date.localeCompare(y.date));
   P.manual = b.manual || {key:pr.key, kind:P.kind, from:pr.from, to:pr.to, legal:'', evaluation:'', evalNote:'', nextPlan:''};
   renderPeriod(); }
 function renderPeriod(){
@@ -1109,8 +1278,8 @@ function renderPeriod(){
   $('#perPrevBar').innerHTML = (isChot() ? '<button class="btn" data-act="savePeriod">💾 Lưu phần nhập tay</button><button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
   $('#periodPane').innerHTML = `<div class="bar" style="margin:0 0 14px"><select class="btn" id="pKind"><option value="week" ${P.kind==='week'?'selected':''}>Theo tuần (T2 → CN)</option><option value="month" ${P.kind==='month'?'selected':''}>Theo tháng</option></select>
     <button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button></div>
-  <div class="note">Kỳ <b>${vi(pr.from)} → ${vi(pr.to)}</b>: <b>${A.n}</b> báo cáo ngày${A.n?` (${A.days.map(vi).join(', ')})`:''}.${P.reports.some(r=>r.status!=='locked') ? '<br>⚠ Có ngày chưa chốt – số liệu có thể còn thay đổi.' : ''}</div>
-  <div class="stat"><div><b>${A.n}</b><span>Ngày có báo cáo</span></div><div><b>${A.n?r1(Object.values(A.mp).reduce((a,b)=>a+b,0)/A.n):0}</b><span>Nhân lực TB/ngày</span></div><div><b>${A.rain}</b><span>Ngày có mưa</span></div><div><b>${ok}/${A.insp.length}</b><span>Nghiệm thu đạt</span></div><div><b>${A.issues.length}</b><span>Vi phạm ATLĐ</span></div></div>
+  <div class="note">Kỳ <b>${vi(pr.from)} → ${vi(pr.to)}</b>: <b>${A.n}</b> báo cáo ngày${A.n?` (${A.days.map(vi).join(', ')})`:''}.${A.unl.length ? `<br>⚠ <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – đã gom từ phiếu kỹ sư, đánh dấu <b>“số liệu tạm”</b> trên báo cáo.` : ''}</div>
+  <div class="stat"><div><b>${A.n}</b><span>Ngày có báo cáo</span></div><div><b>${A.n?r1(Object.values(A.mp).reduce((a,b)=>a+b,0)/A.n):0}</b><span>Nhân lực TB/ngày</span></div><div><b>${A.plan.n?Math.round(A.plan.ok*100/A.plan.n)+'%':'—'}</b><span>Tuân thủ KH ngày (${A.plan.ok}/${A.plan.n})</span></div><div><b>${A.rain}</b><span>Ngày có mưa</span></div><div><b>${ok}/${A.insp.length}</b><span>Nghiệm thu đạt</span></div><div><b>${A.issues.length}</b><span>Vi phạm ATLĐ</span></div></div>
   <div class="note w">Tiến độ gom theo <b>đầu mục WBS</b> · Vật tư <b>cộng dồn</b> · Nhân lực & thiết bị <b>trung bình theo số ngày có báo cáo</b> · An toàn, nghiệm thu, thí nghiệm <b>liệt kê đầy đủ</b>.</div>
   <div class="ph"><h3>✍ Phần nhập tay cấp ${P.kind==='week'?'tuần':'tháng'}</h3></div>
   <label class="l">Tình trạng hồ sơ pháp lý / giấy tờ chất lượng</label><textarea class="in" rows="4" data-pm="legal" ${ro}>${esc(M.legal)}</textarea>
@@ -1121,6 +1290,7 @@ function renderPeriod(){
 }
 function renderPeriodDoc(A, pr, M){ const f = r1;
   let h = `<div class="doc">${docHeader(pr.title)}<table class="meta"><tr><td>Kỳ báo cáo / Period:<b>${vi(pr.from)} – ${vi(pr.to)}</b></td><td>Số ngày có báo cáo:<b>${A.n}</b></td><td>Số ngày mưa:<b>${A.rain}</b></td><td style="border:0">Đánh giá tổng thể:<b class="${M.evaluation==='Không đạt'?'bad':'ok'}">${esc(M.evaluation)||'—'}</b></td></tr></table>
+  ${A.unl.length ? `<div class="sm bad" style="text-align:right">⚠ Gồm ${A.unl.length} ngày chưa chốt (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – số liệu tạm</div>` : ''}
   <div class="sec">1. TIẾN ĐỘ THEO ĐẦU MỤC TỔNG (WBS) / PROGRESS BY SUMMARY TASK</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th style="width:70px">Vị trí</th><th class="c" style="width:52px">Đầu kỳ</th><th class="c" style="width:52px">Cuối kỳ</th><th class="c" style="width:48px">Tăng</th><th class="c" style="width:78px">KL trong kỳ</th></tr>`;
   const codes = Object.keys(A.groups).sort((a,b)=> a==='—'?1: b==='—'?-1: a.localeCompare(b, undefined, {numeric:true}));
@@ -1128,7 +1298,11 @@ function renderPeriodDoc(A, pr, M){ const f = r1;
   codes.forEach(c=>{ h += `<tr><td colspan="7" class="grp">${c==='—' ? 'CHƯA GÁN ĐẦU MỤC WBS' : esc(c)+' · '+esc(A.wbsName[c]||'')}</td></tr>`;
     Object.values(A.groups[c].items).forEach((it,i)=>{ const nb = it.start!==null && it.end!==null;
       h += `<tr><td class="n">${i+1}</td><td>${esc(it.desc)}</td><td>${esc(it.loc)}</td><td class="c">${it.start!==null?f(it.start)+'%':esc(it.startTxt)}</td><td class="c"><b>${it.end!==null?f(it.end)+'%':esc(it.endTxt)}</b></td><td class="c">${nb?(it.end-it.start>=0?'+':'')+f(it.end-it.start)+'%':''}</td><td class="c">${it.qty?f(it.qty)+' '+esc(it.unit):''}</td></tr>`; }); });
-  h += `</table><table><tr><td style="width:49%;vertical-align:top;padding-right:8px"><div class="sec">2. NHÂN LỰC BÌNH QUÂN</div><table class="grid"><tr><th class="c">Stt</th><th>Chức danh</th><th class="c" style="width:60px">TB/ngày</th></tr>
+  const sh = Object.values(A.plan.short).sort((a,b)=>b.days.length-a.days.length || b.miss-a.miss);
+  h += `</table><div class="sec">1b. TUÂN THỦ KẾ HOẠCH NGÀY / DAILY PLAN ADHERENCE <span>${A.plan.n ? A.plan.ok+'/'+A.plan.n+' lượt đạt ('+Math.round(A.plan.ok*100/A.plan.n)+'%)' : 'CHƯA CÓ DỮ LIỆU'}</span></div>
+  ${sh.length ? `<table class="grid"><tr><th class="c">Stt</th><th>Việc hụt kế hoạch</th><th style="width:80px">Vị trí</th><th class="c" style="width:52px">Số ngày hụt</th><th class="c" style="width:58px">Tổng % hụt</th><th style="width:110px">Các ngày</th></tr>
+  ${sh.slice(0,15).map((x,i)=>`<tr><td class="n">${i+1}</td><td>${esc(x.desc)}${x.maxStreak>=2?`<div class="sm bad">hụt ${x.maxStreak} ngày liên tiếp</div>`:''}</td><td>${esc(x.loc)}</td><td class="c bad">${x.days.length}</td><td class="c">${f(x.miss)}%</td><td class="sm">${x.days.map(d=>vi(d).slice(0,5)).join(', ')}</td></tr>`).join('')}</table>` : `<div class="txt">${A.plan.n ? 'Không có việc nào hụt kế hoạch trong kỳ.' : 'Chưa có số liệu kế hoạch ngày trong kỳ.'}</div>`}
+  <table><tr><td style="width:49%;vertical-align:top;padding-right:8px"><div class="sec">2. NHÂN LỰC BÌNH QUÂN</div><table class="grid"><tr><th class="c">Stt</th><th>Chức danh</th><th class="c" style="width:60px">TB/ngày</th></tr>
   ${Object.entries(A.mp).map(([k,v],i)=>`<tr><td class="n">${i+1}</td><td>${esc(k)}</td><td class="c">${A.n?f(v/A.n):0}</td></tr>`).join('')}<tr class="tot"><td colspan="2" class="r">TỔNG BÌNH QUÂN:</td><td class="c v">${A.n?f(Object.values(A.mp).reduce((a,b)=>a+b,0)/A.n):0}</td></tr></table></td>
   <td style="vertical-align:top;padding-left:8px"><div class="sec">3. THIẾT BỊ BÌNH QUÂN</div><table class="grid"><tr><th class="c">Stt</th><th>Thiết bị</th><th class="c" style="width:60px">TB/ngày</th></tr>
   ${Object.entries(A.eq).map(([k,v],i)=>`<tr${v?'':' class="mut"'}><td class="n">${i+1}</td><td>${esc(k)}</td><td class="c">${A.n?f(v/A.n):0}</td></tr>`).join('')}</table></td></tr></table>
@@ -1211,13 +1385,32 @@ function showLink(url){ modal(`<h3>✔ Đã lưu PDF vào Google Drive</h3><p st
 
 /* ===================== SỰ KIỆN ===================== */
 const rootObj = n => n==='S' ? S : R;
+/* Thêm mới lên ĐẦU danh sách, tô viền, đưa con trỏ vào ô đầu tiên */
+function addItem(root, path, it){
+  const o = rootObj(root); if (!o) return; const arr = getPath(o, path); it.id = uid(); it._fresh = true; arr.unshift(it);
+  if (root==='S' && path==='plans') { MYSEG = 'tomorrow'; planCalc(it, S.tasks); }
+  if (root==='S' && path==='tasks') MYSEG = 'today';
+  markDirty(root);
+  if (root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); renderMobileBar(); }
+  delete it._fresh;
+  const el = document.querySelector(`[data-root="${root}"][data-path^="${path}.0."]:not([disabled])`);
+  if (el) { try { el.focus({preventScroll:true}); } catch(x){} el.scrollIntoView({block:'center'}); }
+}
+function pick(title, opts, cb){ pick._cb = cb;
+  modal(`<h3>${esc(title)}</h3><div class="zpick">${opts.map(([v,t])=>`<button class="btn" data-act="pick" data-v="${esc(v)}">${esc(t)}</button>`).join('')}</div><div class="acts"><button class="btn" onclick="closeModal()">Hủy</button></div>`); }
 document.addEventListener('input', e=>{
   const t = e.target;
   if (t.dataset.path && t.dataset.root){ const o = rootObj(t.dataset.root); if (!o) return;
     let v = t.type==='checkbox' ? t.checked : t.value; if (t.dataset.num) v = v==='' ? '' : Number(v); setPath(o, t.dataset.path, v);
-    const m = t.dataset.path.match(/^tasks\.(\d+)\./); if (m && t.dataset.root==='S'){ const i = +m[1], tk = S.tasks[i];
-      if (t.dataset.path.endsWith('.desc')){ const w = CFG.wbsMemory[(v||'').trim().toLowerCase()]; if (w && !tk.wbs) tk.wbs = w; }
-      const box = $('#w-'+i); if (box) box.innerHTML = warnHtml(tk); clearTimeout(renderMobileBar._t); renderMobileBar._t = setTimeout(renderMobileBar, 400); }
+    const m = t.dataset.path.match(/^tasks\.(\d+)\./); if (m && t.dataset.root==='S'){ const i = +m[1], tk = S.tasks[i], f = t.dataset.path.slice(m[0].length);
+      if (f==='desc'){ const w = CFG.wbsMemory[(v||'').trim().toLowerCase()]; if (w && !tk.wbs) tk.wbs = w; }
+      if (f==='dayPct' && v!==''){ const base = baseOf(tk); let nv = v; if (nv < 0) nv = 0; if (base + nv > 100) { nv = r1(100 - base); toast(`Lũy kế tối đa 100% – % hôm nay tối đa ${nv}%`); } if (nv !== v) { tk.dayPct = nv; t.value = nv; } }
+      if (f==='startPct' && v!==''){ const nv = Math.max(0, Math.min(100, v)); if (nv !== v) { tk.startPct = nv; t.value = nv; } }
+      if (f==='recurring'){ if (!tk.recurring) { tk.progress = ''; recalc(tk); } else { tk.progress = ''; } setTimeout(renderMy, 0); }
+      if (f==='dayPct' || f==='startPct') updTask(i); else { const box = $('#w-'+i); if (box) box.innerHTML = warnHtml(tk); }
+      clearTimeout(renderMobileBar._t); renderMobileBar._t = setTimeout(renderMobileBar, 400); }
+    const mp = t.dataset.path.match(/^plans\.(\d+)\.(add|desc|loc|zoneId)$/); if (mp && t.dataset.root==='S'){ const pl = S.plans[+mp[1]];
+      if (mp[2]==='add' && v!=='' && v < 0) { pl.add = 0; t.value = 0; } planCalc(pl, S.tasks); const e = $('#pt-'+mp[1]); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; }
     if (/^(plans|inspections|inspectionPlans|tests)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
     markDirty(t.dataset.root); schedulePreview(); return; }
   if (t.dataset.pm && P.manual){ P.manual[t.dataset.pm] = t.value; renderPeriodDoc(aggregate(P.reports), periodRange(), P.manual); clearTimeout(saveTimer.P); saveTimer.P = setTimeout(()=>Store.savePeriod(P.manual), 1500); return; }
@@ -1247,12 +1440,24 @@ document.addEventListener('change', async e=>{
 });
 document.addEventListener('click', async e=>{
   const b = e.target.closest('[data-act],[data-tab],[data-view],[data-mytab],[data-cfgtab]'); if (!b) return;
-  if (b.dataset.tab){ TAB = b.dataset.tab; renderForm(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
+  if (b.dataset.tab){ TAB = b.dataset.tab; renderForm(); updFab(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
   if (b.dataset.mytab){ MYTAB = b.dataset.mytab; renderMy(); if (isMobile()) window.scrollTo(0,0); return; }
   if (b.dataset.cfgtab){ CFGTAB = b.dataset.cfgtab; renderConfig(); return; }
   if (b.dataset.view){ document.body.classList.remove('pv'); return go(b.dataset.view); }
   const a = b.dataset.act;
-  if (a==='add'){ const o = rootObj(b.dataset.root), arr = getPath(o, b.dataset.path), it = JSON.parse(b.dataset.tpl||'{}'); it.id = uid(); arr.push(it); markDirty(b.dataset.root); b.dataset.root==='S' ? renderMy() : (renderForm(), renderDoc()); }
+  if (a==='add') return addItem(b.dataset.root, b.dataset.path, JSON.parse(b.dataset.tpl||'{}'));
+  if (a==='seg'){ MYSEG = b.dataset.v; renderMy(); window.scrollTo(0,0); return; }
+  if (a==='fab'){ const c = fabCtx(); if (!c) return;
+    if (c==='task'){ const zs = zonesOf(S.uid).length ? zonesOf(S.uid) : CFG.zones;
+      if (zs.length===1) return addItem('S','tasks', newTaskTpl(zs[0]));
+      return pick('Thêm việc vào khu vực', zs.map(z=>[z.id, '📍 ' + z.name + ' · ' + (z.section==='MEP'?'MEP':'Xây dựng')]), id=>addItem('S','tasks', newTaskTpl(zoneById(id)))); }
+    if (c==='plan') return addItem('S','plans', {zoneId:(zonesOf(S.uid)[0]||CFG.zones[0]||{}).id||'', desc:'', loc:'', wbs:'', add:'', target:''});
+    if (c==='people') return pick('Thêm mới', [['manpower','👥 Nhân lực'],['equipment','🔧 Máy móc thiết bị']], k=>addItem('R', k, k==='manpower'?{title:'',qty:0}:{name:'',qty:0}));
+    if (c==='mat') return pick('Thêm mới', [['materials','📦 Vật tư nhập về'],['safety.issues','⚠ Nhắc nhở / vi phạm ATLĐ']], k=>addItem('R', k, k==='materials'?{name:'',spec:'',unit:'',qty:''}:{desc:'',action:''})); }
+  if (a==='pick'){ closeModal(); const f = pick._cb; pick._cb = null; if (f) f(b.dataset.v); return; }
+  if (a==='gotoDate'){ await flush(); DATE = b.dataset.d; TAB = 'status'; return openDay(DATE); }
+  if (a==='bumpPlan'){ const i = +b.dataset.i, pl = S.plans[i]; const room = Math.max(0, 100 - (pl.base||0)); pl.add = r1(Math.min(room, num(pl.add) + (+b.dataset.v))); planCalc(pl, S.tasks);
+    const el = $('#pa-'+i); if (el) el.value = pl.add; const e = $('#pt-'+i); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; markDirty('S'); schedulePreview(); }
   if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
   if (a==='logout'){ document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); try { localStorage.removeItem('bcn_session'); } catch(x){} ME = null; TOKEN = ''; LINKS = null; showLogin(); }
   if (a==='goToday'){ await flush(); DATE = today(); return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
@@ -1265,22 +1470,23 @@ document.addEventListener('click', async e=>{
     const w = allWarn(S.tasks);
     if (!S.tasks.length && !S.inspections.length && !S.photos.length && !(await ask('Phiếu trống', 'Phiếu chưa có công việc, nghiệm thu hay ảnh nào. Vẫn nộp (báo “không thi công”)?', 'Vẫn nộp'))) return;
     if (w.e) { toast(`⛔ Còn ${w.e} lỗi số liệu (VD % vượt 100) – sửa trước khi nộp`, 5000); MYTAB='work'; renderMy(); return; }
-    if (w.w && !(await ask('Còn cảnh báo số liệu', `Phiếu còn <b>${w.w}</b> cảnh báo (thiếu %, % thấp hơn hôm trước, thiếu KL ngày…). Vẫn nộp?`, 'Vẫn nộp'))) return;
-    if (!S.plans.length && S.tasks.some(t=>{const p=pct(t.progress);return p!==null&&p<100;})) { autoPlan(S); toast('⚡ Đã tự sinh kế hoạch ngày mai'); }
+    if (w.w && !(await ask('Còn cảnh báo số liệu', `Phiếu còn <b>${w.w}</b> cảnh báo (chưa nhập % hôm nay / kết quả theo dõi…). Vẫn nộp?`, 'Vẫn nộp'))) return;
+    if (!S.plans.length && S.tasks.some(t=>!isMon(t) && (cumOf(t)??0) < 100)) { autoPlan(S); toast('⚡ Đã tự sinh kế hoạch ngày mai'); }
+    if (!S_OTHER) S.tasks.forEach(t=>{ if (!t.carried && hasV(t.startPct)) t.startLocked = true; });
     S.status = 'submitted'; S.submittedAt = nowStr(); S.returnNote = ''; await saveS(true); renderMy(); toast('📨 Đã nộp phiếu cho người tổng hợp'); }
   if (a==='withdrawSub'){ S.status = 'draft'; await saveS(true); if (dirty.S) { S.status = 'submitted'; renderMy(); return; } renderMy(); toast('Đã rút lại – có thể sửa tiếp'); }
   if (a==='saveOther'){ await saveS(); }
   if (a==='step'){ const o = getPath(R, b.dataset.path); o.qty = Math.max(0, num(o.qty) + (+b.dataset.v)); const el = $('#q-'+b.dataset.path.replace('.','-')); if (el) el.value = o.qty;
     const sm = $('#sumMp'); if (sm) sm.textContent = R.manpower.reduce((x,m)=>x+num(m.qty),0); const se = $('#sumEq'); if (se) se.textContent = R.equipment.reduce((x,m)=>x+num(m.qty),0);
     markDirty('R'); schedulePreview(); }
-  if (a==='bump'){ const i = +b.dataset.i, v = +b.dataset.v, t = S.tasks[i]; const base = pct(t.progress) ?? pct(t.prevProgress) ?? 0;
-    t.progress = (v===100 ? 100 : Math.min(100, Math.round((base + v)*10)/10)) + '%';
-    const el = $('#pg-'+i); if (el) el.value = t.progress; const box = $('#w-'+i); if (box) box.innerHTML = warnHtml(t);
+  if (a==='bump'){ const i = +b.dataset.i, v = +b.dataset.v, t = S.tasks[i]; const room = r1(Math.max(0, 100 - baseOf(t)));
+    t.dayPct = v===100 ? room : r1(Math.min(room, num(t.dayPct) + v)); if (v!==100 && num(t.dayPct) >= room) toast('Đã đạt 100% lũy kế');
+    const el = $('#pg-'+i); if (el) el.value = t.dayPct; updTask(i);
     if (navigator.vibrate) try { navigator.vibrate(8); } catch(x){}
     markDirty('S'); schedulePreview(); renderMobileBar(); }
   if (a==='showPrev'){ const id = VIEW==='my' ? '#mydoc' : VIEW==='day' ? '#doc' : '#pdoc'; if (VIEW==='my') renderMyDoc();
-    document.body.classList.add('pv'); const d = $(id); d.style.zoom = Math.min(1, (innerWidth - 20) / 830); window.scrollTo(0,0); }
-  if (a==='closePrev'){ document.body.classList.remove('pv'); }
+    document.body.classList.add('pv'); updFab(); const d = $(id); d.style.zoom = Math.min(1, (innerWidth - 20) / 830); window.scrollTo(0,0); }
+  if (a==='closePrev'){ document.body.classList.remove('pv'); updFab(); }
   if (a==='umenu'){ modal(`<h3>👤 ${esc(ME.name)}</h3><p class="hint" style="padding:0">${esc(ROLES[ME.role])} · ${esc(CFG.project.code)}</p>
     <div style="display:grid;gap:8px;margin-top:12px">${IS_GAS && isAdmin() && LINKS ? `<a class="btn" href="${esc(LINKS.sheet)}" target="_blank" rel="noopener">📊 Mở Google Sheet</a>${LINKS.folder?`<a class="btn" href="${esc(LINKS.folder)}" target="_blank" rel="noopener">📁 Thư mục ảnh/PDF</a>`:''}` : ''}
     <div class="hint" style="padding:0">${esc($('#saveState').textContent||'')}</div>
@@ -1288,7 +1494,7 @@ document.addEventListener('click', async e=>{
     <div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`); }
   if (a==='reroll'){ const prev = await prevMerged(S.date); if (!prev) { toast('Không có ngày trước để cuốn chiếu'); return; }
     const r = rollTasks(prev, zonesOf(S.uid).map(z=>z.id)), cur = {}; S.tasks.forEach(t=>cur[keyOf(t)] = t);
-    r.tasks.forEach(t=>{ const c = cur[keyOf(t)]; if (c) { t.progress = c.progress; t.qtyDay = c.qtyDay; t.unit = c.unit || t.unit; } });
+    r.tasks.forEach(t=>{ const c = cur[keyOf(t)]; if (c) { t.dayPct = c.dayPct; t.qtyDay = c.qtyDay; t.unit = c.unit || t.unit; if (isMon(t)) t.progress = c.progress; else recalc(t); } });
     S.tasks = r.tasks.concat(S.tasks.filter(t=>!t.carried && !r.tasks.some(x=>keyOf(x)===keyOf(t))));
     if (!S.inspections.length) S.inspections = r.inspections; S.rolledFrom = prev.date; markDirty('S'); renderMy(); toast('↻ Đã cập nhật việc từ ' + vi(prev.date) + ' (giữ số đã nhập)'); }
   if (a==='backDay'){ await flush(); VIEW='day'; renderNav(); S_OTHER = false; applyMerge(); renderDayAll(); renderDateSel(); }
@@ -1442,10 +1648,12 @@ function sampleDay(date, d){
   const base = [['zB','Đào đất lớp 3 (đào đến cao độ -8.65m)','03.1',74,'m3',420,3],['zB','Lắp đặt hệ giằng lớp 3','03.2',22,'tấn',9.5,6],['zC','Đào đất lớp 3 (đào đến cao độ -8.65m)','03.1',98,'m3',180,1],
     ['zC','Lắp đặt hệ giằng lớp 3','03.2',50,'tấn',11,10],['zA','Đào đất lớp 3 (đào đến cao độ -8.65m)','03.1',7,'m3',350,2]];
   const T = (z,desc,wbs,p,ex={}) => Object.assign({id:uid(), zoneId:z, section:(zoneById(z)||{}).section, desc, loc:'', wbs, unit:'', qtyDay:'', progress:p, prevProgress:'', recurring:false, scheduleId:''}, ex);
-  const tasks = base.map(b=>T(b[0],b[1],b[2],(b[3]-b[6]*d)+'%',{unit:b[4], qtyDay:b[5], prevProgress:(b[3]-b[6]*(d+1))+'%'}));
-  tasks.push(T('zS','Quan trắc lún nghiêng công trình lân cận','08','CK'+(11-d),{recurring:true, prevProgress:'CK'+(10-d)}), T('zS','Quan trắc Inclinometer','08','CK'+(12-d),{recurring:true, prevProgress:'CK'+(11-d)}), T('zS','Vệ sinh đường nội bộ xung quanh công trình','09','100%',{recurring:true}));
-  const plans = base.map(b=>({id:uid(), zoneId:b[0], section:'XD', desc:b[1], loc:'', wbs:b[2], target:Math.min(100,b[3]-b[6]*d+b[6]+2)+'%'}));
-  plans.push({id:uid(), zoneId:'zS', section:'MEP', desc:'Vệ sinh đường nội bộ xung quanh công trình', loc:'', wbs:'09', target:'100%'});
+  const VAR = [2,0,-1,1,0];   // KH hôm nay so với thực hiện: hụt / đạt / vượt / hụt / đạt
+  const tasks = base.map((b,k)=>T(b[0],b[1],b[2],(b[3]-b[6]*d)+'%',{unit:b[4], qtyDay:b[5], prevProgress:(b[3]-b[6]*(d+1))+'%', dayPct:b[6], planToday:b[6]+VAR[k], carried:true, shortStreak: k===0 ? 2-d : 0}));
+  tasks.push(T('zS','Quan trắc lún nghiêng công trình lân cận','08','CK'+(11-d),{recurring:true, prevProgress:'CK'+(10-d), planText:'CK'+(11-d), carried:true}), T('zS','Quan trắc Inclinometer','08','CK'+(12-d),{recurring:true, prevProgress:'CK'+(11-d), planText:'CK'+(12-d), carried:true}), T('zS','Vệ sinh đường nội bộ xung quanh công trình','09','Hoàn thành',{recurring:true, prevProgress:'Hoàn thành', planText:'Hoàn thành', carried:true}));
+  const plans = base.map((b,k)=>{ const c = b[3]-b[6]*d, add = Math.min(100-c, b[6]+VAR[k]); return {id:uid(), zoneId:b[0], section:'XD', desc:b[1], loc:'', wbs:b[2], add, target:Math.min(100,c+add)+'%'}; });
+  plans.push({id:uid(), zoneId:'zS', section:'MEP', desc:'Quan trắc lún nghiêng công trình lân cận', loc:'', wbs:'08', mon:true, target:'CK'+(12-d)},
+             {id:uid(), zoneId:'zS', section:'MEP', desc:'Vệ sinh đường nội bộ xung quanh công trình', loc:'', wbs:'09', mon:true, target:'Hoàn thành'});
   const ins = d===0 ? [{id:uid(),zoneId:'zB',desc:'Nghiệm thu vật tư đầu vào hệ shoring lớp 3',loc:'',result:'Đạt'}] : d===1 ? [{id:uid(),zoneId:'zC',desc:'Nghiệm thu cao độ đào đất lớp 3',loc:'',result:'Đạt'}] : [{id:uid(),zoneId:'zB',desc:'Nghiệm thu mối hàn liên kết giằng lớp 3',loc:'',result:'Không đạt'}];
   const tests = d===0 ? [{id:uid(),zoneId:'zC',desc:'Chứng kiến nén mẫu và thử thấm bê tông trialmix và bê tông chèn shoring lớp 2',loc:'P.Las 357',result:'Đạt'}] : [];
   const iplans = d===0 ? [{id:uid(),zoneId:'zC',desc:'Nghiệm thu lắp đặt hệ giằng lớp 3',loc:'',time:'Sáng'}] : [];

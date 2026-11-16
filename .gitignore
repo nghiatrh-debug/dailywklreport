@@ -2,3 +2,5 @@ node_modules/
 .DS_Store
 *.log
 .clasprc.json
+tests/shots/
+package-lock.json

@@ -52,6 +52,8 @@ docs/
 tests/
   gasmock.js     # giả lập SpreadsheetApp, DriveApp, CacheService… để chạy Code.gs bằng Node
   gastest.js     # kiểm thử máy chủ: phân quyền, phiếu, chốt, ảnh, bộ đệm, reset
+  ui.js          # kiểm thử giao diện (Playwright): điện thoại 375/390/412 px + máy tính
+docs/SPEC.md     # đặc tả các đợt chỉnh sửa đã chốt
 ```
 
 ## Triển khai nhanh
@@ -66,6 +68,7 @@ Chi tiết xem `docs/HUONG_DAN_TRIEN_KHAI.md`.
 ## Chạy kiểm thử
 ```bash
 node tests/gastest.js
+npm install --no-save playwright@1 && npx playwright install chromium && node tests/ui.js   # ảnh chụp ở tests/shots/
 ```
 
 ## Chế độ xem trước

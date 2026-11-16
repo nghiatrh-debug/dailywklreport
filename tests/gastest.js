@@ -39,6 +39,17 @@ A([sheets.BaoCao.data.length===2,'BaoCao single row upsert']);
 A([sheets.HinhAnh.data.length===3,'HinhAnh rows (layout+photo)']);
 threw=false; try{ ctx.apiSaveSub(tk, JSON.stringify(sub)); }catch(e){threw=/chốt/.test(e.message);} A([threw,'locked day blocks sub save']);
 A([J(ctx.apiPeriod(tkK,'2026-11-01','2026-11-30','')).reports.length===1,'period range']);
+// Đợt 2: cột so sánh KH + kỳ gồm ngày chưa chốt
+const cvh = sheets.CongViec.data[0]; A([cvh.indexOf('chenh_lech')>0 && cvh.length===20,'CongViec header has new cols']);
+const sub2 = { key:'2026-11-16|uK', date:'2026-11-16', uid:'uK', status:'submitted', tasks:[{zoneId:'z1',desc:'Đào',prevProgress:'50%',planToday:5,dayPct:3,progress:'53%',carried:true}], plans:[{zoneId:'z1',desc:'Đào',add:4,target:'57%'}], inspections:[], inspectionPlans:[], tests:[], photos:[], note:'' };
+ctx.apiSaveSub(tkK, JSON.stringify(sub2));
+const pr2 = J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-22',''));
+A([pr2.reports.length===1 && pr2.subs.length===1 && pr2.subs[0].date==='2026-11-16','period returns subs of unlocked days only']);
+const rep2 = Object.assign({}, rep, {date:'2026-11-16', status:'locked', tasks:sub2.tasks.map(t=>Object.assign({by:'uK'},t)), plans:sub2.plans, photos:[], layout:{caption:''}});
+ctx.apiSaveReport(tk, JSON.stringify(rep2));
+const row = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='THUC_HIEN'); A([row && row[16]===5 && row[17]===3 && row[18]===-2,'CongViec KH/thực hiện/chênh lệch']);
+const prow = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='KE_HOACH'); A([prow && prow[19]===4,'CongViec dự kiến làm thêm']);
+A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-22','')).subs.length===0,'locked day → no subs in period']);
 A([JSON.parse(sheets.BaoCao.data[1][14]).layout.img==='','json stripped imgs']);
 const url = ctx.apiExportPdf(tk,'<img src="fid:'+r.layout+'">','BCN_TST_2026-11-15.pdf','2026-11-15','day'); A([sheets.BaoCao.data[1][12]===url,'pdf url saved']);
 ctx.apiSavePeriod(tk, JSON.stringify({key:'W-2026-11-09',kind:'week',from:'2026-11-09',to:'2026-11-15',evaluation:'Đạt'})); A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-15','W-2026-11-09')).manual.evaluation==='Đạt','period manual']);
