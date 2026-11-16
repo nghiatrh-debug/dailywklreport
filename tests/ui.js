@@ -106,6 +106,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('#dayActs [data-act=lock]'); await wait(300);
     for (let k = 0; k < 3 && await pg.isVisible('#mOk'); k++) { await pg.click('#mOk'); await wait(500); }
     ok(await pg.isVisible('#zaloTxt'), 'Chốt khi bật TVGS → gợi ý tin nhắn nhắc TVGS');
+    ok(await pg.evaluate(async () => { const s = await IDB.get('subs', '2026-06-27|u_than'); return s && s.status === 'accepted' && SUBS.find(x=>x.uid==='u_than').rev === s.rev && !ACCEPT.length; }), 'Chốt: phiếu đã nộp được nhận trong cùng lần lưu báo cáo');
     await pg.evaluate(() => closeModal());
     await pg.click('#dayPrevBar [data-act=drive]'); await wait(300);
     ok(/Chờ TVGS xác nhận/.test(await pg.innerText('body')), 'Chưa xác nhận → chặn xuất PDF chính thức');
@@ -177,6 +178,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-view=config]'); await wait(300); await pg.click('[data-cfgtab=settings]'); await wait(300);
     ok(/Thư mục lưu PDF/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#pdfLink') && await pg.isVisible('[data-cfgchk="settings.pdfMonthly"]'), 'Cài đặt: chọn thư mục lưu PDF (dán link Drive) + chia thư mục theo tháng');
     ok(await pg.locator('[data-cfg="settings.weekEnd"]').count() === 1 && await pg.inputValue('[data-cfg="settings.weekEnd"]') === '4' && await pg.locator('[data-cfg="settings.idleHours"]').count() === 1, 'Cài đặt: ngày chốt tuần (mặc định Thứ 5) + giờ tự đăng xuất');
+    ok(await pg.locator('[data-act=speedTest]').count() === 1, 'Cài đặt: có nút Đo tốc độ');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');

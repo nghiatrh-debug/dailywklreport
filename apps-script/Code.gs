@@ -113,6 +113,14 @@ function apiSetPin(token, uid, pin) {
 
 /* ======================= DỮ LIỆU NGÀY ======================= */
 /** 1 lần gọi cho 1 màn hình: {date, index, report, subs, prev:{date, report, subs}} – không kèm ảnh. */
+/** Đo tốc độ (Cài đặt → ⏱): thời gian máy chủ đọc Sheet thật (bỏ qua bộ đệm) và đọc qua bộ đệm. */
+function apiPing(token, heavy) {
+  const t0 = Date.now(); const me = auth_(token); const t1 = Date.now();
+  let sheetMs = 0, cacheMs = 0;
+  if (heavy) { const a = Date.now(); col_('BaoCao', 0); col_('PhieuKS', 1); sheetMs = Date.now() - a;
+    const b = Date.now(); cget_('idx'); cget_('cfg'); cacheMs = Date.now() - b; }
+  return JSON.stringify({ auth: t1 - t0, sheet: sheetMs, cache: cacheMs, total: Date.now() - t0, role: me.role });
+}
 function apiOpen(token, date, mode, uid) {
   const me = auth_(token);
   const b = bundle_(me, date, mode, uid || me.id); b.others = othersActive_(token, me.id);
@@ -164,14 +172,29 @@ function apiSaveSub(token, json) {
     const newImgs = (s.photos || []).some(p => !p.fileId && p.img);
     if (newImgs) { const folder = subFolder_(rootFolder_(), 'HinhAnh', d); (s.photos || []).forEach((p, i) => uploadImg_(p, folder, d + '_' + s.uid + '_' + (i + 1))); }
     // ảnh đã có trên Drive mà phía giao diện gửi thiếu dữ liệu → giữ nguyên fileId
-    const store = strip_(s), c = cfg_();
-    const zones = c.zones.filter(z => z.owner === s.uid).map(z => z.name + ' (' + z.section + ')').join(', ');
-    upsertRow_('PhieuKS', 0, s.key, [s.key, d, s.uid, userName_(c, s.uid), zones, s.status, s.submittedAt || '', s.enteredBy ? userName_(c, s.enteredBy) : '',
-      s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_(), JSON.stringify(store)]);
-    cdel_(['idx', 'day:' + d]);
+    const c = cfg_();
+    writeSub_(s, c, day);
     if (!old || old.status !== s.status) log_(me.id, 'PHIEU_' + String(s.status).toUpperCase(), d, userName_(c, s.uid));
     return JSON.stringify({ ok: true, rev: s.rev, photos: (s.photos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
+}
+
+/** Ghi 1 phiếu vào Sheet + cập nhật luôn bộ đệm ngày/chỉ mục (không xóa → lần mở/lưu sau khỏi đọc lại Sheet). */
+function writeSub_(s, c, day) {
+  const d = s.date, store = strip_(s);
+  const zones = c.zones.filter(z => z.owner === s.uid).map(z => z.name + ' (' + z.section + ')').join(', ');
+  upsertRow_('PhieuKS', 0, s.key, [s.key, d, s.uid, userName_(c, s.uid), zones, s.status, s.submittedAt || '', s.enteredBy ? userName_(c, s.enteredBy) : '',
+    s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_(), JSON.stringify(store)]);
+  const i = day.subs.findIndex(x => x.uid === s.uid); if (i >= 0) day.subs[i] = store; else day.subs.push(store);
+  dayPut_(d, day); idxPatch_('subs', { date: d, uid: s.uid, status: s.status });
+}
+function dayPut_(d, day) { cdel_(['day:' + d]); MEMO['c:day:' + d] = day; cput_('day:' + d, day); }
+/** Sửa 1 dòng trong chỉ mục đang đệm (nếu có); quá lớn không đệm được thì xóa để lần sau dựng lại. */
+function idxPatch_(kind, rec) {
+  const idx = MEMO.idx || cget_('idx'); if (!idx) return;
+  const L = idx[kind], i = L.findIndex(x => x.date === rec.date && (kind === 'reports' || x.uid === rec.uid));
+  if (i >= 0) L[i] = Object.assign(L[i], rec); else L.push(rec);
+  cdel_(['idx']); MEMO.idx = idx; cput_('idx', idx);
 }
 
 function apiSaveReport(token, json) {
@@ -195,11 +218,17 @@ function apiSaveReport(token, json) {
     // ảnh bổ sung vừa tải lên → cập nhật fileId trong mảng gộp
     const ex = {}; (r.extraPhotos || []).forEach(p => { if (p.id) ex[p.id] = p.fileId; });
     (r.photos || []).forEach(p => { if (!p.fileId && p.id && ex[p.id]) p.fileId = ex[p.id]; });
+    // Chốt ngày: nhận luôn các phiếu đã nộp trong cùng 1 lần gọi (trước đây mỗi phiếu 1 lần gọi)
+    const acc = []; (r.acceptSubs || []).forEach(uid => { const sb = dd.subs.find(x => x.uid === uid && x.status === 'submitted');
+      if (sb) { sb.status = 'accepted'; sb.rev = (sb.rev || 0) + 1; sb.savedAt = now_(); sb.savedBy = me.id; writeSub_(sb, c, dd); acc.push(uid); } });
+    if (acc.length) log_(me.id, 'PHIEU_ACCEPTED', d, acc.map(u => userName_(c, u)).join(', '));
+    delete r.acceptSubs;
     writeReport_(r, c);
     if (r.status === 'locked') writeNormalized_(r, c, pctOf_);     // bảng chuẩn hóa = số liệu đã chốt
-    cdel_(['idx', 'day:' + d]);
+    dd.report = strip_(r); dayPut_(d, dd);
+    idxPatch_('reports', { date: d, status: r.status, version: r.version, review: (r.review || {}).status || '' });
     if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, '');
-    return JSON.stringify({ ok: true, rev: r.rev, review: r.review || null, layouts: r.layouts.map(p => p.fileId || ''), extra: (r.extraPhotos || []).map(p => p.fileId || '') });
+    return JSON.stringify({ ok: true, rev: r.rev, accepted: acc, subRevs: acc.map(u => dd.subs.find(x => x.uid === u).rev), review: r.review || null, layouts: r.layouts.map(p => p.fileId || ''), extra: (r.extraPhotos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
 }
 
@@ -256,7 +285,8 @@ function apiReview(token, date, action, note) {
       log_(me.id, 'TVGS_YEU_CAU_SUA', date, r.review.note);
     }
     writeReport_(r, c);
-    cdel_(['idx', 'day:' + date]);
+    const dd = dayData_(date); dd.report = strip_(r); dayPut_(date, dd);
+    idxPatch_('reports', { date: date, status: r.status, version: r.version, review: r.review.status });
     return JSON.stringify(r.review);
   } finally { lock.releaseLock(); }
 }
@@ -402,7 +432,8 @@ function apiExportPdf(token, html, fileName, key, kind) {
   const me = auth_(token, ['admin', 'chot']), c = cfg_();
   if (kind === 'day' && reviewOn_(c)) { const r = dayData_(key).report;
     if (!r || !r.review || r.review.status !== 'approved') throw new Error('Báo cáo chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
-  html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + dataUrl_(id) + '"'; } catch (e) { return 'src=""'; } });
+  const got = {};   // ảnh trình duyệt chưa gửi kèm → đọc từ Drive (mỗi ảnh 1 lần)
+  html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + (got[id] = got[id] || dataUrl_(id)) + '"'; } catch (e) { return 'src=""'; } });
   const folder = pdfFolder_(c, kind, key);
   const old = folder.getFilesByName(fileName); while (old.hasNext()) old.next().setTrashed(true);
   const pdf = Utilities.newBlob(html, 'text/html', 'bc.html').getAs('application/pdf').setName(fileName);

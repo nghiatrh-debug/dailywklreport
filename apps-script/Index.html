@@ -646,9 +646,10 @@ const Store = IS_GAS ? {
   setPin: async (u, pin) => { const c = await IDB.get('kv','config'); c.pins = c.pins||{}; c.pins[u] = await pinHash(u, pin); await IDB.put('kv','config',c); },
   saveSub: async s => { await markTestL(s.date); s = withBase(s); revL(s, await IDB.get('subs', s.key)); await IDB.put('subs', s.key, s); return {ok:true, rev:s.rev}; },
   saveReport: async r => { await markTestL(r.date); r = withBase(r); const old = await IDB.get('reports', r.date), kept = old && old.review || null; revL(r, old);
+    const accepted = [], subRevs = []; for (const u of (r.acceptSubs||[])) { const sb = await IDB.get('subs', r.date + '|' + u); if (sb && sb.status==='submitted') { sb.status='accepted'; sb.rev=(sb.rev||0)+1; await IDB.put('subs', sb.key, sb); accepted.push(u); subRevs.push(sb.rev); } } delete r.acceptSubs;
     if (r.status==='locked') r.review = (!old || old.status!=='locked') ? (reviewOn() ? {status:'pending', since:nowStr(), lastNote: kept && kept.status==='returned' ? kept.note : ''} : null) : kept;
     else r.review = kept && kept.status==='returned' ? kept : null;
-    await IDB.put('reports', r.date, r); return {ok:true, rev:r.rev, review:r.review}; },
+    await IDB.put('reports', r.date, r); return {ok:true, rev:r.rev, review:r.review, accepted, subRevs}; },
   deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key);
     const L = await IDB.get('kv','testDays') || []; await IDB.put('kv','testDays', L.filter(x=>x!==d)); },
   review: async (d, act, note) => { const r = await IDB.get('reports', d); if (!r || r.status!=='locked') throw new Error('Báo cáo chưa được nhà thầu chốt');
@@ -1258,7 +1259,8 @@ function layoutsHtml(r, o){
   if (!L.length) return `<table class="phc"><tr><td class="noph">Mặt bằng thi công</td></tr></table>`;
   return L.map(l=>`<div class="lyt"><table class="lyw"><tr><td>${(l.img||(o&&o.pdf&&l.fileId)) ? `<img src="${imgSrc(l,o)}">` : '<span class="mut">Đang tải ảnh…</span>'}</td></tr></table><div class="sm">${esc(l.caption)}</div></div>`).join('');
 }
-const imgSrc = (ph, o) => o && o.pdf && ph.fileId ? 'fid:' + ph.fileId : (ph.img || '');
+/* PDF: ảnh đã có trên máy gửi kèm luôn (khỏi đọc lại Drive); chưa tải mới để máy chủ lấy từ Drive */
+const imgSrc = (ph, o) => o && o.pdf ? (ph.img || (ph.fileId ? 'fid:' + ph.fileId : '')) : (ph.img || '');
 
 /* ===================== DOCUMENT ===================== */
 /* Logo đơn vị: thứ tự TVGS (trái) – CĐT (giữa) – Nhà thầu (phải) */
@@ -1405,6 +1407,7 @@ function revL(o, old){ const base = o.baseRev, force = o.force; delete o.baseRev
   if (old && !force && base != null && +base !== cur) throw new Error('CONFLICT|' + (old.savedAt||'') + '|' + (old.savedBy ? userName(old.savedBy) : ''));
   o.rev = cur + 1; o.savedAt = nowStr(); o.savedBy = ME ? ME.id : ''; }
 const isConflict = e => /CONFLICT\|/.test(String(e && e.message || e));
+let ACCEPT = [];   // phiếu cần nhận khi chốt – gửi kèm lần lưu báo cáo kế tiếp
 const CONFL = {R:false, S:false}, FORCE = {R:false, S:false}, SAVEQ = {R:Promise.resolve(), S:Promise.resolve()};
 function conflictModal(root, e){
   const m = String(e.message||e).split('CONFLICT|')[1].split('|'), at = m[0] || '', by = m[1] || '';
@@ -1413,7 +1416,7 @@ function conflictModal(root, e){
   modal(`<h3>⚠ Dữ liệu vừa được sửa ở nơi khác</h3><p>${esc(what)} vừa được lưu${by?' bởi <b>'+esc(by)+'</b>':''}${at?' lúc <b>'+esc(at)+'</b>':''} từ thiết bị/phiên khác. Lưu tiếp sẽ <b>ghi đè</b> phần thay đổi đó.</p>
     <p class="hint">Phần bạn vừa nhập trên máy này <b>chưa được lưu</b>.</p>
     <div class="acts"><button class="btn pri" id="cfReload">⟳ Tải bản mới (bỏ phần vừa nhập)</button><button class="btn" id="cfKeep" style="color:#b91c1c">Giữ bản của tôi (ghi đè)</button></div>`);
-  $('#cfReload').onclick = async ()=>{ closeModal(); CONFL[root] = false; dirty[root] = false; clearTimeout(saveTimer[root]);
+  $('#cfReload').onclick = async ()=>{ closeModal(); CONFL[root] = false; dirty[root] = false; clearTimeout(saveTimer[root]); if (root==='R') ACCEPT = [];
     if (root==='S' && S) await openMy(S.date, S.uid); else if (R) await openDay(R.date); toast('✔ Đã tải bản mới nhất'); };
   $('#cfKeep').onclick = ()=>{ closeModal(); CONFL[root] = false; FORCE[root] = true; root==='S' ? saveS() : saveR(); };
 }
@@ -1426,8 +1429,12 @@ function setSave(st){ const el = $('#saveState'); if (!el) return; el.style.disp
   if (st==='saving') el.textContent = '⏳ Đang lưu…'; else if (st==='sync') el.textContent = '⏳ Đang tải…';
   else if (st==='err') el.textContent = '⚠ Chưa lưu được'; else if (st==='ok') { el.dataset.ok = 1; el.textContent = '✔ Đã lưu ' + nowStr().slice(-5); } }
 function lite(o){ const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layouts||[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; }
-function saveS(silent){ return SAVEQ.S = SAVEQ.S.then(()=>saveS_(silent)); }
-function saveR(silent){ return SAVEQ.R = SAVEQ.R.then(()=>saveR_(silent)); }
+/* Lưu tuần tự; đang lưu mà có yêu cầu mới → gộp còn 1 lượt chờ (bấm Nộp lúc tự lưu đang chạy không phải chờ 2–3 lượt) */
+const QWAIT = {R:null, S:null};
+function queueSave(root, fn, silent){ if (QWAIT[root]) { if (!silent) QWAIT[root].silent = false; return QWAIT[root].p; }
+  const w = {silent}; w.p = SAVEQ[root].then(()=>{ QWAIT[root] = null; return fn(w.silent); }); QWAIT[root] = w; return SAVEQ[root] = w.p; }
+function saveS(silent){ return queueSave('S', saveS_, silent); }
+function saveR(silent){ return queueSave('R', saveR_, silent); }
 async function saveS_(silent){
   if (!S || CONFL.S) return; clearTimeout(saveTimer.S); dirty.S = false; setSave('saving');
   try { S.updatedAt = nowStr(); if (S_OTHER && !S.enteredBy && S.uid !== ME.id && !S.submittedAt) S.enteredBy = ME.id;
@@ -1440,8 +1447,9 @@ async function saveS_(silent){
 }
 async function saveR_(silent){
   if (!R || !isChot() || CONFL.R) return; clearTimeout(saveTimer.R); dirty.R = false; setSave('saving');
-  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); if (FORCE.R) payload.force = true;
-    const res = await Store.saveReport(payload); delete R.wbsMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
+  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); if (FORCE.R) payload.force = true; if (ACCEPT.length) payload.acceptSubs = ACCEPT.slice();
+    const res = await Store.saveReport(payload); ACCEPT = [];
+    if (res && res.accepted) res.accepted.forEach((u,i)=>{ const sb = SUBS.find(x=>x.uid===u); if (sb) sb.rev = res.subRevs[i]; }); delete R.wbsMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
     if (res && res.layouts) res.layouts.forEach((f,i)=>{ if (R.layouts[i] && f) R.layouts[i].fileId = f; }); if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
     if (res && 'review' in res) R.review = res.review;
     idxSet('reports', {date:R.date, status:R.status, version:R.version, review:revOf(R)}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
@@ -1574,6 +1582,8 @@ function renderConfig(){
     <div class="ph" style="margin-top:12px"><h3>✔ TVGS kiểm tra nội dung</h3></div>
     ${sw('settings.requireReview', st.requireReview!==false, 'Bắt buộc TVGS xác nhận nội dung trước khi xuất PDF chính thức', 'Nhà thầu chốt → TVGS xác nhận hoặc yêu cầu sửa → PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” và mã xác thực.')}
     <div class="note ${tv.length?'g':'w'}">${tv.length ? 'Tài khoản TVGS: <b>' + tv.map(u=>esc(u.name)).join(', ') + '</b>' : 'Chưa có tài khoản vai trò <b>TVGS – kiểm tra nội dung</b> → bước kiểm tra đang <b>tắt</b>. Thêm ở thẻ Người dùng & PIN.'}</div>
+    <div class="ph" style="margin-top:12px"><h3>⏱ Tốc độ</h3></div>
+    <div class="bar" style="margin:0"><button class="btn" data-act="speedTest">⏱ Đo tốc độ</button><span class="hint" id="speedOut">Đo thời gian mạng + Google và thời gian đọc dữ liệu – dùng khi thấy app chậm.</span></div>
     <div class="ph" style="margin-top:12px"><h3>🧪 Chế độ thử nghiệm</h3></div>
     ${sw('settings.testMode', !!st.testMode, 'Bật chế độ thử nghiệm', 'Mọi người chọn được ngày bất kỳ (kể cả ngày tương lai) để thử báo cáo nhiều ngày liên tiếp. Ngày thử có dải vàng, PDF ghi “BẢN THỬ”. Ngày đã có dữ liệu thật không bị tính là ngày thử.')}
     <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu cài đặt</button></div>
@@ -1623,7 +1633,7 @@ function docHtml(el){ return `<!DOCTYPE html><html><head><meta charset="utf-8"><
 function doPrint(){ try { window.print(); } catch(e){} if (!IS_GAS) setTimeout(()=>toast('Nếu hộp thoại in không mở: khung xem trước trên Claude chặn lệnh in. Bản Apps Script in bình thường.', 5000), 400); }
 async function toDrive(kind){
   if (!IS_GAS){ modal(`<h3>Cần triển khai bản Google Apps Script</h3><p>Bản xem trước lưu dữ liệu trên máy. Để lưu Google Sheets + PDF vào Drive, triển khai theo HUONG_DAN_TRIEN_KHAI.md.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đã hiểu</button></div>`); return; }
-  try { toast('Đang tạo PDF…', 9000);
+  try { toast('⏳ Đang tạo PDF… thường mất 10–20 giây, vui lòng chờ', 30000);
     if (kind==='day'){ if (!repLocked()) await saveR(true); const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
       showLink(await Store.exportPdf(docHtml(box), `${R.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report.pdf`, R.date, 'day')); }
     else { await Store.savePeriod(P.manual); const pr = periodRange(); showLink(await Store.exportPdf(docHtml($('#pdoc')), (P.kind==='week' ? `${pr.to.replace(/-/g,'')}-${CFG.project.code}-Weekly Report.pdf` : `${pr.from.slice(0,7).replace(/-/g,'')}-${CFG.project.code}-Monthly Report.pdf`), pr.key, P.kind)); }
@@ -1704,7 +1714,7 @@ document.addEventListener('change', async e=>{
     const files = [...t.files]; if (!files.length) return; toast('Đang xử lý ảnh…');
     try {
       if (t.dataset.img==='layouts'){ const room = LAYOUT_MAX - R.layouts.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${LAYOUT_MAX})`, 4000);
-        for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, false, null, {max:2400, q:0.88}); R.layouts.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
+        for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, false, null, {max:2000, q:0.85}); R.layouts.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
         markDirty('R'); renderForm(); renderDoc(); }
       else if (t.dataset.img==='extraPhotos'){ for (const f of files){ const p = await processImage(f, true, {date:R.date, who:ME.name, proj:CFG.project.code, zone:''}); R.extraPhotos.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,''), takenAt:p.takenAt, warn:p.warn}); } applyMerge(); markDirty('R'); renderForm(); renderDoc(); }
       else if (t.dataset.img==='subPhotos'){ const z = zoneById($('#photoZone').value); let nw = 0;
@@ -1787,13 +1797,14 @@ document.addEventListener('click', async e=>{
   if (a==='returnSub'){ const note = await prompt2('Trả lại phiếu – ' + esc(userName(b.dataset.u)), 'Ghi rõ nội dung cần sửa để kỹ sư bổ sung:', 'VD: Zone B thiếu KL ngày đào đất; ảnh giằng lớp 3 chụp ngày cũ');
     if (note === null) return; const s = SUBS.find(x=>x.uid===b.dataset.u); s.status='returned'; s.returnNote = note || 'Cần kiểm tra lại'; if (!(await saveOtherSub(s))) return; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); applyMerge(); await saveR(true); renderDayAll(); renderDateSel(); toast('↩ Đã trả lại phiếu'); }
   if (a==='saveDay') saveR();
+  if (a==='speedTest') return speedTest();
   if (a==='lock'){
     const rows = boardRows(), miss = rows.filter(r=>!r.s || !(r.s.status==='submitted'||r.s.status==='accepted'));
     if (miss.length && !(await ask('Còn phiếu chưa nộp', `<p>Các kỹ sư sau chưa nộp phiếu – phần việc của họ sẽ <b>không có</b> trong báo cáo:</p><ul>${miss.map(r=>`<li>${esc(userName(r.u))} – ${r.s?SUB_ST[r.s.status][1]:'chưa có phiếu'}</li>`).join('')}</ul><p>Vẫn chốt?</p>`, 'Vẫn chốt'))) return;
     applyMerge(); const w = allWarn(R.tasks);
     if (w.e && !(await ask('Còn lỗi số liệu', `Báo cáo còn <b>${w.e}</b> lỗi (VD % vượt 100). Vẫn chốt?`, 'Vẫn chốt', true))) return;
-    const okAll = await Promise.all(SUBS.filter(s=>s.status==='submitted').map(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); return saveOtherSub(s); }));
-    if (okAll.includes(false)) return;
+    // nhận các phiếu đã nộp trong CÙNG lần lưu báo cáo (1 lần gọi máy chủ)
+    const acc = SUBS.filter(s=>s.status==='submitted'); acc.forEach(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); }); ACCEPT = acc.map(s=>s.uid);
     R.lockCount = (R.lockCount||0) + 1; R.version = R.lockCount; R.status='locked'; R.lockedBy = ME.id; R.lockedAt = nowStr(); R.log.push({act:'lock', by:ME.id, at:R.lockedAt, v:R.version});
     applyMerge(); await saveR(true); renderDateSel(); renderDayAll();
     if (reviewOn()) zaloModal('🔒 Đã chốt – chờ TVGS kiểm tra', `Báo cáo đã gửi sang TVGS. Sau khi TVGS xác nhận nội dung mới xuất được PDF chính thức. Có thể sao chép tin nhắn dưới đây gửi nhóm Zalo để nhắc TVGS:`,
@@ -1955,6 +1966,16 @@ async function startSession(token, u, bundle, remember){
   if (bundle) { applyBundle(bundle, VIEW, ME.id); try { localStorage.setItem(cacheKey(VIEW, ME.id), JSON.stringify(bundle)); } catch(e){} }
   else if (VIEW==='my') await openMy('', ME.id); else await openDay('');
 }
+
+/* ===================== ĐO TỐC ĐỘ ===================== */
+async function speedTest(){ const out = $('#speedOut'); if (!IS_GAS) { out.textContent = 'Chỉ đo được trên bản Google Apps Script.'; return; }
+  out.textContent = 'Đang đo… (khoảng 10 giây)'; const rt = [], sv = [];
+  try { for (let i=0;i<3;i++){ const t = performance.now(); const r = J(await gas('apiPing', TOKEN, i===2)); rt.push(performance.now()-t); sv.push(r); }
+    const net = Math.round(Math.min(rt[0], rt[1]) - Math.min(sv[0].total, sv[1].total)), heavy = sv[2];
+    const lvl = net < 1500 ? '🟢 tốt' : net < 3000 ? '🟡 hơi chậm' : '🔴 chậm';
+    out.innerHTML = `Mạng + Google: <b>${net} ms</b> (${lvl}) · Lần gọi đầu: <b>${Math.round(rt[0])} ms</b> · Đọc Sheet: <b>${heavy.sheet} ms</b> · Bộ đệm: <b>${heavy.cache} ms</b>
+      <br><span class="hint">Mạng + Google > 3 giây: do sóng/mạng hoặc máy chủ Google. Đọc Sheet > 2 giây: Sheet đã lớn – báo để tối ưu.</span>`;
+  } catch(e){ out.textContent = '⚠ ' + (e.message||e); } }
 
 /* ===================== PHIÊN ĐĂNG NHẬP ===================== */
 /* Ghi nhớ → localStorage (máy cá nhân); không ghi nhớ → sessionStorage (tắt trình duyệt là hết). */

@@ -147,3 +147,10 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 
 ## 5. Khác
 - Hộp thoại Mở khóa: “khi xuất lại, PDF mới thay file cũ cùng tên”.
+
+## 6. Tốc độ (bổ sung 16/11/2026)
+- Lưu phiếu/báo cáo **ghi xuyên bộ đệm** (cập nhật `day:<ngày>` và `idx` thay vì xóa) → lần lưu/mở sau không đọc lại Sheet.
+- Chốt ngày: gửi `acceptSubs` kèm lần lưu báo cáo → nhận mọi phiếu đã nộp trong 1 lần gọi.
+- Lưu tuần tự, gộp yêu cầu trùng (tối đa 1 lượt chờ).
+- PDF: ảnh đã có trên máy gửi kèm; ảnh còn lại máy chủ đọc từ Drive (mỗi ảnh 1 lần). Ảnh mặt bằng 2000 px.
+- Cài đặt → **⏱ Đo tốc độ** (`apiPing`): mạng + Google, đọc Sheet, bộ đệm.

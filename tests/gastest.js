@@ -1,4 +1,4 @@
-const { ctx: C, sheets, files, props, cacheStore, shared } = require('./gasmock.js');
+const { ctx: C, sheets, files, props, cacheStore, shared, stats } = require('./gasmock.js');
 const ctx = new Proxy(C, { get(o,k){ const f=o[k]; return typeof f==='function' && String(k).startsWith('api') ? (...a)=>{ o.__resetMemo(); return f(...a); } : f; } });
 const A = (c)=>{ if(!c[0]) { console.log('FAIL', c[1]); process.exitCode=1; } else console.log('ok', c[1]); };
 const J = s=>JSON.parse(s);
@@ -137,6 +137,27 @@ console.log('Đợt 3: xong');
   A([J(ctx.apiOpen(tA, d, 'day', '')).others >= 1, 'cùng tài khoản mở ở nơi khác → báo others']);
 })();
 console.log('Đợt 5: xong');
+// ===== Tốc độ: bộ đệm ghi xuyên, chốt gộp nhận phiếu, đo tốc độ =====
+(() => {
+  const d = '2026-11-29', mk = (u, st) => ({ key: d + '|' + u, date: d, uid: u, status: st, tasks: [{ zoneId: 'z1', desc: 'Việc ' + u, progress: '10%', by: u }], plans: [], inspections: [], inspectionPlans: [], tests: [], photos: [], note: '' });
+  ctx.apiSaveSub(tkK, JSON.stringify(Object.assign(mk('uK', 'submitted'), { baseRev: 0 })));
+  ctx.apiOpen(tk, d, 'day', '');
+  let r0 = stats.sheetReads; const b1 = J(ctx.apiOpen(tk, d, 'day', '')); A([stats.sheetReads === r0 && b1.subs[0].status === 'submitted', 'mở lại ngày: lấy từ bộ đệm, không đọc Sheet']);
+  r0 = stats.sheetReads; ctx.apiSaveSub(tkK, JSON.stringify(Object.assign(mk('uK', 'draft'), { baseRev: 1, note: 'rút lại sửa' })));
+  const lr = stats.sheetReads - r0; r0 = stats.sheetReads; const b2 = J(ctx.apiOpen(tk, d, 'day', ''));
+  A([stats.sheetReads === r0 && b2.subs[0].note === 'rút lại sửa' && b2.index.subs.some(x => x.date === d && x.status === 'draft'), 'lưu xong: bộ đệm cập nhật ngay (mở lại không đọc Sheet), chỉ mục đúng trạng thái']);
+  A([lr <= 3, 'lưu phiếu chỉ đọc Sheet ' + lr + ' lần (trước đây 6–8)']);
+  ctx.apiSaveSub(tkK, JSON.stringify(Object.assign(mk('uK', 'submitted'), { baseRev: 2 })));
+  const rp = Object.assign({}, rep, { date: d, status: 'locked', version: 1, tasks: [], plans: [], photos: [], layouts: [], baseRev: 0, acceptSubs: ['uK'] });
+  const sr = J(ctx.apiSaveReport(tk, JSON.stringify(rp)));
+  const b3 = J(ctx.apiOpen(tk, d, 'day', ''));
+  A([sr.accepted.join() === 'uK' && sr.subRevs[0] === 4 && b3.subs[0].status === 'accepted' && b3.report.status === 'locked' && !('acceptSubs' in b3.report), 'chốt: nhận phiếu trong cùng 1 lần gọi']);
+  A([sheets.PhieuKS.data.some(r => r[0] === d + '|uK' && r[5] === 'accepted'), 'Sheet PhieuKS ghi trạng thái đã nhận']);
+  ctx.__resetMemo(); Object.keys(cacheStore).forEach(k => delete cacheStore[k]);
+  const b4 = J(ctx.apiOpen(tk, d, 'day', '')); A([b4.subs[0].status === 'accepted' && b4.report.rev === sr.rev && b4.subs[0].rev === 4, 'xóa bộ đệm → đọc lại Sheet ra đúng như bộ đệm']);
+  const pg = J(ctx.apiPing(tk, true)); A([pg.role === 'admin' && pg.total >= 0 && 'sheet' in pg, 'đo tốc độ (apiPing)']);
+})();
+console.log('Tốc độ: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);
