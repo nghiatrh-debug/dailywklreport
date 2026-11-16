@@ -13,6 +13,10 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 async function fresh(browser, opt) {
   const ctx = await browser.newContext(opt), pg = await ctx.newPage(), errs = [];
+  // Giả lập Open-Meteo: sáng nắng, chiều mưa 3 mm, 26–33 °C
+  await ctx.route('**/*open-meteo.com/**', r => { const T = [], tp = [], pr = [], cc = [];
+    for (let h = 0; h < 24; h++) { T.push('2026-06-27T' + String(h).padStart(2,'0') + ':00'); tp.push(h < 6 ? 25 : h <= 14 ? 26 + (h - 6) * 0.875 : 30); pr.push(h >= 13 && h <= 15 ? 1 : 0); cc.push(h < 12 ? 15 : 80); }
+    r.fulfill({ contentType: 'application/json', body: JSON.stringify({ hourly: { time: T, temperature_2m: tp, precipitation: pr, cloud_cover: cc } }) }); });
   pg.on('pageerror', e => errs.push(String(e)));
   await pg.goto(URL); await pg.waitForSelector('[data-act=suSample]');
   await pg.click('[data-act=suSample]'); await pg.click('[data-act=suStart]'); await wait(1800);
@@ -34,6 +38,20 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
       tasks:[{zoneId:'zA',desc:'X',progress:'60%',prevProgress:'50%',target:'58%',carried:true},{zoneId:'zA',desc:'Y',progress:'20%'}], plans:[{zoneId:'zA',desc:'X',target:'70%'}] });
       return JSON.stringify([s.tasks[0].dayPct, s.tasks[0].planToday, judge(s.tasks[0]), s.tasks[1].dayPct, s.tasks[1].startPct, s.plans[0].add]); });
     ok(lg === JSON.stringify([10, 8, 'over', 20, 0, 10]), 'Đổi dữ liệu cũ sang mô hình % mới ' + lg);
+    await pg.click('[data-tab=general]'); await wait(200); await pg.click('[data-act=wxFetch]'); await wait(600);
+    const wx = await pg.evaluate(() => R.weather);
+    ok(wx.am === 'Nắng / Sunny' && wx.pm === 'Mưa / Rain' && wx.temp === '26oC- 33oC', 'Thời tiết tự động: sáng nắng, chiều mưa, 26–33 °C ' + JSON.stringify(wx));
+    ok(/Thời tiết: Open-Meteo/.test(await pg.innerText('#doc')), 'PDF ghi nguồn thời tiết');
+    await pg.click('[data-tab=people]'); await wait(200);
+    const n0 = await pg.evaluate(() => R.manpower.length);
+    await pg.click('[data-act=add][data-path=manpower]'); await wait(300);
+    ok(await pg.evaluate(n => R.manpower.length === n + 1 && !R.manpower[n].title && R.manpower[0].title && document.activeElement.dataset.path === 'manpower.' + n + '.title', n0), 'Nhân lực mới thêm vào CUỐI danh sách, con trỏ ở dòng mới');
+    await pg.fill(`[data-path="manpower.${n0}.title"]`, 'Tổ cốp pha'); await wait(100);
+    await pg.click(`[data-act=mv][data-path=manpower][data-i="${n0}"][data-d="-1"]`); await wait(200);
+    ok(await pg.evaluate(n => R.manpower[n - 1].title === 'Tổ cốp pha', n0), 'Nút ▲ đưa dòng lên trên');
+    const pdfRows = await pg.$$eval('#doc table.grid', t => t[0].innerText);
+    ok(pdfRows.indexOf('Tổ cốp pha') > pdfRows.indexOf('Chỉ huy trưởng'), 'PDF: tổ đội mới nằm dưới Quản lý dự án / Chỉ huy trưởng');
+    await pg.click('[data-tab=status]'); await wait(200);
     const doc = await pg.innerText('#doc');
     ok(/LŨY KẾ HÔM QUA/i.test(doc) && /CHÊNH LỆCH/i.test(doc), 'PDF ngày có cột Lũy kế hôm qua / Chênh lệch');
     ok(/KẾ HOẠCH NGÀY MAI/i.test(doc) && /BẢN NHÁP/.test(doc), 'PDF có bảng kế hoạch riêng + dấu BẢN NHÁP khi chưa chốt');
@@ -69,7 +87,12 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(!!code, 'Xác nhận → tin nhắn Zalo soạn sẵn có mã xác thực ' + code);
     await pg.evaluate(() => closeModal());
     const d26 = await pg.innerText('#doc');
-    ok(/ĐÃ KIỂM TRA NỘI DUNG – TVGS/.test(d26) && d26.includes(code), 'PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” + mã');
+    ok(d26.includes('Verified by Consultant - ' + code) && await pg.locator('#doc .qrst img').count() === 1, 'PDF: mã QR + “Verified by Consultant - ' + code + '”');
+    const vurl = await pg.evaluate(() => verifyLink(R.review));
+    const vp = await ctx.newPage(); await vp.goto(vurl); await wait(1200);
+    const vt = await vp.innerText('body');
+    ok(/ĐÃ ĐƯỢC TVGS XÁC NHẬN/.test(vt) && vt.includes(code) && /26\/06\/2026/.test(vt) && /DSPCons/.test(vt), 'Quét QR → trang xác thực: ngày, TVGS, mã (không cần đăng nhập)');
+    await vp.screenshot({ path: path.join(OUT, 'verify_page.png') }); await vp.close();
     await pg.click('[data-act=verify]'); await wait(300); await pg.fill('#pIn', code.toLowerCase()); await pg.click('#mOk'); await wait(500);
     ok(/Mã hợp lệ/.test(await pg.innerText('#modalBody')), 'Tra mã xác thực: hợp lệ');
     await pg.evaluate(() => closeModal());
@@ -172,7 +195,8 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
       await pg.click('[data-tab=people]'); await wait(300);
       ok(await pg.isVisible('#fab'), 'ip chốt: nút ＋ ở tab Nhân sự');
       await pg.click('#fab'); await wait(300); await pg.click('.zpick .btn >> nth=0'); await wait(400);
-      ok(await pg.inputValue('[data-path="manpower.0.title"]') === '', 'ip chốt: nhân lực mới ở đầu danh sách');
+      ok(await pg.evaluate(() => { const n = R.manpower.length - 1; return !R.manpower[n].title && !!R.manpower[0].title && document.activeElement.dataset.path === 'manpower.' + n + '.title'; }), 'ip chốt: ＋ nhân lực mới ở cuối danh sách, con trỏ ở dòng mới');
+      ok(await pg.locator('.qrow [data-act=mv]').count() > 0, 'ip chốt: có nút ▲▼ trên điện thoại');
       await shot(pg, 'm_ip_chot_people');
       await pg.click('[data-tab=tasks]'); await wait(300);
       if (await pg.locator('[data-act=gotoDate]').count()) { await pg.click('[data-act=gotoDate][data-d="2026-06-27"]'); await wait(700); await pg.click('[data-tab=tasks]'); await wait(300); }

@@ -100,6 +100,11 @@ Kiểm thử gồm 2 phần chạy song song: **máy chủ** (`tests/gastest.js`
 - **Logo**: Cấu hình → Dự án → Logo các đơn vị (TVGS, CĐT, Nhà thầu). Nên dùng PNG nền trong suốt.
 - **Chế độ thử nghiệm**: Cấu hình → Cài đặt → bật → chọn được ngày bất kỳ để thử báo cáo nhiều ngày liên tiếp. Thử xong bấm **Xóa toàn bộ ngày thử**, rồi tắt chế độ thử. Ngày đã có dữ liệu thật không bao giờ bị tính là ngày thử.
 
+## 4e. Thời tiết tự điền, thứ tự nhân lực, mã QR
+- **Thời tiết**: Cấu hình → Dự án → **✎ Sửa thông tin** → nhập vĩ độ / kinh độ (hoặc đứng tại công trường bấm **📍 Dùng vị trí hiện tại**) → Lưu. Người chốt mở ngày là ô thời tiết trống tự điền; sửa tay được; nút **🌦 Lấy thời tiết tự động** để lấy lại. Dữ liệu từ Open-Meteo (gói miễn phí dành cho phi thương mại – xem `docs/SPEC.md` trước khi dùng chính thức).
+- **Nhân lực / thiết bị**: thêm mới nằm cuối danh sách; bấm **▲ ▼** để đổi thứ tự. Thứ tự giữ cho các ngày sau.
+- **Mã QR trên PDF**: sau khi TVGS xác nhận, PDF có mã QR + “Verified by Consultant - mã”. Quét bằng camera điện thoại → trang xác thực (không cần đăng nhập) → **Mở báo cáo PDF**. File PDF ngày được chia sẻ “ai có link đều xem”; nếu Google Workspace công ty chặn chia sẻ ra ngoài thì đăng nhập tài khoản công ty để mở.
+
 ## 5. Dữ liệu (các tab trong Google Sheet)
 | Tab | Nội dung |
 |---|---|

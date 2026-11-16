@@ -36,10 +36,14 @@ const SCHEMA = {
 const NORMALIZED = ['CongViec', 'NhanLuc', 'ThietBi', 'NghiemThu', 'ThiNghiem', 'VatTu', 'AnToan', 'HinhAnh'];
 
 /* ======================= WEB APP ======================= */
-function doGet() {
+function doGet(e) {
   const t = HtmlService.createTemplateFromFile('Index');
   let boot = '';
-  try { boot = JSON.stringify({ config: cfg_(), index: index_() }).replace(/</g, '\\u003c'); } catch (e) { boot = ''; }
+  try {
+    const v = e && e.parameter && e.parameter.v;
+    // ?v=<mã xác thực>: trang xác thực công khai (quét QR trên PDF) – không cần đăng nhập
+    boot = JSON.stringify(v ? { config: publicCfg_(), verify: verify_(v) } : { config: cfg_(), index: index_() }).replace(/</g, '\\u003c');
+  } catch (err) { boot = ''; }
   t.boot = boot;
   return t.evaluate()
     .setTitle('Báo cáo ngày công trường')
@@ -226,6 +230,7 @@ function apiReview(token, date, action, note) {
     if (r.review && r.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo đã được xác nhận');
     if (action === 'approve') {
       r.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(r), version: r.version || 1 };
+      r.review.url = verifyUrl_(r.review.code);
       log_(me.id, 'TVGS_XAC_NHAN', date, r.review.code + ' · v' + r.review.version);
     } else {
       if (!String(note || '').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
@@ -238,16 +243,26 @@ function apiReview(token, date, action, note) {
     return JSON.stringify(r.review);
   } finally { lock.releaseLock(); }
 }
-/** Tra mã xác thực in trên PDF. */
-function apiVerify(token, code) {
-  auth_(token);
-  const k = String(code || '').toUpperCase().replace(/[^0-9A-F]/g, ''); if (k.length !== 8) return JSON.stringify({ ok: false });
+/** Tra mã xác thực in trên PDF (trong app – cần đăng nhập). */
+function apiVerify(token, code) { auth_(token); return JSON.stringify(verify_(code)); }
+/** Kết quả xác thực: chỉ thông tin tối thiểu, dùng chung cho trang công khai (quét QR). */
+function verify_(code) {
+  const c = cfg_(), k = String(code || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+  const base = { code: code, project: c ? c.project.code : '', projectName: c ? c.project.name : '', consultant: c ? (c.project.consultantShort || c.project.consultant || '') : '' };
+  if (k.length !== 8) return Object.assign(base, { ok: false });
   const cd = k.slice(0, 4) + '-' + k.slice(4), i = col_('BaoCao', SCHEMA.BaoCao.indexOf('ma_xac_thuc')).indexOf(cd);
-  if (i >= 0) { const r = dayData_(col_('BaoCao', 0)[i]).report; return JSON.stringify({ ok: 'current', date: r.date, version: r.review.version, by: userName_(cfg_(), r.review.by), at: r.review.at }); }
+  base.code = cd;
+  if (i >= 0) { const d = col_('BaoCao', 0)[i], r = dayData_(d).report, row = rowOf_('BaoCao', 0, d) || [];
+    return Object.assign(base, { ok: 'current', date: r.date, version: r.review.version, by: userName_(c, r.review.by), at: r.review.at,
+      lockedAt: r.lockedAt || '', lockedBy: userName_(c, r.lockedBy), pdf: row[SCHEMA.BaoCao.indexOf('pdf_url')] || '' }); }
   const sh = sheet_('NhatKy'), n = sh.getLastRow() - 1, rows = n > 0 ? sh.getRange(2, 1, n, 5).getValues() : [];
   const h = rows.filter(x => x[2] === 'TVGS_XAC_NHAN' && String(x[4]).indexOf(cd) === 0).pop();
-  return JSON.stringify(h ? { ok: 'old', date: String(h[3]), by: h[1], at: h[0] } : { ok: false });
+  return Object.assign(base, h ? { ok: 'old', date: String(h[3]), by: h[1], at: h[0] } : { ok: false });
 }
+/** Cấu hình rút gọn cho trang công khai: không có người dùng, khu vực… */
+function publicCfg_() { const c = cfg_(); return c ? { setupDone: true, project: c.project, users: [], zones: [], settings: {} } : null; }
+/** Link trang xác thực (luôn dùng bản chính thức /exec). */
+function verifyUrl_(code) { let u = ''; try { u = ScriptApp.getService().getUrl() || ''; } catch (e) {} return u ? u.replace(/\/dev$/, '/exec') + '?v=' + code : ''; }
 
 /* ======================= LOGO, NGÀY THỬ ======================= */
 /** Logo đơn vị (đã thu nhỏ ở giao diện) → thư mục Drive "Logo"; trả fileId. */
@@ -350,7 +365,9 @@ function apiExportPdf(token, html, fileName, key, kind) {
   const folder = subFolder_(rootFolder_(), 'PDF', kind === 'day' ? String(key).slice(0, 7) : (kind === 'week' ? 'Tuan' : 'Thang'));
   const old = folder.getFilesByName(fileName); while (old.hasNext()) old.next().setTrashed(true);
   const pdf = Utilities.newBlob(html, 'text/html', 'bc.html').getAs('application/pdf').setName(fileName);
-  const url = folder.createFile(pdf).getUrl();
+  const file = folder.createFile(pdf), url = file.getUrl();
+  // Báo cáo ngày đã được TVGS xác nhận: ai có link đều xem được (chỉ xem) – để mở từ QR trên điện thoại
+  if (kind === 'day') { try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
   if (kind === 'day') { setCell_('BaoCao', key, 'pdf_url', url); cdel_(['day:' + key]); }
   else setCell_('TongHopKy', key, 'pdf_url', url);
   log_(me.id, 'XUAT_PDF', kind === 'day' ? key : '', fileName);

@@ -86,3 +86,27 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 ## Kỹ thuật
 - API mới: `apiReview(token,date,'approve'|'return',note)`, `apiVerify(token,code)`, `apiSaveLogo(token,kind,dataUrl,oldId)`, `apiClearTestDays(token)`.
 - `BaoCao` thêm cột `tvgs_kiem_tra`, `ma_xac_thuc`; index trả `review` từng ngày và `testDays`.
+
+
+---
+
+# ĐẶC TẢ – Đợt 4: Thời tiết tự điền, thứ tự nhân lực, dấu QR TVGS
+
+Trạng thái: **ĐÃ CHỐT** (16/11/2026).
+
+## 1. Thời tiết tự điền (Open-Meteo)
+- Tọa độ dự án: Cấu hình → Dự án (vĩ độ / kinh độ; nút “Dùng vị trí hiện tại”). Demo CN8-2 Quận 7: 10.729 / 106.718.
+- Gộp số liệu theo giờ: **sáng 6–12h, chiều 12–18h**. Mưa ≥10 mm → Mưa lớn; ≥2,5 → Mưa; ≥0,2 → Mưa rào; không mưa: mây <30% Nắng, <70% Nắng nhẹ, còn lại Nhiều mây.
+- Nhiệt độ: **thấp nhất – cao nhất** 6–18h, dạng “27oC- 33oC”.
+- **Tự điền khi người chốt mở ngày**, chỉ điền ô trống; nút “🌦 Lấy thời tiết tự động” lấy lại (ghi đè). Hôm nay: buổi sáng có sau 12h, cả ngày sau 18h. Ngày tương lai (chế độ thử): số liệu dự báo.
+- PDF ghi nguồn “Thời tiết: Open-Meteo · open-meteo.com (CC BY 4.0)”.
+- Gọi từ trình duyệt; đổi nhà cung cấp chỉ sửa `wxFetch()`. ⚠ Gói miễn phí Open-Meteo dành cho phi thương mại – trước khi dùng chính thức cần mua gói thương mại hoặc đổi nhà cung cấp.
+
+## 2. Nhân lực / thiết bị
+- Thêm mới nằm **cuối danh sách** (trên dòng tổng), tự cuộn tới, con trỏ ở dòng mới.
+- Nút **▲ ▼** mỗi dòng (máy tính + điện thoại); thứ tự PDF đúng như màn hình và tự mang sang ngày sau.
+
+## 3. Dấu TVGS = mã QR
+- PDF: **QR ~2 cm** + dòng `Verified by Consultant - XXXX-XXXX`. QR vẽ trong trình duyệt (qrcode-generator 1.5.2, MIT, nhúng sẵn).
+- QR trỏ **trang xác thực công khai** `…/exec?v=<mã>` (không cần đăng nhập): hợp lệ / bản cũ / không tồn tại; dự án, ngày, bản, giờ nhà thầu chốt, TVGS kiểm tra, nút **Mở báo cáo PDF**.
+- File PDF ngày: **ai có link đều xem được (chỉ xem)**; ảnh, Google Sheet vẫn riêng tư.

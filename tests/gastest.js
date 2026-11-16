@@ -74,6 +74,9 @@ A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]
   r = J(ctx.apiOpen(tk, d, 'day')).report; A([r.review.status === 'pending' && r.review.lastNote === 'Sai nhân lực', 'chốt lại → chờ kiểm tra lại; giao diện không tự đặt “đã xác nhận”']);
   const ok3 = J(ctx.apiReview(tkT, d, 'approve')); A([/^[0-9A-F]{4}-[0-9A-F]{4}$/.test(ok3.code), 'xác nhận → mã xác thực ' + ok3.code]);
   A([typeof ctx.apiExportPdf(tk, '<p>x</p>', 'a.pdf', d, 'day') === 'string', 'đã xác nhận → xuất PDF được']);
+  A([/\/exec\?v=[0-9A-F]{4}-[0-9A-F]{4}$/.test(ok3.url), 'link QR trỏ trang xác thực bản /exec: ' + ok3.url]);
+  A([Object.values(files).some(f => f.name === 'a.pdf' && !f.trashed && f.sharing === 'ANYONE_WITH_LINK/VIEW'), 'PDF ngày chia sẻ: ai có link đều xem được']);
+  const vv = J(ctx.apiVerify(tk, ok3.code)); A([vv.ok === 'current' && /drive/.test(vv.pdf) && vv.date === d && vv.project === 'TST', 'xác thực trả link PDF, ngày, dự án']);
   A([J(ctx.apiVerify(tk, ok3.code.toLowerCase())).ok === 'current', 'tra mã: bản hiện hành']);
   err = ''; try { ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'locked', note:'sửa lén' }))); } catch (e) { err = e.message; } A([/mở khóa/.test(err), 'đã xác nhận → không sửa thẳng được']);
   ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'draft' })));
