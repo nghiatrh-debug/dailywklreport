@@ -60,15 +60,24 @@ jobs:
           fi
           printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
           chmod 600 "$HOME/.clasprc.json"
+          python3 -c "import json,os; d=json.load(open(os.path.expanduser('~/.clasprc.json'))); print('::notice title=clasprc::Định dạng', 'v3 (tokens)' if 'tokens' in d else ('v2 (token)' if 'token' in d else 'không rõ: '+','.join(d.keys())))" || echo "::error title=Secret CLASPRC_JSON::Nội dung không phải JSON hợp lệ – copy lại toàn bộ file .clasprc.json"
       - name: Đẩy code (cập nhật bản Thử nghiệm /dev)
-        run: clasp push -f
+        shell: bash
+        run: |
+          set +e
+          clasp push -f > /tmp/push.txt 2>&1; rc=$?
+          cat /tmp/push.txt
+          if [ $rc -ne 0 ]; then echo "::error title=clasp push thất bại::$(tail -c 900 /tmp/push.txt | tr '\n' ' ')"; exit $rc; fi
       - name: Phát hành lên link chính thức /exec
         if: github.ref == 'refs/heads/release' || (github.event_name == 'workflow_dispatch' && inputs.release)
         env:
           NOTE: ${{ inputs.note }}
         run: |
           DESC="${GITHUB_REF_NAME} $(date -u +%Y-%m-%d) ${GITHUB_SHA::7} ${NOTE}"
-          clasp deploy -i "$DEPLOYMENT_ID" -d "$DESC"
+          set +e
+          clasp deploy -i "$DEPLOYMENT_ID" -d "$DESC" > /tmp/dep.txt 2>&1; rc=$?
+          cat /tmp/dep.txt
+          if [ $rc -ne 0 ]; then echo "::error title=clasp deploy thất bại::$(tail -c 900 /tmp/dep.txt | tr '\n' ' ')"; exit $rc; fi
           echo "### ✔ Đã phát hành: $DESC" >> "$GITHUB_STEP_SUMMARY"
       - name: Xóa thông tin đăng nhập
         if: always()
