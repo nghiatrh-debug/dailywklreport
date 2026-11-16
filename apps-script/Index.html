@@ -615,6 +615,7 @@ const Store = IS_GAS ? {
   verify: async code => J(await gas('apiVerify', TOKEN, code)),
   saveLogo: (kind, data, oldId) => gas('apiSaveLogo', TOKEN, kind, data, oldId||''),
   clearTestDays: () => gas('apiClearTestDays', TOKEN),
+  checkFolder: async link => J(await gas('apiCheckFolder', TOKEN, link)),
   resetAll: () => gas('apiResetAll', TOKEN)
 } : {
   boot: async () => ({ config: await IDB.get('kv','config'), index: await localIndex() }),
@@ -649,6 +650,7 @@ const Store = IS_GAS ? {
     if (r) return {ok:'current', date:r.date, version:r.review.version, by:userName(r.review.by), at:r.review.at, lockedAt:r.lockedAt||'', lockedBy:userName(r.lockedBy), pdf:''};
     const h = (await IDB.get('kv','vlog') || []).filter(x=>x.code===cd).pop(); return h ? {ok:'old', date:h.date, by:h.by, at:h.at} : {ok:false}; },
   saveLogo: async (kind, data, oldId) => { if (oldId) try { await IDB.del('imgs', oldId); } catch(e){} if (!data) return ''; const id = 'lg_' + uid(); await IDB.put('imgs', id, data); IMGMEM[id] = data; return id; },
+  checkFolder: async () => { throw new Error('Chọn thư mục Drive chỉ dùng được ở bản Google Apps Script'); },
   clearTestDays: async () => { const L = await IDB.get('kv','testDays') || []; for (const d of L) await Store.deleteDay(d); await IDB.put('kv','testDays', []); return L.length; },
   period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
     return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)) }; },
@@ -821,7 +823,8 @@ function renderChip(){ const el = $('#syncChip'); if (!el) return;
   if (!IS_GAS) { el.style.display = ''; el.textContent = '💻 Lưu trên máy (bản xem trước)'; return; }
   if (ME && isAdmin() && LINKS) { el.style.display = 'contents';
     el.innerHTML = `<a class="btn sm" href="${esc(LINKS.sheet)}" target="_blank" rel="noopener" title="Mở file Google Sheet chứa dữ liệu">📊 Mở Google Sheet</a>` +
-      (LINKS.folder ? `<a class="btn sm" href="${esc(LINKS.folder)}" target="_blank" rel="noopener" title="Thư mục Drive chứa ảnh và PDF của dự án">📁 Thư mục ảnh/PDF</a>` : ''); }
+      (LINKS.folder ? `<a class="btn sm" href="${esc(LINKS.folder)}" target="_blank" rel="noopener" title="Thư mục Drive chứa ảnh${LINKS.pdf?'':' và PDF'} của dự án">📁 Thư mục ảnh${LINKS.pdf?'':'/PDF'}</a>` : '') +
+      (LINKS.pdf ? `<a class="btn sm" href="${esc(LINKS.pdf)}" target="_blank" rel="noopener" title="Thư mục dự án chứa PDF báo cáo">📄 Thư mục PDF</a>` : ''); }
   else { el.style.display = 'none'; el.innerHTML = ''; } }
 function renderNav(){
   $('#nav').innerHTML = navItems().map(([k,t])=>`<button class="pill ${VIEW===k?'on':''}" data-view="${k}">${t}</button>`).join('');
@@ -1511,6 +1514,13 @@ function renderConfig(){
     const st = CFG.settings || {}, tv = CFG.users.filter(u=>u.role==='tvgs' && u.active!==false);
     const sw = (path, on, title, desc) => `<label class="swrow"><input type="checkbox" data-cfgchk="${path}" ${on?'checked':''}><span><b>${title}</b><br><span class="hint">${desc}</span></span></label>`;
     h += `<div class="g2"><div><label class="l">Hạn nộp phiếu hằng ngày</label><input class="in" type="time" data-cfg="settings.deadline" value="${esc(st.deadline||'')}"></div></div>
+    <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu PDF</h3></div>
+    <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https://drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Báo cáo ngày – ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
+    <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
+    <input class="in" id="pdfLink" placeholder="https://drive.google.com/drive/folders/…">
+    <div class="bar"><button class="btn pri" data-act="pdfFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.pdfFolderId?'<button class="btn" data-act="pdfFolderReset">↺ Về thư mục mặc định</button>':''}</div>
+    ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tuần · Báo cáo tháng. Đổi xong bấm “Lưu cài đặt”.')}
+    <div class="hint" style="padding:2px 0 6px">Tài khoản triển khai app phải có quyền <b>Người chỉnh sửa (Editor)</b> trên thư mục – app tự kiểm tra bằng cách ghi thử 1 file rồi xóa. PDF đã xuất trước đó vẫn giữ ở chỗ cũ.</div>
     <div class="ph" style="margin-top:12px"><h3>✔ TVGS kiểm tra nội dung</h3></div>
     ${sw('settings.requireReview', st.requireReview!==false, 'Bắt buộc TVGS xác nhận nội dung trước khi xuất PDF chính thức', 'Nhà thầu chốt → TVGS xác nhận hoặc yêu cầu sửa → PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” và mã xác thực.')}
     <div class="note ${tv.length?'g':'w'}">${tv.length ? 'Tài khoản TVGS: <b>' + tv.map(u=>esc(u.name)).join(', ') + '</b>' : 'Chưa có tài khoản vai trò <b>TVGS – kiểm tra nội dung</b> → bước kiểm tra đang <b>tắt</b>. Thêm ở thẻ Người dùng & PIN.'}</div>
@@ -1749,6 +1759,13 @@ document.addEventListener('click', async e=>{
     } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
   if (a==='verify') return verifyFlow();
   if (a==='wxFetch') return autoWeather(true);
+  if (a==='pdfFolderSet'){ const link = ($('#pdfLink').value||'').trim(); if (!link) { toast('Dán link thư mục Drive trước'); return; }
+    toast('Đang kiểm tra quyền ghi thư mục…', 6000);
+    try { const f = await Store.checkFolder(link); CFG.settings = CFG.settings || {}; CFG.settings.pdfFolderId = f.id; CFG.settings.pdfFolderName = f.name;
+      await Store.saveConfig(CFG); LINKS = LINKS ? Object.assign(LINKS, {pdf:f.url}) : LINKS; renderChip(); renderConfig(); toast('✔ PDF sẽ lưu vào “' + f.name + '”', 5000);
+    } catch(e){ toast('⚠ ' + String(e.message||e).replace(/\*\*/g,''), 7000); } return; }
+  if (a==='pdfFolderReset'){ if (!(await ask('Về thư mục mặc định', 'PDF xuất từ giờ sẽ lưu vào thư mục mặc định của app. PDF đã lưu trong thư mục dự án giữ nguyên.'))) return;
+    delete CFG.settings.pdfFolderId; delete CFG.settings.pdfFolderName; await Store.saveConfig(CFG); if (LINKS) LINKS.pdf = ''; renderChip(); renderConfig(); toast('Đã về thư mục mặc định'); return; }
   if (a==='geoHere'){ if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ định vị');
     navigator.geolocation.getCurrentPosition(p=>{ CFG.project.lat = p.coords.latitude.toFixed(5); CFG.project.lon = p.coords.longitude.toFixed(5); renderConfig.edit = true; renderConfig(); toast('📍 Đã lấy tọa độ – bấm Lưu'); }, ()=>toast('Không lấy được vị trí – kiểm tra quyền định vị'), {enableHighAccuracy:true, timeout:15000}); return; }
   if (a==='mv'){ const arr = getPath(R, b.dataset.path), i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= arr.length) return;

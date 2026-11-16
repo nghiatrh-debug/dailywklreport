@@ -110,3 +110,9 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 - PDF: **QR ~1 cm góc phải, ngang tiêu đề báo cáo** + dòng `Verified by Consultant - XXXX-XXXX` (bỏ dòng “Chốt bởi…”). QR vẽ trong trình duyệt (qrcode-generator 1.5.2, MIT, nhúng sẵn).
 - QR trỏ **trang xác thực công khai** `…/exec?v=<mã>` (không cần đăng nhập): hợp lệ / bản cũ / không tồn tại; dự án, ngày, bản, giờ nhà thầu chốt, TVGS kiểm tra, nút **Mở báo cáo PDF**.
 - File PDF ngày: **ai có link đều xem được (chỉ xem)**; ảnh, Google Sheet vẫn riêng tư.
+
+## 4. Thư mục lưu PDF (Cấu hình → Cài đặt)
+- Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ) → app kiểm tra mở được + ghi thử 1 file rồi xóa → lưu `settings.pdfFolderId/pdfFolderName`.
+- Cấu trúc: `<thư mục>/Báo cáo ngày/<yyyy-MM>` (tắt được “chia theo tháng”), `Báo cáo tuần`, `Báo cáo tháng`. Chưa chọn → thư mục mặc định `Báo cáo ngày – <mã>/PDF`.
+- Tài khoản triển khai app cần quyền Người chỉnh sửa (Editor). Mất quyền → xuất PDF báo lỗi rõ, không lưu nhầm chỗ khác. PDF cũ giữ nguyên chỗ cũ.
+- Quản trị có nút nhanh “📄 Thư mục PDF”.

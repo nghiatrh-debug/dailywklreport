@@ -1,4 +1,4 @@
-const { ctx: C, sheets, files, props, cacheStore } = require('./gasmock.js');
+const { ctx: C, sheets, files, props, cacheStore, shared } = require('./gasmock.js');
 const ctx = new Proxy(C, { get(o,k){ const f=o[k]; return typeof f==='function' && String(k).startsWith('api') ? (...a)=>{ o.__resetMemo(); return f(...a); } : f; } });
 const A = (c)=>{ if(!c[0]) { console.log('FAIL', c[1]); process.exitCode=1; } else console.log('ok', c[1]); };
 const J = s=>JSON.parse(s);
@@ -94,6 +94,20 @@ A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]
   err = ''; try { ctx.apiSaveLogo(kId, 'client', 'data:image/png;base64,iVBORw0KGgo=', ''); } catch (e) { err = e.message; } A([/quyền/.test(err), 'chỉ Quản trị đổi logo']);
 })();
 console.log('Đợt 3: xong');
+// ===== Thư mục lưu PDF =====
+(() => {
+  let err = ''; try { ctx.apiCheckFolder(tk, 'abc'); } catch (e) { err = e.message; } A([/Link không hợp lệ/.test(err), 'link thư mục sai']);
+  err = ''; try { ctx.apiCheckFolder(tk, 'https://drive.google.com/drive/folders/NOACCESSFOLDER'); } catch (e) { err = e.message; } A([/Người chỉnh sửa/.test(err), 'thư mục không có quyền']);
+  const f = J(ctx.apiCheckFolder(tk, 'https://drive.google.com/drive/folders/SHAREDFOLDER01?usp=sharing')); A([f.id === 'SHAREDFOLDER01' && f.name === 'CN8-2 Shared', 'kiểm tra thư mục chia sẻ: ' + f.name]);
+  const c5 = J(ctx.apiPublicConfig()); c5.settings = Object.assign({}, c5.settings, { pdfFolderId: f.id, pdfFolderName: f.name, requireReview: false }); ctx.apiSaveConfig(tk, JSON.stringify(c5));
+  ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, rep, { date: '2026-11-25', status: 'locked', version: 1, tasks: [], plans: [], photos: [], layout: { caption: '' } })));
+  ctx.apiExportPdf(tk, '<p>x</p>', 'BCN_TST_2026-11-25.pdf', '2026-11-25', 'day');
+  const day = shared.kids['Báo cáo ngày'], mon = day && day.kids['2026-11'];
+  A([mon && mon.files.some(i => files[i].name === 'BCN_TST_2026-11-25.pdf'), 'PDF ngày lưu vào <thư mục dự án>/Báo cáo ngày/2026-11']);
+  ctx.apiExportPdf(tk, '<p>x</p>', 'BCT.pdf', 'W-2026-11-23', 'week'); A([shared.kids['Báo cáo tuần'] && shared.kids['Báo cáo tuần'].files.length === 1, 'PDF tuần lưu vào Báo cáo tuần']);
+  const c6 = J(ctx.apiPublicConfig()); c6.settings.pdfFolderId = 'NOACCESSFOLDER'; ctx.apiSaveConfig(tk, JSON.stringify(c6));
+  err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'x.pdf', '2026-11-25', 'day'); } catch (e) { err = e.message; } A([/thư mục lưu PDF/.test(err), 'thư mục mất quyền → báo lỗi rõ']);
+})();
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);

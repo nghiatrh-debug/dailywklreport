@@ -264,6 +264,30 @@ function publicCfg_() { const c = cfg_(); return c ? { setupDone: true, project:
 /** Link trang xác thực (luôn dùng bản chính thức /exec). */
 function verifyUrl_(code) { let u = ''; try { u = ScriptApp.getService().getUrl() || ''; } catch (e) {} return u ? u.replace(/\/dev$/, '/exec') + '?v=' + code : ''; }
 
+/* ======================= THƯ MỤC LƯU PDF ======================= */
+/** Thư mục đã chọn trong Cấu hình (thường là thư mục Drive chia sẻ của dự án); chưa chọn → thư mục mặc định của app. */
+function pdfFolder_(c, kind, key) {
+  const st = (c && c.settings) || {}, mon = String(key).slice(0, 7);
+  if (!st.pdfFolderId) return subFolder_(rootFolder_(), 'PDF', kind === 'day' ? mon : (kind === 'week' ? 'Tuan' : 'Thang'));
+  let base; try { base = DriveApp.getFolderById(st.pdfFolderId); } catch (e) { throw new Error('Không mở được thư mục lưu PDF đã chọn (“' + (st.pdfFolderName || st.pdfFolderId) + '”). Quản trị kiểm tra quyền truy cập trong Cấu hình → Cài đặt.'); }
+  const sub = kind === 'day' ? 'Báo cáo ngày' : kind === 'week' ? 'Báo cáo tuần' : 'Báo cáo tháng';
+  return kind === 'day' && st.pdfMonthly !== false ? subFolder_(base, sub, mon) : subFolder_(base, sub);
+}
+/** Lấy mã thư mục từ link Drive (…/folders/<id>, ?id=<id>) hoặc mã dán trực tiếp. */
+function folderId_(s) {
+  s = String(s || '').trim(); const m = s.match(/\/folders\/([\w-]{10,})/) || s.match(/[?&]id=([\w-]{10,})/);
+  return m ? m[1] : (/^[\w-]{10,}$/.test(s) ? s : '');
+}
+/** Kiểm tra thư mục: mở được + ghi được (tạo rồi xóa 1 file thử). Trả {id, name, url}. */
+function apiCheckFolder(token, link) {
+  auth_(token, ['admin']);
+  const id = folderId_(link); if (!id) throw new Error('Link không hợp lệ – mở thư mục trên Google Drive, sao chép link trên thanh địa chỉ (dạng …/folders/…)');
+  let f; try { f = DriveApp.getFolderById(id); f.getName(); } catch (e) { throw new Error('Không mở được thư mục. Tài khoản triển khai app phải được chia sẻ thư mục này với quyền **Người chỉnh sửa** (Editor).'); }
+  try { f.createFile(Utilities.newBlob('test', 'text/plain', '_kiem_tra_quyen_ghi.txt')).setTrashed(true); }
+  catch (e) { throw new Error('Thư mục “' + f.getName() + '” chỉ có quyền xem – cần quyền **Người chỉnh sửa** (Editor) để lưu PDF.'); }
+  return JSON.stringify({ id: id, name: f.getName(), url: f.getUrl() });
+}
+
 /* ======================= LOGO, NGÀY THỬ ======================= */
 /** Logo đơn vị (đã thu nhỏ ở giao diện) → thư mục Drive "Logo"; trả fileId. */
 function apiSaveLogo(token, kind, dataUrl, oldId) {
@@ -362,7 +386,7 @@ function apiExportPdf(token, html, fileName, key, kind) {
   if (kind === 'day' && reviewOn_(c)) { const r = dayData_(key).report;
     if (!r || !r.review || r.review.status !== 'approved') throw new Error('Báo cáo chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
   html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + dataUrl_(id) + '"'; } catch (e) { return 'src=""'; } });
-  const folder = subFolder_(rootFolder_(), 'PDF', kind === 'day' ? String(key).slice(0, 7) : (kind === 'week' ? 'Tuan' : 'Thang'));
+  const folder = pdfFolder_(c, kind, key);
   const old = folder.getFilesByName(fileName); while (old.hasNext()) old.next().setTrashed(true);
   const pdf = Utilities.newBlob(html, 'text/html', 'bc.html').getAs('application/pdf').setName(fileName);
   const file = folder.createFile(pdf), url = file.getUrl();
@@ -507,7 +531,9 @@ function log_(uid, act, d, detail) { try { sheet_('NhatKy').appendRow([now_(), u
 /** Link nhanh cho Quản trị: file Google Sheet dữ liệu + thư mục Drive ảnh/PDF của dự án (có bộ đệm). */
 function links_() {
   let l = cget_('links');
-  if (!l) { l = { sheet: ss_().getUrl(), folder: '' }; try { l.folder = rootFolder_().getUrl(); } catch (e) {} cput_('links', l); }
+  if (!l) { l = { sheet: ss_().getUrl(), folder: '', pdf: '' }; try { l.folder = rootFolder_().getUrl(); } catch (e) {}
+    const st = (cfg_() || {}).settings || {}; if (st.pdfFolderId) { try { l.pdf = DriveApp.getFolderById(st.pdfFolderId).getUrl(); } catch (e) {} }
+    cput_('links', l); }
   return l;
 }
 function userName_(c, uid) { const u = c && c.users.find(x => x.id === uid); return u ? u.name : (uid || ''); }

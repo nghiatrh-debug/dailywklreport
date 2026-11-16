@@ -105,6 +105,13 @@ Kiểm thử gồm 2 phần chạy song song: **máy chủ** (`tests/gastest.js`
 - **Nhân lực / thiết bị**: thêm mới nằm cuối danh sách; bấm **▲ ▼** để đổi thứ tự. Thứ tự giữ cho các ngày sau.
 - **Mã QR trên PDF**: sau khi TVGS xác nhận, PDF có mã QR + “Verified by Consultant - mã”. Quét bằng camera điện thoại → trang xác thực (không cần đăng nhập) → **Mở báo cáo PDF**. File PDF ngày được chia sẻ “ai có link đều xem”; nếu Google Workspace công ty chặn chia sẻ ra ngoài thì đăng nhập tài khoản công ty để mở.
 
+## 4f. Chọn thư mục lưu PDF
+1. Trên Google Drive, mở thư mục chia sẻ của dự án (VD “Dự án CN8-2 / Báo cáo”), bảo đảm **tài khoản triển khai app** có quyền **Người chỉnh sửa**.
+2. Sao chép link trên thanh địa chỉ (dạng `https://drive.google.com/drive/folders/…`).
+3. App → **Cấu hình → Cài đặt → Thư mục lưu PDF** → dán link → **✔ Kiểm tra & dùng thư mục này**.
+- PDF ngày vào `Báo cáo ngày/2026-11`, tuần vào `Báo cáo tuần`, tháng vào `Báo cáo tháng`. Mọi thành viên đã được chia sẻ thư mục dự án thấy PDF ngay.
+- PDF đã xuất trước đó giữ ở thư mục cũ. Muốn quay lại: **↺ Về thư mục mặc định**.
+
 ## 5. Dữ liệu (các tab trong Google Sheet)
 | Tab | Nội dung |
 |---|---|
