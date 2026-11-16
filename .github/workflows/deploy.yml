@@ -32,10 +32,10 @@ jobs:
     name: Kiểm thử máy chủ (giả lập Apps Script)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Chạy kiểm thử
         run: node tests/gastest.js
 
@@ -44,10 +44,10 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Cài clasp
         run: npm install -g @google/clasp@3
       - name: Nạp thông tin đăng nhập clasp (từ secret CLASPRC_JSON)
