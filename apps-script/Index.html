@@ -844,12 +844,13 @@ function updTask(i){
 }
 /* Thẻ chung cho danh sách (kế hoạch, nghiệm thu, thí nghiệm) trên điện thoại */
 function listCards(path, arr, fields){
-  return arr.map((t,i)=>`<div class="tcard"><div class="tc-h"><span class="n">#${i+1}</span><span class="sp"></span>${delBtn(path,i)}</div>${fields(t,i)}</div>`).join('') || '<p class="hint" style="padding:6px 2px">Chưa có.</p>';
+  return arr.map((t,i)=>`<div class="tcard${t._fresh?' fresh':''}"><div class="tc-h"><span class="n">#${i+1}</span><span class="sp"></span>${delBtn(path,i)}</div>${fields(t,i)}</div>`).join('') || '<p class="hint" style="padding:6px 2px">Chưa có.</p>';
 }
 /* Nút ＋ nổi: Kỹ sư (Công việc) · Người chốt (Nhân sự & Máy móc, Vật tư) */
 function fabCtx(){
   if (!isMobile() || !ME || document.body.classList.contains('pv')) return '';
   if (VIEW==='my' && S && !subReadOnly(S) && !SYNCING && MYTAB==='work') return MYSEG==='tomorrow' ? 'plan' : 'task';
+  if (VIEW==='my' && S && !subReadOnly(S) && !SYNCING && MYTAB==='qa') return 'qa';
   if (VIEW==='day' && R && isChot() && !repLocked() && !SYNCING) return TAB==='people' ? 'people' : TAB==='mat' ? 'mat' : '';
   return '';
 }
@@ -1452,6 +1453,9 @@ document.addEventListener('click', async e=>{
       if (zs.length===1) return addItem('S','tasks', newTaskTpl(zs[0]));
       return pick('Thêm việc vào khu vực', zs.map(z=>[z.id, '📍 ' + z.name + ' · ' + (z.section==='MEP'?'MEP':'Xây dựng')]), id=>addItem('S','tasks', newTaskTpl(zoneById(id)))); }
     if (c==='plan') return addItem('S','plans', {zoneId:(zonesOf(S.uid)[0]||CFG.zones[0]||{}).id||'', desc:'', loc:'', wbs:'', add:'', target:''});
+    if (c==='qa'){ const z = (zonesOf(S.uid)[0]||CFG.zones[0]||{}).id||'';
+      return pick('Thêm vào', [['inspections','✅ Nghiệm thu trong ngày'],['inspectionPlans','📅 Kế hoạch nghiệm thu ngày mai'],['tests','🧪 Thí nghiệm trong ngày']],
+        k=>addItem('S', k, k==='inspections'?{zoneId:z,desc:'',loc:'',result:'Đạt'}:k==='inspectionPlans'?{zoneId:z,desc:'',loc:'',time:''}:{zoneId:z,desc:'',loc:'',result:''})); }
     if (c==='people') return pick('Thêm mới', [['manpower','👥 Nhân lực'],['equipment','🔧 Máy móc thiết bị']], k=>addItem('R', k, k==='manpower'?{title:'',qty:0}:{name:'',qty:0}));
     if (c==='mat') return pick('Thêm mới', [['materials','📦 Vật tư nhập về'],['safety.issues','⚠ Nhắc nhở / vi phạm ATLĐ']], k=>addItem('R', k, k==='materials'?{name:'',spec:'',unit:'',qty:''}:{desc:'',action:''})); }
   if (a==='pick'){ closeModal(); const f = pick._cb; pick._cb = null; if (f) f(b.dataset.v); return; }

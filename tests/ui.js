@@ -92,6 +92,16 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('#fab'); await wait(300);
     ok(await pg.locator('#myPane .tcard').count() === p0 + 1, `${n}: Ngày mai – ＋ thêm kế hoạch`);
     await shot(pg, `m_${n}_tomorrow`);
+    await pg.click('#mBottom [data-mytab=qa]'); await wait(300);
+    ok(await pg.isVisible('#fab'), `${n}: nút ＋ ở thẻ Nghiệm thu`);
+    const q0 = await pg.locator('#myPane .tcard').count();
+    await pg.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await pg.click('#fab'); await wait(300); await pg.click('.zpick .btn >> nth=0'); await wait(400);
+    ok(await pg.locator('#myPane .tcard').count() === q0 + 1 && await pg.evaluate(() => document.activeElement && document.activeElement.dataset.path === 'inspections.0.desc'), `${n}: ＋ thêm nghiệm thu mới ở đầu, con trỏ vào ô nội dung`);
+    const box = await pg.locator('#myPane .tcard.fresh').boundingBox();
+    ok(box && box.y >= 0 && box.y < H, `${n}: thẻ nghiệm thu mới nằm trong màn hình`);
+    await shot(pg, `m_${n}_qa`);
+    await pg.click('#mBottom [data-mytab=work]'); await wait(200);
     if (n === 'ip') {
       await login(pg, 'u_chot', '1234');
       await pg.click('[data-tab=people]'); await wait(300);
