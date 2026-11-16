@@ -51,7 +51,7 @@ const row = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='THUC_HIE
 const prow = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='KE_HOACH'); A([prow && prow[19]===4,'CongViec dự kiến làm thêm']);
 A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-22','')).subs.length===0,'locked day → no subs in period']);
 A([JSON.parse(sheets.BaoCao.data[1][14]).layout.img==='','json stripped imgs']);
-const url = ctx.apiExportPdf(tk,'<img src="fid:'+r.layout+'">','BCN_TST_2026-11-15.pdf','2026-11-15','day'); A([sheets.BaoCao.data[1][12]===url,'pdf url saved']);
+const url = ctx.apiExportPdf(tk,'<img src="fid:'+r.layout+'">','20261115-TST-Daily Report.pdf','2026-11-15','day'); A([sheets.BaoCao.data[1][12]===url,'pdf url saved']);
 ctx.apiSavePeriod(tk, JSON.stringify({key:'W-2026-11-09',kind:'week',from:'2026-11-09',to:'2026-11-15',evaluation:'Đạt'})); A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-15','W-2026-11-09')).manual.evaluation==='Đạt','period manual']);
 A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]);
 // ===== Đợt 3: TVGS kiểm tra nội dung, mã xác thực, ngày thử, logo =====
@@ -101,9 +101,9 @@ console.log('Đợt 3: xong');
   const f = J(ctx.apiCheckFolder(tk, 'https://drive.google.com/drive/folders/SHAREDFOLDER01?usp=sharing')); A([f.id === 'SHAREDFOLDER01' && f.name === 'CN8-2 Shared', 'kiểm tra thư mục chia sẻ: ' + f.name]);
   const c5 = J(ctx.apiPublicConfig()); c5.settings = Object.assign({}, c5.settings, { pdfFolderId: f.id, pdfFolderName: f.name, requireReview: false }); ctx.apiSaveConfig(tk, JSON.stringify(c5));
   ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, rep, { date: '2026-11-25', status: 'locked', version: 1, tasks: [], plans: [], photos: [], layout: { caption: '' } })));
-  ctx.apiExportPdf(tk, '<p>x</p>', 'BCN_TST_2026-11-25.pdf', '2026-11-25', 'day');
+  ctx.apiExportPdf(tk, '<p>x</p>', '20261125-TST-Daily Report.pdf', '2026-11-25', 'day');
   const day = shared.kids['Báo cáo ngày'], mon = day && day.kids['2026-11'];
-  A([mon && mon.files.some(i => files[i].name === 'BCN_TST_2026-11-25.pdf'), 'PDF ngày lưu vào <thư mục dự án>/Báo cáo ngày/2026-11']);
+  A([mon && mon.files.some(i => files[i].name === '20261125-TST-Daily Report.pdf'), 'PDF ngày lưu vào <thư mục dự án>/Báo cáo ngày/2026-11']);
   ctx.apiExportPdf(tk, '<p>x</p>', 'BCT.pdf', 'W-2026-11-23', 'week'); A([shared.kids['Báo cáo tuần'] && shared.kids['Báo cáo tuần'].files.length === 1, 'PDF tuần lưu vào Báo cáo tuần']);
   const c6 = J(ctx.apiPublicConfig()); c6.settings.pdfFolderId = 'NOACCESSFOLDER'; ctx.apiSaveConfig(tk, JSON.stringify(c6));
   err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'x.pdf', '2026-11-25', 'day'); } catch (e) { err = e.message; } A([/thư mục lưu PDF/.test(err), 'thư mục mất quyền → báo lỗi rõ']);
