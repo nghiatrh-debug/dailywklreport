@@ -120,6 +120,51 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(/TVGS YÊU CẦU SỬA/.test(await pg.innerText('#doc')), 'PDF bị trả lại: dải “TVGS YÊU CẦU SỬA”');
     await shot(pg, 'desk_chot_returned');
 
+    /* ---- Đợt 5: nhiều ảnh mặt bằng ---- */
+    await pg.click('[data-view=day]'); await wait(500);
+    if (await pg.inputValue('#dateSel') !== '2026-06-27') { await pg.selectOption('#dateSel', '2026-06-27'); await wait(700); }
+    await pg.click('[data-tab=layout]'); await wait(300);
+    const PNG5 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAIAAAB/FOjAAAAAH0lEQVR42mNk+M+ABzAxEAEYGRgYGBkZGBj/MxDUMAMAqwgCCTL0vDMAAAAASUVORK5CYII=', 'base64');
+    await pg.setInputFiles('input[data-img=layouts]', [{ name: 'MB tang ham.png', mimeType: 'image/png', buffer: PNG5 }, { name: 'MB tang 1.png', mimeType: 'image/png', buffer: PNG5 }]); await wait(900);
+    ok(await pg.evaluate(() => R.layouts.length === 2 && R.layouts[0].caption === 'MB tang ham'), 'Mặt bằng: thêm 2 ảnh một lần, chú thích theo tên file');
+    ok(await pg.locator('#doc .lyt').count() === 2 && await pg.locator('#doc .sec.lysec').count() === 1, 'PDF: mỗi mặt bằng 1 ô (1/3 trang), mục mặt bằng sang trang mới');
+    await pg.click('[data-act=mv][data-path=layouts][data-i="0"][data-d="1"]'); await wait(300);
+    ok(await pg.evaluate(() => R.layouts[0].caption === 'MB tang 1'), 'Mặt bằng: ▼ đổi thứ tự');
+    await pg.fill('[data-path="layouts.0.caption"]', 'Mặt bằng tầng 1'); await wait(300);
+    ok(/Mặt bằng tầng 1/.test(await pg.innerText('#doc')), 'Mặt bằng: sửa chú thích hiện ngay trên PDF');
+    const files6 = Array.from({ length: 5 }, (_, i) => ({ name: 'mb' + i + '.png', mimeType: 'image/png', buffer: PNG5 }));
+    await pg.setInputFiles('input[data-img=layouts]', files6); await wait(1200);
+    ok(await pg.evaluate(() => R.layouts.length === 6) && await pg.locator('input[data-img=layouts]').count() === 0, 'Mặt bằng: tối đa 6 ảnh, đủ thì ẩn ô thêm');
+    await shot(pg, 'desk_layouts');
+    const ly2 = await pg.evaluate(() => { const r = normReport({date:'2026-06-28', layout:{img:'data:x', caption:'cũ'}}); return r.layouts.length === 1 && r.layouts[0].caption === 'cũ' && !('layout' in r); });
+    ok(ly2, 'Dữ liệu cũ (1 ảnh mặt bằng) tự chuyển sang danh sách');
+    /* ---- Đợt 5: chống ghi đè ---- */
+    await pg.evaluate(async () => { await saveR(true); const r = await IDB.get('reports', R.date); r.rev = (r.rev || 0) + 3; r.savedBy = 'u_than'; r.savedAt = '27/06/2026 10:42'; await IDB.put('reports', R.date, r); });
+    await pg.click('[data-tab=general]'); await wait(200);
+    await pg.evaluate(() => { R.weather.am = 'Mưa / Rain'; saveR(true); }); await wait(600);
+    ok(/vừa được sửa ở nơi khác/.test(await pg.innerText('#modal')) && /Thân/.test(await pg.innerText('#modal')), 'Chống ghi đè: báo trùng, nêu người và giờ đã lưu');
+    await shot(pg, 'desk_conflict');
+    await pg.click('#cfKeep'); await wait(600);
+    ok(await pg.evaluate(async () => (await IDB.get('reports', R.date)).weather.am === 'Mưa / Rain' && !CONFL.R), 'Chống ghi đè: “Giữ bản của tôi” → lưu được');
+    /* ---- Đợt 5: tuần, phiên đăng nhập ---- */
+    ok(await pg.evaluate(() => { CFG.settings.weekEnd = '4'; P.kind = 'week'; P.anchor = '2026-11-19'; const a = periodRange(); P.anchor = '2026-11-20'; const b = periodRange(); return a.from === '2026-11-13' && a.to === '2026-11-19' && b.from === '2026-11-20'; }), 'Kỳ tuần: Thứ 6 13/11 → Thứ 5 19/11; 20/11 sang kỳ mới');
+    await login(pg, 'u_lam', '2222'); await wait(300);
+    ok(await pg.evaluate(() => !!sessionStorage.getItem('bcn_session') && !localStorage.getItem('bcn_session')), 'Không chọn “Ghi nhớ” → phiên chỉ trong trình duyệt (sessionStorage)');
+    if (await pg.locator('[data-act=submitSub]').count()) {
+      await pg.click('[data-act=submitSub] >> nth=0'); await wait(500);
+      if (await pg.locator('#mOk').count() && await pg.isVisible('#mOk')) { await pg.click('#mOk'); await wait(700); }
+      ok(await pg.locator('#toast [data-act=logout]').count() === 1, 'Nộp phiếu xong: thông báo có nút Đăng xuất');
+      await shot(pg, 'desk_submit_logout');
+      await pg.click('#toast [data-act=logout]'); await wait(500);
+      ok(await pg.isVisible('#login') && await pg.locator('#remember').count() === 1 && !(await pg.isChecked('#remember')), 'Đăng xuất từ thông báo; màn hình đăng nhập có ô “Ghi nhớ” (mặc định bỏ chọn)');
+    } else ok(false, 'Lâm: không thấy nút Nộp');
+    await pg.selectOption('#loginUser', 'u_chot'); await pg.fill('#pinIn', '1234'); await pg.check('#remember'); await pg.click('[data-act=doLogin]'); await wait(1000);
+    ok(await pg.evaluate(() => !!localStorage.getItem('bcn_session') && !sessionStorage.getItem('bcn_session')), 'Chọn “Ghi nhớ” → lưu phiên trên máy (localStorage)');
+    ok(await pg.evaluate(() => { localStorage.setItem('bcn_act', String(Date.now() - 9 * 3600e3)); return idleOver(); }), 'Không thao tác > 8 giờ → tự đăng xuất');
+    await pg.evaluate(() => idleCheck()); await wait(500);
+    ok(await pg.isVisible('#login') && /tự đăng xuất/.test(await pg.innerText('#toast')), 'Tự đăng xuất hiện thông báo');
+    await login(pg, 'u_chot', '1234');
+
     /* ---- Cấu hình: thứ tự thẻ, logo, chế độ thử nghiệm ---- */
     await pg.click('[data-view=config]'); await wait(300);
     const tabsTxt = await pg.innerText('#cfgTabs');
@@ -131,6 +176,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.evaluate(() => { const td = document.querySelectorAll('#doc .logos2 td'); return td.length === 3 && !!td[0].querySelector('img') && /TƯ VẤN GIÁM SÁT/.test(td[0].innerText) && /CHỦ ĐẦU TƯ/.test(td[1].innerText) && /NHÀ THẦU/.test(td[2].innerText); }), 'PDF: logo TVGS (trái) – CĐT (giữa) – Nhà thầu (phải)');
     await pg.click('[data-view=config]'); await wait(300); await pg.click('[data-cfgtab=settings]'); await wait(300);
     ok(/Thư mục lưu PDF/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#pdfLink') && await pg.isVisible('[data-cfgchk="settings.pdfMonthly"]'), 'Cài đặt: chọn thư mục lưu PDF (dán link Drive) + chia thư mục theo tháng');
+    ok(await pg.locator('[data-cfg="settings.weekEnd"]').count() === 1 && await pg.inputValue('[data-cfg="settings.weekEnd"]') === '4' && await pg.locator('[data-cfg="settings.idleHours"]').count() === 1, 'Cài đặt: ngày chốt tuần (mặc định Thứ 5) + giờ tự đăng xuất');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');
@@ -148,6 +194,8 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await login(pg, 'u_chot', '1234');
     await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
+    ok(/19\/06\/2026 → 25\/06\/2026/.test(await pg.innerText('#periodPane')) && /T6 → T5/.test(await pg.innerText('#pKind')), 'Tuần mặc định Thứ 6 → Thứ 5 (25/06 thuộc tuần 19–25/06)');
+    await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     const pn = await pg.innerText('#periodPane');
     ok(/ngày chưa chốt/.test(pn) && /Tuân thủ KH ngày/.test(pn), 'Tuần: gom ngày chưa chốt + tỷ lệ tuân thủ KH');
     ok(/TUÂN THỦ KẾ HOẠCH NGÀY/.test(await pg.innerText('#pdoc')), 'PDF tuần có mục tuân thủ KH');

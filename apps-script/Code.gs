@@ -77,15 +77,16 @@ function apiSetup(cfgJson, pin) {
 }
 
 /** Đăng nhập; trả luôn dữ liệu màn hình đầu tiên (mode: 'my' | 'day') để giao diện không phải gọi thêm. */
-function apiLogin(uid, pin, mode) {
+function apiLogin(uid, pin, mode, remember) {
   const c = cfg_(), u = c && c.users.find(x => x.id === uid);
   if (!u || u.active === false) return null;
   const pins = JSON.parse(kv_('pins') || '{}');
   if (!pins[uid] || pins[uid] !== hash_(uid, pin)) { Utilities.sleep(600); return null; }
   if (Math.random() < 0.1) cleanTokens_();
-  const token = newToken_(uid);
+  // Thời hạn phiên: không ghi nhớ 12 giờ; ghi nhớ: Quản trị/Người chốt 7 ngày, còn lại 30 ngày
+  const token = newToken_(uid, remember ? (u.role === 'admin' || u.role === 'chot' ? 7 : TOKEN_DAYS) * 864e5 : 12 * 3600e3);
   let bundle = null;
-  if (mode) { try { bundle = bundle_(u, '', mode, uid); } catch (e) {} }
+  if (mode) { try { bundle = bundle_(u, '', mode, uid); bundle.others = othersActive_(token, uid); } catch (e) {} }
   return JSON.stringify({ token: token, uid: uid, bundle: bundle });
 }
 
@@ -114,7 +115,8 @@ function apiSetPin(token, uid, pin) {
 /** 1 lần gọi cho 1 màn hình: {date, index, report, subs, prev:{date, report, subs}} – không kèm ảnh. */
 function apiOpen(token, date, mode, uid) {
   const me = auth_(token);
-  return JSON.stringify(bundle_(me, date, mode, uid || me.id));
+  const b = bundle_(me, date, mode, uid || me.id); b.others = othersActive_(token, me.id);
+  return JSON.stringify(b);
 }
 
 function bundle_(me, date, mode, uid) {
@@ -151,6 +153,7 @@ function apiSaveSub(token, json) {
     const day = dayData_(d); markTest_(d, day);
     if (day.report && day.report.status === 'locked') throw new Error('Báo cáo ngày ' + d + ' đã chốt – không sửa phiếu được');
     const old = day.subs.find(x => x.uid === s.uid);
+    stampRev_(s, old, me);
     if (me.role === 'ks') {
       if (me.id !== s.uid) throw new Error('Không có quyền sửa phiếu của người khác');
       if (old && !(old.status === 'draft' || old.status === 'returned' || (old.status === 'submitted' && s.status === 'draft')))
@@ -167,7 +170,7 @@ function apiSaveSub(token, json) {
       s.note || '', s.returnNote || '', (s.tasks || []).length, (s.photos || []).length, now_(), JSON.stringify(store)]);
     cdel_(['idx', 'day:' + d]);
     if (!old || old.status !== s.status) log_(me.id, 'PHIEU_' + String(s.status).toUpperCase(), d, userName_(c, s.uid));
-    return JSON.stringify({ ok: true, photos: (s.photos || []).map(p => p.fileId || '') });
+    return JSON.stringify({ ok: true, rev: s.rev, photos: (s.photos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
 }
 
@@ -177,15 +180,18 @@ function apiSaveReport(token, json) {
   try {
     const r = JSON.parse(json), d = r.date, c = cfg_();
     const dd = dayData_(d), old = dd.report; markTest_(d, dd);
+    stampRev_(r, old, me);
     // Trạng thái TVGS do máy chủ quản lý – giao diện không tự đặt được
     const kept = old && old.review ? old.review : null;
     if (old && old.status === 'locked' && old.review && old.review.status === 'approved' && r.status === 'locked') throw new Error('Báo cáo đã được TVGS xác nhận – mở khóa trước khi sửa');
     if (r.status === 'locked') r.review = (!old || old.status !== 'locked') ? (reviewOn_(c) ? { status: 'pending', since: now_(), lastNote: kept && kept.status === 'returned' ? kept.note : '' } : null) : kept;
     else r.review = kept && kept.status === 'returned' ? kept : null;
     mergeWbs_(r.wbsMem); delete r.wbsMem;
-    const need = (r.layout && !r.layout.fileId && r.layout.img) || (r.extraPhotos || []).some(p => !p.fileId && p.img);
+    if (!Array.isArray(r.layouts)) r.layouts = r.layout && (r.layout.img || r.layout.fileId) ? [r.layout] : [];
+    delete r.layout;
+    const need = r.layouts.concat(r.extraPhotos || []).some(p => p && !p.fileId && p.img);
     if (need) { const folder = subFolder_(rootFolder_(), 'HinhAnh', d);
-      uploadImg_(r.layout, folder, d + '_mat_bang'); (r.extraPhotos || []).forEach((p, i) => uploadImg_(p, folder, d + '_bo_sung_' + (i + 1))); }
+      r.layouts.forEach((p, i) => uploadImg_(p, folder, d + '_mat_bang_' + (i + 1))); (r.extraPhotos || []).forEach((p, i) => uploadImg_(p, folder, d + '_bo_sung_' + (i + 1))); }
     // ảnh bổ sung vừa tải lên → cập nhật fileId trong mảng gộp
     const ex = {}; (r.extraPhotos || []).forEach(p => { if (p.id) ex[p.id] = p.fileId; });
     (r.photos || []).forEach(p => { if (!p.fileId && p.id && ex[p.id]) p.fileId = ex[p.id]; });
@@ -193,7 +199,7 @@ function apiSaveReport(token, json) {
     if (r.status === 'locked') writeNormalized_(r, c, pctOf_);     // bảng chuẩn hóa = số liệu đã chốt
     cdel_(['idx', 'day:' + d]);
     if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, '');
-    return JSON.stringify({ ok: true, review: r.review || null, layout: r.layout ? r.layout.fileId || '' : '', extra: (r.extraPhotos || []).map(p => p.fileId || '') });
+    return JSON.stringify({ ok: true, rev: r.rev, review: r.review || null, layouts: r.layouts.map(p => p.fileId || ''), extra: (r.extraPhotos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
 }
 
@@ -210,12 +216,22 @@ function writeReport_(r, c) {
     REVIEW_TXT[rv.status] || '', rv.status === 'approved' ? rv.code : '']);
 }
 
+/** Chống ghi đè: bản gửi lên mang baseRev = rev lúc mở. Máy chủ đã có rev khác → từ chối (CONFLICT|giờ|người).
+ *  force = người dùng chọn "Giữ bản của tôi". Không có baseRev (bản app cũ) → bỏ qua kiểm tra. */
+function stampRev_(o, old, me) {
+  const base = o.baseRev, force = o.force; delete o.baseRev; delete o.force;
+  const cur = old ? (old.rev || 0) : 0;
+  if (old && !force && base !== undefined && base !== null && Number(base) !== cur)
+    throw new Error('CONFLICT|' + (old.savedAt || '') + '|' + (old.savedBy ? userName_(cfg_(), old.savedBy) : ''));
+  o.rev = cur + 1; o.savedAt = now_(); o.savedBy = me.id;
+}
+
 /* ======================= TVGS KIỂM TRA NỘI DUNG ======================= */
 /** Bắt buộc TVGS kiểm tra khi: công tắc bật (mặc định) và có ít nhất 1 tài khoản TVGS đang hoạt động. */
 function reviewOn_(c) { return !!c && (c.settings || {}).requireReview !== false && c.users.some(u => u.role === 'tvgs' && u.active !== false); }
 /** Mã xác thực = 8 ký tự đầu SHA-256 của nội dung báo cáo (không gồm trạng thái kiểm tra, link PDF). */
 function vcode_(r) {
-  const o = JSON.parse(JSON.stringify(r)); delete o.review; delete o.pdfUrl;
+  const o = JSON.parse(JSON.stringify(r)); delete o.review; delete o.pdfUrl; delete o.rev; delete o.savedAt; delete o.savedBy;
   const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, JSON.stringify(o), Utilities.Charset.UTF_8);
   const h = b.map(x => ((x + 256) % 256).toString(16).padStart(2, '0')).join('').toUpperCase();
   return h.slice(0, 4) + '-' + h.slice(4, 8);
@@ -228,6 +244,7 @@ function apiReview(token, date, action, note) {
     const r = dayData_(date).report;
     if (!r || r.status !== 'locked') throw new Error('Báo cáo ngày ' + date + ' chưa được nhà thầu chốt');
     if (r.review && r.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo đã được xác nhận');
+    r.rev = (r.rev || 0) + 1;
     if (action === 'approve') {
       r.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(r), version: r.version || 1 };
       r.review.url = verifyUrl_(r.review.code);
@@ -336,7 +353,7 @@ function writeNormalized_(r, c, pctOf) {
   replaceDay_('VatTu', d, (r.materials || []).map(x => [d, x.name, x.spec, x.unit, Number(x.qty) || 0]));
   replaceDay_('AnToan', d, [[d, (r.safety && r.safety.summary) || '', '']].concat(((r.safety && r.safety.issues) || []).map(x => [d, x.desc, x.action])));
   const img = [];
-  if (r.layout && r.layout.fileId) img.push([d, 'MAT_BANG', '', r.layout.caption || '', '', '', r.layout.fileId, driveUrl_(r.layout.fileId)]);
+  (r.layouts || (r.layout ? [r.layout] : [])).forEach(l => { if (l && l.fileId) img.push([d, 'MAT_BANG', '', l.caption || '', '', '', l.fileId, driveUrl_(l.fileId)]); });
   (r.photos || []).forEach(p => { if (p.fileId) img.push([d, p.by ? userName_(c, p.by) : 'Người chốt', zn(p.zoneId), p.caption || '', p.takenAt || '', p.warn || '', p.fileId, driveUrl_(p.fileId)]); });
   replaceDay_('HinhAnh', d, img);
 }
@@ -548,10 +565,17 @@ function hash_(uid, pin) {
   const b = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt_() + '|' + uid + '|' + pin, Utilities.Charset.UTF_8);
   return b.map(x => ((x + 256) % 256).toString(16).padStart(2, '0')).join('');
 }
-function newToken_(uid) {
+function newToken_(uid, ttl) {
   const t = Utilities.getUuid().replace(/-/g, '');
-  PropertiesService.getScriptProperties().setProperty('tok_' + t, JSON.stringify({ uid: uid, exp: Date.now() + TOKEN_DAYS * 864e5 }));
+  PropertiesService.getScriptProperties().setProperty('tok_' + t, JSON.stringify({ uid: uid, exp: Date.now() + (ttl || TOKEN_DAYS * 864e5), seen: Date.now() }));
   return t;
+}
+/** Số phiên KHÁC của cùng tài khoản có hoạt động trong 10 phút qua. */
+function othersActive_(token, uid) {
+  const all = PropertiesService.getScriptProperties().getProperties(), now = Date.now(); let n = 0;
+  Object.keys(all).forEach(k => { if (k.indexOf('tok_') !== 0 || k === 'tok_' + token) return;
+    try { const t = JSON.parse(all[k]); if (t.uid === uid && t.exp > now && t.seen && now - t.seen < 600000) n++; } catch (e) {} });
+  return n;
 }
 function cleanTokens_() {
   const p = PropertiesService.getScriptProperties(), all = p.getProperties(), now = Date.now();
@@ -561,6 +585,7 @@ function auth_(token, roles) {
   const raw = token && PropertiesService.getScriptProperties().getProperty('tok_' + token);
   if (!raw) throw new Error('AUTH: phiên đăng nhập không hợp lệ');
   const t = JSON.parse(raw); if (t.exp < Date.now()) throw new Error('AUTH: phiên đăng nhập hết hạn');
+  if (!t.seen || Date.now() - t.seen > 120000) { t.seen = Date.now(); PropertiesService.getScriptProperties().setProperty('tok_' + token, JSON.stringify(t)); }
   const c = cfg_(), u = c && c.users.find(x => x.id === t.uid);
   if (!u || u.active === false) throw new Error('AUTH: tài khoản không còn hoạt động');
   if (roles && roles.indexOf(u.role) < 0) throw new Error('Không có quyền thực hiện thao tác này');
@@ -568,7 +593,7 @@ function auth_(token, roles) {
 }
 function strip_(o) {
   const c = JSON.parse(JSON.stringify(o));
-  [c.layout].concat(c.photos || [], c.extraPhotos || []).forEach(p => { if (p && p.fileId) p.img = ''; });
+  (c.layouts || [c.layout]).concat(c.photos || [], c.extraPhotos || []).forEach(p => { if (p && p.fileId) p.img = ''; });
   return c;
 }
 function uploadImg_(o, folder, name) {

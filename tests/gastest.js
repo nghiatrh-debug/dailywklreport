@@ -31,12 +31,12 @@ const obK = J(ctx.apiOpen(tkK,'2026-11-16','my','')); A([obK.prev && obK.prev.da
 sub.status='accepted'; ctx.apiSaveSub(tk, JSON.stringify(sub));
 threw=false; try{ ctx.apiSaveSub(tkK, JSON.stringify(Object.assign({},sub,{status:'draft'}))); }catch(e){threw=true;} A([threw,'KS cannot edit accepted']);
 const rep = { date:'2026-11-15', status:'locked', version:1, lockedBy:'uA', weather:{am:'Nắng',pm:'',temp:''}, manpower:[{title:'CN',qty:5}], equipment:[], materials:[{name:'Thép',spec:'',unit:'t',qty:2}], safety:{summary:'ok',issues:[]},
-  layout:{img, fileId:'', caption:'mb'}, extraPhotos:[], tasks:sub.tasks, plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[{fileId:r.photos[0], caption:'a', by:'uK'}] };
-r = J(ctx.apiSaveReport(tk, JSON.stringify(rep))); A([r.layout,'layout uploaded']);
+  layouts:[{img, fileId:'', caption:'mb'},{img, fileId:'', caption:'mb2'}], extraPhotos:[], tasks:sub.tasks, plans:[], inspections:[], inspectionPlans:[], tests:[], photos:[{fileId:r.photos[0], caption:'a', by:'uK'}] };
+r = J(ctx.apiSaveReport(tk, JSON.stringify(rep))); A([r.layouts && r.layouts.length===2 && r.layouts.every(Boolean),'2 ảnh mặt bằng tải lên']); r.layout = r.layouts[0];
 A([sheets.CongViec.data.length===2 && sheets.CongViec.data[1][3]==='Zone A','CongViec row w/ zone (written on lock)']);
-rep.status='locked'; ctx.apiSaveReport(tk, JSON.stringify(Object.assign({},rep,{layout:{fileId:r.layout,caption:'mb'}}))); A([sheets.CongViec.data.length===2,'re-lock replaces rows, no dup']);
+rep.status='locked'; ctx.apiSaveReport(tk, JSON.stringify(Object.assign({},rep,{layouts:r.layouts.map((f,i)=>({fileId:f,caption:'mb'+i}))}))); A([sheets.CongViec.data.length===2,'re-lock replaces rows, no dup']);
 A([sheets.BaoCao.data.length===2,'BaoCao single row upsert']);
-A([sheets.HinhAnh.data.length===3,'HinhAnh rows (layout+photo)']);
+A([sheets.HinhAnh.data.length===4,'HinhAnh rows (2 mặt bằng + 1 ảnh)']);
 threw=false; try{ ctx.apiSaveSub(tk, JSON.stringify(sub)); }catch(e){threw=/chốt/.test(e.message);} A([threw,'locked day blocks sub save']);
 A([J(ctx.apiPeriod(tkK,'2026-11-01','2026-11-30','')).reports.length===1,'period range']);
 // Đợt 2: cột so sánh KH + kỳ gồm ngày chưa chốt
@@ -50,7 +50,7 @@ ctx.apiSaveReport(tk, JSON.stringify(rep2));
 const row = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='THUC_HIEN'); A([row && row[16]===5 && row[17]===3 && row[18]===-2,'CongViec KH/thực hiện/chênh lệch']);
 const prow = sheets.CongViec.data.find(r=>r[0]==='2026-11-16' && r[1]==='KE_HOACH'); A([prow && prow[19]===4,'CongViec dự kiến làm thêm']);
 A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-22','')).subs.length===0,'locked day → no subs in period']);
-A([JSON.parse(sheets.BaoCao.data[1][14]).layout.img==='','json stripped imgs']);
+A([JSON.parse(sheets.BaoCao.data[1][14]).layouts.every(l=>l.img===''),'json stripped imgs']);
 const url = ctx.apiExportPdf(tk,'<img src="fid:'+r.layout+'">','20261115-TST-Daily Report.pdf','2026-11-15','day'); A([sheets.BaoCao.data[1][12]===url,'pdf url saved']);
 ctx.apiSavePeriod(tk, JSON.stringify({key:'W-2026-11-09',kind:'week',from:'2026-11-09',to:'2026-11-15',evaluation:'Đạt'})); A([J(ctx.apiPeriod(tkK,'2026-11-09','2026-11-15','W-2026-11-09')).manual.evaluation==='Đạt','period manual']);
 A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]);
@@ -108,6 +108,35 @@ console.log('Đợt 3: xong');
   const c6 = J(ctx.apiPublicConfig()); c6.settings.pdfFolderId = 'NOACCESSFOLDER'; ctx.apiSaveConfig(tk, JSON.stringify(c6));
   err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'x.pdf', '2026-11-25', 'day'); } catch (e) { err = e.message; } A([/thư mục lưu PDF/.test(err), 'thư mục mất quyền → báo lỗi rõ']);
 })();
+// ===== Đợt 5: chống ghi đè, phiên đăng nhập, nhiều ảnh mặt bằng =====
+(() => {
+  const d = '2026-11-27', base = { key: d + '|uK', date: d, uid: 'uK', status: 'draft', tasks: [], plans: [], inspections: [], inspectionPlans: [], tests: [], photos: [], note: '' };
+  let r1 = J(ctx.apiSaveSub(tkK, JSON.stringify(Object.assign({}, base, { baseRev: 0 })))); A([r1.rev === 1, 'phiếu mới: rev 1']);
+  let r2 = J(ctx.apiSaveSub(tkK, JSON.stringify(Object.assign({}, base, { note: 'máy A', baseRev: 1 })))); A([r2.rev === 2, 'lưu tiếp đúng baseRev: rev 2']);
+  let err = ''; try { ctx.apiSaveSub(tkK, JSON.stringify(Object.assign({}, base, { note: 'máy B cũ', baseRev: 1 }))); } catch (e) { err = e.message; }
+  A([/^CONFLICT\|.+\|KS1$/.test(err), 'máy B mở bản cũ → bị chặn ghi đè: ' + err]);
+  A([J(ctx.apiOpen(tkK, d, 'my', '')).subs[0].note === 'máy A', 'dữ liệu máy A không bị mất']);
+  const r3 = J(ctx.apiSaveSub(tkK, JSON.stringify(Object.assign({}, base, { note: 'máy B', baseRev: 1, force: true })))); A([r3.rev === 3, 'chọn “Giữ bản của tôi” → ghi đè được']);
+  // báo cáo ngày + TVGS
+  const c7 = J(ctx.apiPublicConfig()); c7.settings = Object.assign({}, c7.settings, { requireReview: true, pdfFolderId: '' }); if (!c7.users.some(u => u.role === 'tvgs')) c7.users.push({ id: 'uT5', name: 'TV5', role: 'tvgs', active: true });
+  ctx.apiSaveConfig(tk, JSON.stringify(c7)); const tv = c7.users.find(u => u.role === 'tvgs'); ctx.apiSetPin(tk, tv.id, '4545'); const tkT = J(ctx.apiLogin(tv.id, '4545')).token;
+  const rp = Object.assign({}, rep, { date: d, status: 'locked', version: 1, tasks: [], plans: [], photos: [], layouts: [], baseRev: 0 });
+  const s1 = J(ctx.apiSaveReport(tk, JSON.stringify(rp))); A([s1.rev === 1, 'báo cáo: rev 1']);
+  const rv = J(ctx.apiReview(tkT, d, 'approve')); const cur = J(ctx.apiOpen(tk, d, 'day', '')).report;
+  A([cur.rev === 2, 'TVGS xác nhận cũng tăng rev']); A([J(ctx.apiVerify(tk, rv.code)).ok === 'current', 'mã xác thực không phụ thuộc rev']);
+  err = ''; try { ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, rp, { status: 'draft', baseRev: 1 }))); } catch (e) { err = e.message; } A([/^CONFLICT/.test(err), 'người chốt mở bản trước khi TVGS xác nhận → bị chặn']);
+  // ảnh mặt bằng: dữ liệu cũ (1 ảnh) tự chuyển
+  const o = J(ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, rep, { date: '2026-11-28', status: 'draft', tasks: [], plans: [], photos: [], layouts: undefined, layout: { img, fileId: '', caption: 'cũ' } }))));
+  A([o.layouts.length === 1 && o.layouts[0], 'bản cũ “layout” → layouts[1 ảnh]']);
+  A([!('layout' in J(ctx.apiOpen(tk, '2026-11-28', 'day', '')).report), 'không còn trường layout cũ']);
+  // phiên đăng nhập
+  const exp = t => J(props['tok_' + t]).exp - Date.now();
+  const tA = J(ctx.apiLogin('uA', '1234', '', false)).token, tA7 = J(ctx.apiLogin('uA', '1234', '', true)).token, tK30 = J(ctx.apiLogin('uK', '1111', '', true)).token;
+  A([exp(tA) <= 12 * 3600e3 && exp(tA) > 11 * 3600e3, 'không ghi nhớ: phiên 12 giờ']);
+  A([Math.round(exp(tA7) / 864e5) === 7, 'Quản trị ghi nhớ: tối đa 7 ngày']); A([Math.round(exp(tK30) / 864e5) === 30, 'Kỹ sư ghi nhớ: 30 ngày']);
+  A([J(ctx.apiOpen(tA, d, 'day', '')).others >= 1, 'cùng tài khoản mở ở nơi khác → báo others']);
+})();
+console.log('Đợt 5: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);

@@ -121,7 +121,7 @@ table.ed .in:focus{background:#fff}
 .paper{background:#e2e8f0;border-radius:14px;padding:16px;overflow:auto}
 #doc{width:794px;margin:0 auto;background:#fff;box-shadow:0 4px 18px #0f172a22}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99;opacity:0;transition:.25s;pointer-events:none;max-width:90vw}
-.toast.on{opacity:1}
+.toast.on{opacity:1}.toast.act{pointer-events:auto}.toast .btn{background:#fff;color:#0f172a;border-color:#fff}
 .modal{position:fixed;inset:0;background:#0f172a66;display:none;place-items:center;z-index:90;padding:16px}
 .modal.on{display:grid}
 .modal .mb{background:#fff;border-radius:14px;max-width:560px;width:100%;padding:20px;max-height:85vh;overflow:auto}
@@ -180,6 +180,11 @@ table.ed .in:focus{background:#fff}
 details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6px}details.dt[open] summary{color:var(--ac2)}
 /* ===== DOCUMENT (dùng chung cho xem trước, in và xuất PDF) ===== */
 </style>
+<style>
+.lylist{display:flex;flex-direction:column;gap:10px;margin-top:12px}.lyc{display:flex;gap:12px;border:1px solid var(--bd);border-radius:10px;padding:8px;background:#fff}
+.lyi{width:42%;min-width:120px}.lyi img{width:100%;border-radius:6px;display:block;border:1px solid var(--bd)}.lyf{flex:1;min-width:0}.lyf .bar{align-items:center}
+@media(max-width:767px){.lyc{flex-direction:column}.lyi{width:100%}}
+</style>
 <style id="docCss">
 .doc{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111827;background:#fff;padding:26px 28px;line-height:1.35}
 .doc table{border-collapse:collapse;width:100%}
@@ -222,6 +227,10 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .testmk{border:1.5px dashed #ca8a04;color:#a16207;background:#fefce8;text-align:center;font-weight:bold;font-size:11px;padding:4px;margin:4px 0}
 .doc .logos2 img{max-height:44px;max-width:150px;display:block;margin:0 auto 4px}
 .doc .sign .nm{font-weight:bold;margin-top:52px}
+.doc .lyt{height:84mm;page-break-inside:avoid;text-align:center;margin:0 0 3mm;overflow:hidden}
+.doc .lyw{height:78mm;width:100%;border:1px solid #e2e8f0}.doc .lyw td{height:78mm;vertical-align:middle;text-align:center;padding:2px}
+.doc .lyw img{max-width:100%;max-height:76mm;display:block;margin:0 auto}
+.doc .lysec{page-break-before:always}
 @media print{@page{size:A4;margin:8mm}}
 </style>
 <style>
@@ -337,6 +346,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
     <div class="pills" style="margin-top:0" id="nav"></div>
     <span class="sp"></span>
   </div>
+  <div id="othersBar"></div>
   <div class="bar" id="dayBar">
     <button class="btn sm" data-act="prevDay" title="Ngày trước">◀</button>
     <select class="btn" id="dateSel"></select>
@@ -426,7 +436,9 @@ const showPct = v => { const p = pct(v); return p === null ? esc(v) : r1(p) + '%
 const keyOf = t => (t.zoneId||t.section||'') + '|' + (t.desc||'').trim().toLowerCase() + '|' + (t.loc||'').trim().toLowerCase();
 function setPath(o, path, v){ const k = path.split('.'); let c = o; for (let i=0;i<k.length-1;i++) c = c[k[i]]; c[k[k.length-1]] = v; }
 function getPath(o, path){ return path.split('.').reduce((c,k)=> c==null?c:c[k], o); }
-function toast(m, ms=2600){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'), ms); }
+function toast(m, ms=2600){ const t=$('#toast'); t.textContent=m; t.classList.remove('act'); t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'), ms); }
+/** Thông báo kèm 1 nút (VD: Đăng xuất sau khi nộp phiếu). */
+function toastAct(m, btn, act, ms=9000){ const t=$('#toast'); t.innerHTML = `${esc(m)} <button class="btn sm" data-act="${act}" style="margin-left:8px">${esc(btn)}</button>`; t.classList.add('on','act'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on','act'), ms); }
 function modal(html){ $('#modalBody').innerHTML = html; $('#modal').classList.add('on'); }
 function closeModal(){ $('#modal').classList.remove('on'); }
 function ask(title, msg, okText='Đồng ý', danger=false){ return new Promise(res=>{ modal(`<h3>${title}</h3><div>${msg}</div><div class="acts"><button class="btn" id="mNo">Hủy</button><button class="btn ${danger?'':'pri'}" id="mOk" ${danger?'style="background:#dc2626;border-color:#dc2626;color:#fff"':''}>${okText}</button></div>`);
@@ -481,13 +493,13 @@ function blankReport(date){
     weather:{am:'',pm:'',temp:''},
     manpower: CFG.manpower.map(t=>({title:t, qty:0})), equipment: CFG.equipment.map(t=>({name:t, qty:0})),
     materials:[], safety:{summary:CFG.safetyDefault, issues:[]},
-    layout:{img:'', fileId:'', caption:'Mặt bằng thi công công trường'}, extraPhotos:[],
+    layouts:[], extraPhotos:[],
     tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[], photos:[] };
 }
 function blankSub(date, uidv){ return { key:date+'|'+uidv, date, uid:uidv, status:'draft', tasks:[], plans:[], inspections:[], inspectionPlans:[], tests:[], testPlans:[], photos:[], note:'', returnNote:'', rolledFrom:'', submittedAt:'', enteredBy:'', updatedAt:'' }; }
 function normReport(r){ const o = Object.assign(blankReport(r.date), r);
   o.weather = Object.assign({am:'',pm:'',temp:''}, r.weather||{}); o.safety = Object.assign({summary:'',issues:[]}, r.safety||{});
-  o.layout = Object.assign({img:'',fileId:'',caption:''}, r.layout||{});
+  o.layouts = (Array.isArray(r.layouts) ? r.layouts : (r.layout && (r.layout.img || r.layout.fileId) ? [r.layout] : [])).map(l=>Object.assign({id:uid(), img:'', fileId:'', caption:''}, l)); delete o.layout;
   ['tasks','plans','inspections','inspectionPlans','tests','testPlans','photos','materials','manpower','equipment','extraPhotos','log'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
 function normSub(s){ const o = Object.assign(blankSub(s.date, s.uid), s); ['tasks','plans','inspections','inspectionPlans','tests','testPlans','photos'].forEach(k=>o[k]=o[k]||[]); normWork(o); return o; }
 
@@ -586,10 +598,10 @@ const IDB = { db:null, mem:{reports:new Map(),subs:new Map(),periods:new Map(),k
   async all(s){ if(!(await this.open())) return [...this.mem[s].values()].map(clone); const r = await this.tx(s,'readonly',st=>st.getAll()); return (r||[]).map(x=>x.v); }
 };
 const pinHash = (uidv, pin) => sha('bcn|' + uidv + '|' + pin);
-const stripImgs = o => { const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layout?[c.layout]:[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; };
+const stripImgs = o => { const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layouts||[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; };
 let TOKEN = '';
 const gas = (fn, ...a) => new Promise((res,rej)=> google.script.run.withSuccessHandler(res).withFailureHandler(err=>{
-  if (/AUTH/.test(err && err.message)) { try { localStorage.removeItem('bcn_session'); } catch(x){} ME = null; TOKEN = ''; toast('Phiên đăng nhập đã hết hạn – vui lòng đăng nhập lại', 5000); showLogin(); }
+  if (/AUTH/.test(err && err.message)) { sessClear(); ME = null; TOKEN = ''; toast('Phiên đăng nhập đã hết hạn – vui lòng đăng nhập lại', 5000); showLogin(); }
   rej(err); })[fn](...a));
 const J = s => s ? JSON.parse(s) : null;
 let BOOT = null; try { BOOT = JSON.parse(document.getElementById('bootData').textContent); } catch(e){}
@@ -599,13 +611,13 @@ function defaultDate(idx, mode){ if (mode==='my') return today(); const ds = idx
 const Store = IS_GAS ? {
   boot: async () => BOOT || J(await gas('apiBoot')),
   setup: async (cfg, pin) => J(await gas('apiSetup', JSON.stringify(cfg), pin)),
-  login: async (u, pin, mode) => J(await gas('apiLogin', u, pin, mode)),
+  login: async (u, pin, mode, rem) => J(await gas('apiLogin', u, pin, mode, !!rem)),
   open: async (d, mode, u) => J(await gas('apiOpen', TOKEN, d||'', mode, u||'')),
   images: async ids => J(await gas('apiImages', TOKEN, ids)),
   saveConfig: c => gas('apiSaveConfig', TOKEN, JSON.stringify(c)),
   setPin: (u, pin) => gas('apiSetPin', TOKEN, u, pin),
-  saveSub: async s => J(await gas('apiSaveSub', TOKEN, JSON.stringify(s))),
-  saveReport: async r => J(await gas('apiSaveReport', TOKEN, JSON.stringify(r))),
+  saveSub: async s => J(await gas('apiSaveSub', TOKEN, JSON.stringify(withBase(s)))),
+  saveReport: async r => J(await gas('apiSaveReport', TOKEN, JSON.stringify(withBase(r)))),
   deleteDay: d => gas('apiDeleteDay', TOKEN, d),
   period: async (a,b,k) => J(await gas('apiPeriod', TOKEN, a, b, k)),
   allReports: async () => (J(await gas('apiPeriod', TOKEN, '0000-01-01', '9999-12-31', '')) || {}).reports || [],
@@ -632,11 +644,11 @@ const Store = IS_GAS ? {
   images: async () => ({}),
   saveConfig: async c => { const old = await IDB.get('kv','config') || {}; c = clone(c); c.pins = old.pins || {}; await IDB.put('kv','config',c); },
   setPin: async (u, pin) => { const c = await IDB.get('kv','config'); c.pins = c.pins||{}; c.pins[u] = await pinHash(u, pin); await IDB.put('kv','config',c); },
-  saveSub: async s => { await markTestL(s.date); await IDB.put('subs', s.key, s); return {ok:true}; },
-  saveReport: async r => { await markTestL(r.date); const old = await IDB.get('reports', r.date), kept = old && old.review || null;
+  saveSub: async s => { await markTestL(s.date); s = withBase(s); revL(s, await IDB.get('subs', s.key)); await IDB.put('subs', s.key, s); return {ok:true, rev:s.rev}; },
+  saveReport: async r => { await markTestL(r.date); r = withBase(r); const old = await IDB.get('reports', r.date), kept = old && old.review || null; revL(r, old);
     if (r.status==='locked') r.review = (!old || old.status!=='locked') ? (reviewOn() ? {status:'pending', since:nowStr(), lastNote: kept && kept.status==='returned' ? kept.note : ''} : null) : kept;
     else r.review = kept && kept.status==='returned' ? kept : null;
-    await IDB.put('reports', r.date, r); return {ok:true, review:r.review}; },
+    await IDB.put('reports', r.date, r); return {ok:true, rev:r.rev, review:r.review}; },
   deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key);
     const L = await IDB.get('kv','testDays') || []; await IDB.put('kv','testDays', L.filter(x=>x!==d)); },
   review: async (d, act, note) => { const r = await IDB.get('reports', d); if (!r || r.status!=='locked') throw new Error('Báo cáo chưa được nhà thầu chốt');
@@ -644,7 +656,7 @@ const Store = IS_GAS ? {
       r.review = {status:'approved', by:ME.id, at:nowStr(), code:h.slice(0,4)+'-'+h.slice(4,8), version:r.version||1};
       const vl = await IDB.get('kv','vlog') || []; vl.push({code:r.review.code, date:d, by:ME.name, at:r.review.at}); await IDB.put('kv','vlog', vl); }
     else { if (!String(note||'').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); r.review = {status:'returned', by:ME.id, at:nowStr(), note:String(note).trim(), version:r.version||1}; r.status = 'draft'; }
-    await IDB.put('reports', d, r); return r.review; },
+    r.rev = (r.rev||0) + 1; await IDB.put('reports', d, r); return r.review; },
   verify: async code => { const k = String(code||'').toUpperCase().replace(/[^0-9A-F]/g,''); if (k.length!==8) return {ok:false}; const cd = k.slice(0,4)+'-'+k.slice(4);
     const r = (await IDB.all('reports')).find(x=>x.review && x.review.status==='approved' && x.review.code===cd);
     if (r) return {ok:'current', date:r.date, version:r.review.version, by:userName(r.review.by), at:r.review.at, lockedAt:r.lockedAt||'', lockedBy:userName(r.lockedBy), pdf:''};
@@ -760,7 +772,7 @@ function newSub(date, u){
 function newReport(date){
   const r = blankReport(date); const prev = prevMerged();
   if (prev){ r.manpower = prev.manpower.map(m=>({title:m.title, qty:m.qty})); r.equipment = prev.equipment.map(m=>({name:m.name, qty:m.qty}));
-    r.layout = {img:prev.layout.img||'', fileId:prev.layout.fileId||'', caption:prev.layout.caption||''}; r.rolledFrom = prev.date; }
+    r.layouts = (prev.layouts||[]).map(l=>({id:uid(), img:l.img||'', fileId:l.fileId||'', caption:l.caption||''})); r.rolledFrom = prev.date; }
   return r;
 }
 function autoPlan(s){
@@ -788,13 +800,13 @@ async function exifDate(file){
   } catch(e){} return null;
 }
 function loadImg(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=fr.result; }; fr.onerror=rej; fr.readAsDataURL(file); }); }
-async function processImage(file, crop, stamp){
+async function processImage(file, crop, stamp, opt){ opt = opt || {};
   const taken = (await exifDate(file)) || new Date(file.lastModified || Date.now());
   const im = await loadImg(file), c = document.createElement('canvas'), x = c.getContext('2d');
   if (crop){ const W=1280,H=960, ar=W/H; let sw=im.width, sh=im.height, sx=0, sy=0;
     if (sw/sh > ar){ sw = sh*ar; sx=(im.width-sw)/2; } else { sh = sw/ar; sy=(im.height-sh)/2; }
     c.width=W; c.height=H; x.drawImage(im, sx, sy, sw, sh, 0, 0, W, H);
-  } else { const s = Math.min(1, 1800/im.width); c.width=Math.round(im.width*s); c.height=Math.round(im.height*s); x.drawImage(im,0,0,c.width,c.height); }
+  } else { const s = opt.max ? Math.min(1, opt.max/Math.max(im.width, im.height)) : Math.min(1, 1800/im.width); c.width=Math.round(im.width*s); c.height=Math.round(im.height*s); x.drawImage(im,0,0,c.width,c.height); }
   let warn = '';
   if (stamp){
     const td = iso(taken), hh = String(taken.getHours()).padStart(2,'0')+':'+String(taken.getMinutes()).padStart(2,'0');
@@ -805,7 +817,7 @@ async function processImage(file, crop, stamp){
     const rt = `${stamp.proj}${stamp.zone ? ' · ' + stamp.zone : ''}`; x.fillText(rt, c.width - 14 - x.measureText(rt).width, c.height - bh/2);
     if (warn){ x.fillStyle = 'rgba(220,38,38,.85)'; const t2 = '⚠ ' + warn; x.font = `bold ${Math.round(bh*0.36)}px Arial`; const w2 = x.measureText(t2).width + 20; x.fillRect(0, 0, w2, bh*0.8); x.fillStyle='#fff'; x.fillText(t2, 10, bh*0.4); }
   }
-  return { img: c.toDataURL('image/jpeg', 0.8), takenAt: taken.toISOString(), warn };
+  return { img: c.toDataURL('image/jpeg', opt.q || 0.8), takenAt: taken.toISOString(), warn };
 }
 
 /* ===================== ĐIỀU HƯỚNG ===================== */
@@ -855,6 +867,7 @@ function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date==
 /* Gói dữ liệu → trạng thái màn hình (không gọi máy chủ) */
 function applyBundle(b, mode, u){
   IDX = b.index || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
+  if ('others' in b) othersBanner(b.others);
   R = b.report ? normReport(b.report) : null;
   const pm = R && R.status==='locked' ? null : prevMerged();
   if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); if (pm) SUBS.forEach(s=>syncPrev(s, pm)); applyMerge(); renderDayAll(); if (!SYNCING) autoWeather(false); }
@@ -1204,10 +1217,11 @@ function renderForm(){
     ${R.safety.issues.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${ta(`safety.issues.${i}.desc`,t.desc,'',1)}</td><td>${ta(`safety.issues.${i}.action`,t.action,'',1)}</td><td>${delBtn('safety.issues',i)}</td></tr>`).join('') || '<tr><td colspan="4" class="hint" style="padding:12px">Không có vi phạm/sự cố.</td></tr>'}</tbody></table></div>`;
   }
   if (TAB==='layout'){
-    h += `<div class="ph"><h3>🗺 Mặt bằng thi công</h3>${R.layout.img && !RO ? '<button class="btn sm" data-act="clearLayout">Xóa ảnh</button>':''}</div>
-    ${RO?'':'<label class="drop">📤 Chọn ảnh mặt bằng (giữ tỷ lệ, tự nén). Ngày sau tự kế thừa.<input type="file" accept="image/*" data-img="layout"></label>'}
-    ${R.layout.img ? `<img src="${R.layout.img}" style="width:100%;margin-top:12px;border:1px solid var(--bd);border-radius:10px">` : '<p class="hint" style="margin-top:10px">Chưa có ảnh mặt bằng.</p>'}
-    <label class="l">Chú thích</label>${inp('layout.caption', R.layout.caption)}`;
+    const L = R.layouts, full = L.length >= LAYOUT_MAX;
+    h += `<div class="ph"><h3>🗺 Mặt bằng thi công</h3><span class="hint">${L.length}/${LAYOUT_MAX} ảnh</span></div>
+    ${RO ? '' : full ? `<p class="note">Đã đủ ${LAYOUT_MAX} ảnh mặt bằng – xóa bớt để thêm ảnh khác.</p>` : `<label class="drop">📤 Thêm ảnh mặt bằng (chọn được nhiều ảnh, tối đa ${LAYOUT_MAX}). Ảnh giữ độ nét cao; ngày sau tự kế thừa cả bộ.<input type="file" accept="image/*" multiple data-img="layouts"></label>`}
+    ${L.length ? `<div class="lylist">${L.map((l,i)=>`<div class="lyc"><div class="lyi">${l.img?`<img src="${l.img}">`:`<div class="noimg">${l.fileId?'Đang tải ảnh…':'—'}</div>`}</div>
+      <div class="lyf"><b>Mặt bằng ${i+1}</b>${inp(`layouts.${i}.caption`, l.caption, 'Chú thích, VD: Mặt bằng tầng hầm B1')}<div class="bar" style="margin:6px 0 0">${mvBtns('layouts', i, L.length)}${delBtn('layouts', i)}</div></div></div>`).join('')}</div>` : '<p class="hint" style="margin-top:10px">Chưa có ảnh mặt bằng.</p>'}`;
   }
   if (TAB==='photos'){
     const subPh = R.photos.filter(p=>p.by);
@@ -1223,7 +1237,7 @@ function renderForm(){
 /* ===================== ẢNH: TẢI SAU + BỘ ĐỆM ===================== */
 const IMGMEM = {};
 function imgObjs(){ const o = [], add = x => { if (x && x.fileId && !x.img) o.push(x); };
-  if (R) { add(R.layout); (R.extraPhotos||[]).forEach(add); (R.photos||[]).forEach(add); } SUBS.forEach(s=>(s.photos||[]).forEach(add)); if (S) (S.photos||[]).forEach(add); return o; }
+  if (R) { (R.layouts||[]).forEach(add); (R.extraPhotos||[]).forEach(add); (R.photos||[]).forEach(add); } SUBS.forEach(s=>(s.photos||[]).forEach(add)); if (S) (S.photos||[]).forEach(add); return o; }
 let imgTimer = null;
 function rerenderImgs(){ clearTimeout(imgTimer); imgTimer = setTimeout(()=>{ if (VIEW==='day'){ applyMerge(); renderDoc(); if (TAB==='photos'||TAB==='layout') renderForm(); }
   if (VIEW==='my'){ renderMyDoc(); if (MYTAB==='photos') renderMy(); } }, 120); }
@@ -1236,6 +1250,13 @@ async function loadImages(){
   const miss = ids.filter(id=>!have[id]); const batches = []; for (let i=0;i<miss.length;i+=3) batches.push(miss.slice(i,i+3));
   await Promise.all(batches.map(async b=>{ try { const m = await Store.images(b) || {};
     for (const [id,v] of Object.entries(m)) { if (!v) continue; have[id] = v; IMGMEM[id] = v; try { await IDB.put('imgs', id, v); } catch(e){} } fill(); } catch(e){} }));
+}
+const LAYOUT_MAX = 6;
+/** Mặt bằng thi công: mỗi ảnh 1 ô cao ~1/3 trang A4 (3 ảnh / trang), ảnh giữ tỷ lệ, chú thích dưới. */
+function layoutsHtml(r, o){
+  const L = (r.layouts||[]).filter(l=>l.img || l.fileId);
+  if (!L.length) return `<table class="phc"><tr><td class="noph">Mặt bằng thi công</td></tr></table>`;
+  return L.map(l=>`<div class="lyt"><table class="lyw"><tr><td>${(l.img||(o&&o.pdf&&l.fileId)) ? `<img src="${imgSrc(l,o)}">` : '<span class="mut">Đang tải ảnh…</span>'}</td></tr></table><div class="sm">${esc(l.caption)}</div></div>`).join('');
 }
 const imgSrc = (ph, o) => o && o.pdf && ph.fileId ? 'fid:' + ph.fileId : (ph.img || '');
 
@@ -1304,8 +1325,8 @@ function docHTML(r, o={}){
     ${r.materials.length ? r.materials.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.spec)}</td><td class="c">${esc(t.unit)}</td><td class="c">${esc(t.qty)}</td></tr>`).join('') : '<tr><td></td><td colspan="4" class="mut">Không có vật tư nhập về</td></tr>'}</table>
     <div class="sec">7. SỨC KHỎE VÀ AN TOÀN / HEALTH AND SAFETY</div><div class="txt">${esc(r.safety.summary)}</div>
     ${r.safety.issues.length ? `<table class="grid" style="margin-top:6px"><tr><th class="c">Stt</th><th>Nhắc nhở / vi phạm / sự cố</th><th>Biện pháp xử lý</th></tr>${r.safety.issues.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(t.action)}</td></tr>`).join('')}</table>`:''}
-    <div class="sec">8. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>
-    ${(r.layout.img||r.layout.fileId) ? `<div style="text-align:center"><img src="${imgSrc(r.layout,o)}" style="max-width:100%;max-height:520px"><div class="sm">${esc(r.layout.caption)}</div></div>` : `<table class="phc"><tr><td class="noph">${esc(r.layout.caption)||'Mặt bằng thi công'}</td></tr></table>`}`;
+    <div class="sec ${(r.layouts||[]).some(l=>l.img||l.fileId)?'lysec':''}">8. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>
+    ${layoutsHtml(r, o)}`;
   }
   h += `<div class="sec">${N[3]}. HÌNH ẢNH THỰC TẾ TRÊN CÔNG TRƯỜNG / ON-SITE PICTURES</div><table class="phc">`;
   for (let i=0;i<r.photos.length;i+=2) h += '<tr>' + [r.photos[i], r.photos[i+1]].map(ph => !ph ? '<td></td>' : `<td>${(ph.img||(o.pdf&&ph.fileId))?`<img src="${imgSrc(ph,o)}">`:`<div class="noph" style="display:table;width:100%"><span style="display:table-cell;vertical-align:middle">${ph.fileId?'Đang tải ảnh…':'Ảnh'}</span></div>`}<div style="margin-top:3px">${esc(ph.caption)}</div></td>`).join('') + '</tr>';
@@ -1378,37 +1399,63 @@ function renderDoc(){ $('#doc').innerHTML = R ? docHTML(R) : ''; }
 function schedulePreview(){ clearTimeout(prevTimer); prevTimer = setTimeout(()=>{ if (VIEW==='my') renderMyDoc(); else { renderDoc(); const s=$('#sumMp'); if(s&&R) s.textContent=R.manpower.reduce((a,m)=>a+num(m.qty),0); } }, 150); }
 
 /* ===================== LƯU ===================== */
+/* Chống ghi đè: gửi kèm baseRev (rev lúc mở); máy chủ thấy đã có bản mới hơn → lỗi CONFLICT|giờ|người. */
+const withBase = o => Object.assign({}, o, {baseRev: o.rev || 0});
+function revL(o, old){ const base = o.baseRev, force = o.force; delete o.baseRev; delete o.force; const cur = old ? (old.rev||0) : 0;
+  if (old && !force && base != null && +base !== cur) throw new Error('CONFLICT|' + (old.savedAt||'') + '|' + (old.savedBy ? userName(old.savedBy) : ''));
+  o.rev = cur + 1; o.savedAt = nowStr(); o.savedBy = ME ? ME.id : ''; }
+const isConflict = e => /CONFLICT\|/.test(String(e && e.message || e));
+const CONFL = {R:false, S:false}, FORCE = {R:false, S:false}, SAVEQ = {R:Promise.resolve(), S:Promise.resolve()};
+function conflictModal(root, e){
+  const m = String(e.message||e).split('CONFLICT|')[1].split('|'), at = m[0] || '', by = m[1] || '';
+  const what = root==='S' ? 'Phiếu ' + (S ? (S.uid===(ME&&ME.id) ? 'của bạn' : 'của ' + userName(S.uid)) + ' ngày ' + vi(S.date) : '') : 'Báo cáo ngày ' + (R ? vi(R.date) : '');
+  CONFL[root] = true; setSave('err');
+  modal(`<h3>⚠ Dữ liệu vừa được sửa ở nơi khác</h3><p>${esc(what)} vừa được lưu${by?' bởi <b>'+esc(by)+'</b>':''}${at?' lúc <b>'+esc(at)+'</b>':''} từ thiết bị/phiên khác. Lưu tiếp sẽ <b>ghi đè</b> phần thay đổi đó.</p>
+    <p class="hint">Phần bạn vừa nhập trên máy này <b>chưa được lưu</b>.</p>
+    <div class="acts"><button class="btn pri" id="cfReload">⟳ Tải bản mới (bỏ phần vừa nhập)</button><button class="btn" id="cfKeep" style="color:#b91c1c">Giữ bản của tôi (ghi đè)</button></div>`);
+  $('#cfReload').onclick = async ()=>{ closeModal(); CONFL[root] = false; dirty[root] = false; clearTimeout(saveTimer[root]);
+    if (root==='S' && S) await openMy(S.date, S.uid); else if (R) await openDay(R.date); toast('✔ Đã tải bản mới nhất'); };
+  $('#cfKeep').onclick = ()=>{ closeModal(); CONFL[root] = false; FORCE[root] = true; root==='S' ? saveS() : saveR(); };
+}
+/** Lưu phiếu của người khác (trả lại / nhận) – trùng → tải lại ngày. */
+async function saveOtherSub(s){ try { const res = await Store.saveSub(IS_GAS ? lite(s) : s); if (res && res.rev) s.rev = res.rev; return true; }
+  catch(e){ if (!isConflict(e)) throw e; toast('⚠ Phiếu của ' + userName(s.uid) + ' vừa được sửa ở nơi khác – đã tải lại ngày, thao tác lại giúp', 6000); await openDay(DATE); return false; } }
+
 function rememberWbs(list){ const add = {}; list.forEach(t=>{ const k=(t.desc||'').trim().toLowerCase(); if(k && t.wbs && CFG.wbsMemory[k]!==t.wbs){ CFG.wbsMemory[k]=t.wbs; add[k]=t.wbs; } }); return add; }
 function setSave(st){ const el = $('#saveState'); if (!el) return; el.style.display = st ? '' : (el.dataset.ok ? '' : 'none');
   if (st==='saving') el.textContent = '⏳ Đang lưu…'; else if (st==='sync') el.textContent = '⏳ Đang tải…';
   else if (st==='err') el.textContent = '⚠ Chưa lưu được'; else if (st==='ok') { el.dataset.ok = 1; el.textContent = '✔ Đã lưu ' + nowStr().slice(-5); } }
-function lite(o){ const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layout?[c.layout]:[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; }
-async function saveS(silent){
-  if (!S) return; clearTimeout(saveTimer.S); dirty.S = false; setSave('saving');
+function lite(o){ const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layouts||[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; }
+function saveS(silent){ return SAVEQ.S = SAVEQ.S.then(()=>saveS_(silent)); }
+function saveR(silent){ return SAVEQ.R = SAVEQ.R.then(()=>saveR_(silent)); }
+async function saveS_(silent){
+  if (!S || CONFL.S) return; clearTimeout(saveTimer.S); dirty.S = false; setSave('saving');
   try { S.updatedAt = nowStr(); if (S_OTHER && !S.enteredBy && S.uid !== ME.id && !S.submittedAt) S.enteredBy = ME.id;
-    const payload = IS_GAS ? lite(S) : S; payload.wbsMem = rememberWbs(S.tasks);
-    const res = await Store.saveSub(payload); delete S.wbsMem;
+    const payload = IS_GAS ? lite(S) : S; payload.wbsMem = rememberWbs(S.tasks); if (FORCE.S) payload.force = true;
+    const res = await Store.saveSub(payload); delete S.wbsMem; delete S.force; FORCE.S = false; if (res && res.rev) S.rev = res.rev;
     if (res && res.photos) res.photos.forEach((f,i)=>{ if (S.photos[i] && f) S.photos[i].fileId = f; });
     idxSet('subs', {date:S.date, uid:S.uid, status:S.status}); setSave('ok'); if (!silent) toast('✔ Đã lưu phiếu');
     const ft = $('#myActs .hint'); if (ft) ft.textContent = 'Lưu lần cuối ' + S.updatedAt;
-  } catch(e){ dirty.S = true; setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
+  } catch(e){ delete S.wbsMem; delete S.force; dirty.S = true; if (isConflict(e)) return conflictModal('S', e); setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
 }
-async function saveR(silent){
-  if (!R || !isChot()) return; clearTimeout(saveTimer.R); dirty.R = false; setSave('saving');
-  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks);
-    const res = await Store.saveReport(payload); delete R.wbsMem;
-    if (res && res.layout) R.layout.fileId = res.layout; if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
+async function saveR_(silent){
+  if (!R || !isChot() || CONFL.R) return; clearTimeout(saveTimer.R); dirty.R = false; setSave('saving');
+  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); if (FORCE.R) payload.force = true;
+    const res = await Store.saveReport(payload); delete R.wbsMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
+    if (res && res.layouts) res.layouts.forEach((f,i)=>{ if (R.layouts[i] && f) R.layouts[i].fileId = f; }); if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
     if (res && 'review' in res) R.review = res.review;
     idxSet('reports', {date:R.date, status:R.status, version:R.version, review:revOf(R)}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
-  } catch(e){ dirty.R = true; setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
+  } catch(e){ delete R.wbsMem; delete R.force; dirty.R = true; if (isConflict(e)) return conflictModal('R', e); setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
 }
-function markDirty(root){ dirty[root] = true; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
+function markDirty(root){ dirty[root] = true; if (CONFL[root]) return; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
 async function flush(){ if (dirty.S) await saveS(true); if (dirty.R) await saveR(true); }
 document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='hidden') flush(); });
 
 /* ===================== TUẦN / THÁNG ===================== */
+const DOW = ['CN','T2','T3','T4','T5','T6','T7'];
+const weekEnd = () => { const v = parseInt((CFG.settings||{}).weekEnd, 10); return v>=0 && v<=6 ? v : 4; };
 function periodRange(){ const d = new Date(P.anchor + 'T00:00:00');
-  if (P.kind==='week'){ const wd = (d.getDay()+6)%7, s = addDays(P.anchor, -wd); return {from:s, to:addDays(s,6), key:'W-'+s, title:'BÁO CÁO TUẦN / WEEKLY REPORT'}; }
+  if (P.kind==='week'){ const st = (weekEnd()+1)%7, s = addDays(P.anchor, -((d.getDay()-st+7)%7)); return {from:s, to:addDays(s,6), key:'W-'+s, title:'BÁO CÁO TUẦN / WEEKLY REPORT'}; }
   const s = iso(new Date(d.getFullYear(), d.getMonth(), 1)), e = iso(new Date(d.getFullYear(), d.getMonth()+1, 0)); return {from:s, to:e, key:'M-'+s.slice(0,7), title:'BÁO CÁO THÁNG / MONTHLY REPORT'}; }
 function aggregate(list){
   const A = {n:list.length, days:list.map(r=>r.date), unl:list.filter(r=>r.status!=='locked').map(r=>r.date), unv:list.filter(r=>r.status==='locked' && reviewOn() && revOf(r)!=='approved').map(r=>r.date), tst:list.filter(r=>isTestDay(r.date)).map(r=>r.date), rain:0, groups:{}, mp:{}, eq:{}, mat:{}, insp:[], tests:[], issues:[], wbsName:{}, plan:{n:0, ok:0, short:{}}};
@@ -1438,7 +1485,7 @@ function renderPeriod(){
   const pr = periodRange(), A = aggregate(P.reports), M = P.manual, ro = !isChot() ? 'disabled' : '';
   const ok = A.insp.filter(x=>x.result==='Đạt').length;
   $('#perPrevBar').innerHTML = (isChot() ? '<button class="btn" data-act="savePeriod">💾 Lưu phần nhập tay</button><button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
-  $('#periodPane').innerHTML = `<div class="bar" style="margin:0 0 14px"><select class="btn" id="pKind"><option value="week" ${P.kind==='week'?'selected':''}>Theo tuần (T2 → CN)</option><option value="month" ${P.kind==='month'?'selected':''}>Theo tháng</option></select>
+  $('#periodPane').innerHTML = `<div class="bar" style="margin:0 0 14px"><select class="btn" id="pKind"><option value="week" ${P.kind==='week'?'selected':''}>Theo tuần (${DOW[(weekEnd()+1)%7]} → ${DOW[weekEnd()]})</option><option value="month" ${P.kind==='month'?'selected':''}>Theo tháng</option></select>
     <button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button></div>
   <div class="note">Kỳ <b>${vi(pr.from)} → ${vi(pr.to)}</b>: <b>${A.n}</b> báo cáo ngày${A.n?` (${A.days.map(vi).join(', ')})`:''}.${A.unl.length ? `<br>⚠ <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – đã gom từ phiếu kỹ sư, đánh dấu <b>“số liệu tạm”</b> trên báo cáo.` : ''}${A.unv.length ? `<br>⏳ <b>${A.unv.length} ngày đã chốt nhưng chưa được TVGS xác nhận</b> (${A.unv.map(d=>vi(d).slice(0,5)).join(', ')}).` : ''}</div>
   <div class="stat"><div><b>${A.n}</b><span>Ngày có báo cáo</span></div><div><b>${A.n?r1(Object.values(A.mp).reduce((a,b)=>a+b,0)/A.n):0}</b><span>Nhân lực TB/ngày</span></div><div><b>${A.plan.n?Math.round(A.plan.ok*100/A.plan.n)+'%':'—'}</b><span>Tuân thủ KH ngày (${A.plan.ok}/${A.plan.n})</span></div><div><b>${A.rain}</b><span>Ngày có mưa</span></div><div><b>${ok}/${A.insp.length}</b><span>Nghiệm thu đạt</span></div><div><b>${A.issues.length}</b><span>Vi phạm ATLĐ</span></div></div>
@@ -1513,7 +1560,10 @@ function renderConfig(){
   if (CFGTAB==='settings'){
     const st = CFG.settings || {}, tv = CFG.users.filter(u=>u.role==='tvgs' && u.active!==false);
     const sw = (path, on, title, desc) => `<label class="swrow"><input type="checkbox" data-cfgchk="${path}" ${on?'checked':''}><span><b>${title}</b><br><span class="hint">${desc}</span></span></label>`;
-    h += `<div class="g2"><div><label class="l">Hạn nộp phiếu hằng ngày</label><input class="in" type="time" data-cfg="settings.deadline" value="${esc(st.deadline||'')}"></div></div>
+    const DN = ['Chủ nhật','Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7'], we = weekEnd();
+    h += `<div class="g2"><div><label class="l">Hạn nộp phiếu hằng ngày</label><input class="in" type="time" data-cfg="settings.deadline" value="${esc(st.deadline||'')}"></div>
+      <div><label class="l">Ngày chốt báo cáo tuần (cuối ngày)</label><select class="in" data-cfg="settings.weekEnd">${DN.map((n,i)=>`<option value="${i}" ${i===we?'selected':''}>${n} → tuần ${DN[(i+1)%7]} – ${n}</option>`).join('')}</select></div>
+      <div><label class="l">Tự đăng xuất khi không thao tác (giờ, 0 = tắt)</label><input class="in" type="number" min="0" max="72" data-cfg="settings.idleHours" value="${esc(st.idleHours ?? 8)}"></div></div>
     <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu PDF</h3></div>
     <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https://drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Báo cáo ngày – ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
     <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
@@ -1576,7 +1626,7 @@ async function toDrive(kind){
   try { toast('Đang tạo PDF…', 9000);
     if (kind==='day'){ if (!repLocked()) await saveR(true); const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
       showLink(await Store.exportPdf(docHtml(box), `${R.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report.pdf`, R.date, 'day')); }
-    else { await Store.savePeriod(P.manual); const pr = periodRange(); showLink(await Store.exportPdf(docHtml($('#pdoc')), `${P.kind==='week'?'BCT':'BCTh'}_${CFG.project.code}_${pr.from}_${pr.to}.pdf`, pr.key, P.kind)); }
+    else { await Store.savePeriod(P.manual); const pr = periodRange(); showLink(await Store.exportPdf(docHtml($('#pdoc')), (P.kind==='week' ? `${pr.to.replace(/-/g,'')}-${CFG.project.code}-Weekly Report.pdf` : `${pr.from.slice(0,7).replace(/-/g,'')}-${CFG.project.code}-Monthly Report.pdf`), pr.key, P.kind)); }
   } catch(e){ toast('⚠ Lỗi xuất PDF: '+(e.message||e), 6000); }
 }
 function showLink(url){ modal(`<h3>✔ Đã lưu PDF vào Google Drive</h3><p style="word-break:break-all"><a href="${esc(url)}" target="_blank">${esc(url)}</a></p><p class="hint">Gửi link này qua Zalo/email cho các bên.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`); }
@@ -1653,7 +1703,9 @@ document.addEventListener('change', async e=>{
   if (t.dataset.img){
     const files = [...t.files]; if (!files.length) return; toast('Đang xử lý ảnh…');
     try {
-      if (t.dataset.img==='layout'){ R.layout.img = (await processImage(files[0], false)).img; R.layout.fileId=''; markDirty('R'); renderForm(); renderDoc(); }
+      if (t.dataset.img==='layouts'){ const room = LAYOUT_MAX - R.layouts.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${LAYOUT_MAX})`, 4000);
+        for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, false, null, {max:2400, q:0.88}); R.layouts.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
+        markDirty('R'); renderForm(); renderDoc(); }
       else if (t.dataset.img==='extraPhotos'){ for (const f of files){ const p = await processImage(f, true, {date:R.date, who:ME.name, proj:CFG.project.code, zone:''}); R.extraPhotos.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,''), takenAt:p.takenAt, warn:p.warn}); } applyMerge(); markDirty('R'); renderForm(); renderDoc(); }
       else if (t.dataset.img==='subPhotos'){ const z = zoneById($('#photoZone').value); let nw = 0;
         for (const f of files){ const p = await processImage(f, true, {date:S.date, who:userName(S.uid), proj:CFG.project.code, zone:z?z.name:''}); if (p.warn) nw++;
@@ -1687,7 +1739,7 @@ document.addEventListener('click', async e=>{
   if (a==='bumpPlan'){ const i = +b.dataset.i, pl = S.plans[i]; const room = Math.max(0, 100 - (pl.base||0)); pl.add = r1(Math.min(room, num(pl.add) + (+b.dataset.v))); planCalc(pl, S.tasks);
     const el = $('#pa-'+i); if (el) el.value = pl.add; const e = $('#pt-'+i); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; markDirty('S'); schedulePreview(); }
   if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
-  if (a==='logout'){ document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); try { localStorage.removeItem('bcn_session'); } catch(x){} ME = null; TOKEN = ''; LINKS = null; showLogin(); }
+  if (a==='logout'){ document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; showLogin(); }
   if (a==='goToday'){ await flush(); DATE = today(); return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
   if (a==='prevDay' || a==='nextDay'){ await flush(); const opts = [...$('#dateSel').options].map(o=>o.value).sort(); const i = opts.indexOf(DATE), j = a==='prevDay' ? i-1 : i+1;
     if (opts[j]) { DATE = opts[j]; return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); } toast('Không còn ngày ' + (a==='prevDay'?'trước':'sau')); }
@@ -1701,7 +1753,9 @@ document.addEventListener('click', async e=>{
     if (w.w && !(await ask('Còn cảnh báo số liệu', `Phiếu còn <b>${w.w}</b> cảnh báo (chưa nhập % hôm nay / kết quả theo dõi…). Vẫn nộp?`, 'Vẫn nộp'))) return;
     if (!S.plans.length && S.tasks.some(t=>!isMon(t) && (cumOf(t)??0) < 100)) { autoPlan(S); toast('⚡ Đã tự sinh kế hoạch ngày mai'); }
     if (!S_OTHER) S.tasks.forEach(t=>{ if (!t.carried && hasV(t.startPct)) t.startLocked = true; });
-    S.status = 'submitted'; S.submittedAt = nowStr(); S.returnNote = ''; await saveS(true); renderMy(); toast('📨 Đã nộp phiếu cho người tổng hợp'); }
+    S.status = 'submitted'; S.submittedAt = nowStr(); S.returnNote = ''; await saveS(true); renderMy();
+    if (dirty.S || CONFL.S) return;
+    toastAct('📨 Đã nộp phiếu. Dùng máy chung? Bấm Đăng xuất.', 'Đăng xuất', 'logout'); }
   if (a==='withdrawSub'){ S.status = 'draft'; await saveS(true); if (dirty.S) { S.status = 'submitted'; renderMy(); return; } renderMy(); toast('Đã rút lại – có thể sửa tiếp'); }
   if (a==='saveOther'){ await saveS(); }
   if (a==='step'){ const o = getPath(R, b.dataset.path); o.qty = Math.max(0, num(o.qty) + (+b.dataset.v)); const el = $('#q-'+b.dataset.path.replace('.','-')); if (el) el.value = o.qty;
@@ -1731,22 +1785,22 @@ document.addEventListener('click', async e=>{
     S = SUBS.find(x=>x.uid===u); if (!S) { S = newSub(DATE, u); SUBS.push(S); } S_OTHER = u !== ME.id; renderMy(); renderDateSel(); loadImages();
     if (a==='enterFor') { S.enteredBy = ME.id; toast('✍ Đang nhập thay cho ' + userName(u)); } }
   if (a==='returnSub'){ const note = await prompt2('Trả lại phiếu – ' + esc(userName(b.dataset.u)), 'Ghi rõ nội dung cần sửa để kỹ sư bổ sung:', 'VD: Zone B thiếu KL ngày đào đất; ảnh giằng lớp 3 chụp ngày cũ');
-    if (note === null) return; const s = SUBS.find(x=>x.uid===b.dataset.u); s.status='returned'; s.returnNote = note || 'Cần kiểm tra lại'; await Store.saveSub(IS_GAS ? lite(s) : s); idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); applyMerge(); await saveR(true); renderDayAll(); renderDateSel(); toast('↩ Đã trả lại phiếu'); }
+    if (note === null) return; const s = SUBS.find(x=>x.uid===b.dataset.u); s.status='returned'; s.returnNote = note || 'Cần kiểm tra lại'; if (!(await saveOtherSub(s))) return; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); applyMerge(); await saveR(true); renderDayAll(); renderDateSel(); toast('↩ Đã trả lại phiếu'); }
   if (a==='saveDay') saveR();
   if (a==='lock'){
     const rows = boardRows(), miss = rows.filter(r=>!r.s || !(r.s.status==='submitted'||r.s.status==='accepted'));
     if (miss.length && !(await ask('Còn phiếu chưa nộp', `<p>Các kỹ sư sau chưa nộp phiếu – phần việc của họ sẽ <b>không có</b> trong báo cáo:</p><ul>${miss.map(r=>`<li>${esc(userName(r.u))} – ${r.s?SUB_ST[r.s.status][1]:'chưa có phiếu'}</li>`).join('')}</ul><p>Vẫn chốt?</p>`, 'Vẫn chốt'))) return;
     applyMerge(); const w = allWarn(R.tasks);
     if (w.e && !(await ask('Còn lỗi số liệu', `Báo cáo còn <b>${w.e}</b> lỗi (VD % vượt 100). Vẫn chốt?`, 'Vẫn chốt', true))) return;
-    await Promise.all(SUBS.filter(s=>s.status==='submitted').map(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); return Store.saveSub(IS_GAS ? lite(s) : s); }));
+    const okAll = await Promise.all(SUBS.filter(s=>s.status==='submitted').map(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); return saveOtherSub(s); }));
+    if (okAll.includes(false)) return;
     R.lockCount = (R.lockCount||0) + 1; R.version = R.lockCount; R.status='locked'; R.lockedBy = ME.id; R.lockedAt = nowStr(); R.log.push({act:'lock', by:ME.id, at:R.lockedAt, v:R.version});
     applyMerge(); await saveR(true); renderDateSel(); renderDayAll();
     if (reviewOn()) zaloModal('🔒 Đã chốt – chờ TVGS kiểm tra', `Báo cáo đã gửi sang TVGS. Sau khi TVGS xác nhận nội dung mới xuất được PDF chính thức. Có thể sao chép tin nhắn dưới đây gửi nhóm Zalo để nhắc TVGS:`,
       `📨 [${CFG.project.code}] Nhà thầu đã chốt Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Nhờ TVGS kiểm tra nội dung trên app báo cáo ngày.`);
     else toast(`🔒 Đã chốt báo cáo ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}. Bấm “Lưu PDF vào Google Drive”.`, 5000); }
-  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>, bản cũ trên Drive được giữ lại.${revOf(R)==='approved'?'<p class="note w" style="margin:10px 0 0">⚠ Báo cáo đã được TVGS xác nhận. Mở khóa sẽ <b>hủy dấu xác nhận</b> – chốt lại xong phải chờ TVGS kiểm tra lại.</p>':''}`))) return;
+  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>; khi xuất lại, PDF mới thay file cũ cùng tên trên Drive.${revOf(R)==='approved'?'<p class="note w" style="margin:10px 0 0">⚠ Báo cáo đã được TVGS xác nhận. Mở khóa sẽ <b>hủy dấu xác nhận</b> – chốt lại xong phải chờ TVGS kiểm tra lại.</p>':''}`))) return;
     R.status='draft'; R.log.push({act:'unlock', by:ME.id, at:nowStr()}); await saveR(true); renderDateSel(); renderDayAll(); }
-  if (a==='clearLayout'){ R.layout.img=''; R.layout.fileId=''; markDirty('R'); renderForm(); renderDoc(); }
   if (a==='drive'){ if (reviewOn() && revOf(R)!=='approved') { toast(repLocked() ? '⏳ Chờ TVGS xác nhận nội dung rồi mới xuất PDF chính thức được' : 'Chốt báo cáo và chờ TVGS xác nhận rồi mới xuất PDF chính thức', 5000); return; } toDrive('day'); }
   if (a==='approveRep'){ if (!(await ask('Xác nhận nội dung báo cáo', `Xác nhận nội dung <b>Báo cáo ngày ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}</b> là đúng?<p class="hint" style="padding:6px 0 0">PDF sẽ có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” kèm mã xác thực. Nhà thầu được phép xuất PDF và gửi các bên.</p>`, '✔ Xác nhận'))) return;
     try { R.review = await Store.review(R.date, 'approve'); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'approved'}); renderDateSel(); renderDayAll();
@@ -1868,14 +1922,14 @@ async function resetAllFlow(){
     if ($('#rsCode').value.trim().toUpperCase() !== String(CFG.project.code).toUpperCase()) { $('#rsCode').classList.add('err'); toast('Mã dự án không khớp'); return; }
     closeModal(); toast('Đang reset…', 8000);
     try { clearTimeout(saveTimer.R); clearTimeout(saveTimer.S); dirty = {R:false,S:false}; const arch = await Store.resetAll();
-      try { localStorage.removeItem('bcn_session'); } catch(x){}
+      sessClear();
       CFG = clone(GENERIC_CFG); R = null; S = null; ME = null; VIEW=''; LINKS = null; BOOT = null; IDX = {reports:[],subs:[]}; try { Object.keys(localStorage).filter(k=>k.startsWith('bcn_last_')).forEach(k=>localStorage.removeItem(k)); } catch(x){} renderNav(); showSetup();
       toast(arch ? '✔ Đã lưu trữ dữ liệu cũ và reset. Khai báo dự án mới.' : '✔ Đã reset. Khai báo dự án mới.', 5000);
     } catch(e){ toast('⚠ Lỗi reset: ' + (e.message||e), 6000); } };
 }
 
 /* ===================== ĐĂNG NHẬP ===================== */
-function showLogin(){
+function showLogin(){ othersBanner(0);
   renderNav(); ['my','day','period','config'].forEach(v=> $('#v-'+v).classList.add('hide')); $('#dayBar').classList.add('hide');
   const us = CFG.users.filter(u=>u.active!==false);
   const demo = CFG.sample && CFG.demoPins ? `<div class="note" style="margin-top:14px">Demo: ${us.map(u=>`${esc(u.name)} = <b>${esc(CFG.demoPins[u.id]||'?')}</b>`).join(' · ')}</div>` : '';
@@ -1883,23 +1937,42 @@ function showLogin(){
     <div><h1 style="font-size:17px">Đăng nhập</h1><p>${esc(CFG.project.code)} · ${esc(CFG.project.name)}</p></div></div>
     <label class="l">Tên người dùng</label><select class="in" id="loginUser">${us.map(u=>`<option value="${u.id}">${esc(u.name)} – ${esc(ROLES[u.role])}</option>`).join('')}</select>
     <label class="l">PIN</label><input class="in pin" id="pinIn" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
-    <button class="btn pri" data-act="doLogin" style="width:100%;justify-content:center;margin-top:16px;padding:10px">Đăng nhập</button>${demo}
+    <label class="swrow" style="margin-top:12px"><input type="checkbox" id="remember"><span><b>Ghi nhớ đăng nhập trên máy này</b><br><span class="hint">Chỉ chọn trên điện thoại / máy tính cá nhân. Không chọn: tắt trình duyệt là tự đăng xuất.</span></span></label>
+    <button class="btn pri" data-act="doLogin" style="width:100%;justify-content:center;margin-top:12px;padding:10px">Đăng nhập</button>${demo}
     <p class="hint" style="margin-top:12px;padding:0">Quên PIN: liên hệ người quản trị dự án để đặt lại.</p></div>`;
   $('#login').classList.add('on');
 }
 const modeOf = u => { const m = CFG.users.find(x=>x.id===u); return m && (m.role==='ks') ? 'my' : 'day'; };
-async function doLogin(){ const u = $('#loginUser').value, pin = $('#pinIn').value.trim(); const btn = document.querySelector('[data-act=doLogin]');
+async function doLogin(){ const u = $('#loginUser').value, pin = $('#pinIn').value.trim(), rem = !!($('#remember') && $('#remember').checked); const btn = document.querySelector('[data-act=doLogin]');
   btn.disabled = true; btn.textContent = 'Đang đăng nhập…';
-  try { const r = await Store.login(u, pin, modeOf(u)); if (!r) { $('#pinIn').classList.add('err'); toast('PIN không đúng'); return; } await startSession(r.token, r.uid, r.bundle); }
+  try { const r = await Store.login(u, pin, modeOf(u), rem); if (!r) { $('#pinIn').classList.add('err'); toast('PIN không đúng'); return; } await startSession(r.token, r.uid, r.bundle, rem); }
   catch(e){ toast('⚠ ' + (e.message||e)); } finally { btn.disabled = false; btn.textContent = 'Đăng nhập'; } }
-async function startSession(token, u, bundle){
-  TOKEN = token; try { localStorage.setItem('bcn_session', JSON.stringify({token, uid:u, code:CFG.project.code})); } catch(x){}
+async function startSession(token, u, bundle, remember){
+  TOKEN = token; if (remember !== undefined) sessSave({token, uid:u, code:CFG.project.code}, remember); touchAct(); OTHERS_NOTE = '';
   ME = CFG.users.find(x=>x.id===u); if (!ME || ME.active===false) { toast('Tài khoản không còn hoạt động'); return showLogin(); }
   $('#login').classList.remove('on'); setSub(); R = null; S = null;
   VIEW = navItems()[0][0]; renderNav(); loadLogos();
   if (bundle) { applyBundle(bundle, VIEW, ME.id); try { localStorage.setItem(cacheKey(VIEW, ME.id), JSON.stringify(bundle)); } catch(e){} }
   else if (VIEW==='my') await openMy('', ME.id); else await openDay('');
 }
+
+/* ===================== PHIÊN ĐĂNG NHẬP ===================== */
+/* Ghi nhớ → localStorage (máy cá nhân); không ghi nhớ → sessionStorage (tắt trình duyệt là hết). */
+function sessSave(o, remember){ sessClear(); try { (remember ? localStorage : sessionStorage).setItem('bcn_session', JSON.stringify(o)); } catch(x){} }
+function sessLoad(){ for (const st of [sessionStorage, localStorage]) { try { const v = JSON.parse(st.getItem('bcn_session')||'null'); if (v) return v; } catch(x){} } return null; }
+function sessClear(){ try { localStorage.removeItem('bcn_session'); } catch(x){} try { sessionStorage.removeItem('bcn_session'); } catch(x){} }
+/* Tự đăng xuất khi không thao tác quá N giờ (Cài đặt, mặc định 8, 0 = tắt) */
+const idleH = () => { const v = parseFloat((CFG.settings||{}).idleHours); return isNaN(v) ? 8 : v; };
+let ACT_T = 0;
+function touchAct(){ const n = Date.now(); if (n - ACT_T < 30000) return; ACT_T = n; try { localStorage.setItem('bcn_act', String(n)); } catch(x){} }
+function idleOver(){ const h = idleH(); if (!(h > 0)) return false; let t = 0; try { t = +localStorage.getItem('bcn_act') || 0; } catch(x){} return t > 0 && Date.now() - t > h * 3600e3; }
+['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev, ()=>{ if (ME) touchAct(); }, {passive:true}));
+async function idleCheck(){ if (!ME || !idleOver()) return; await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; closeModal(); showLogin(); toast(`Đã tự đăng xuất do không thao tác quá ${idleH()} giờ`, 6000); }
+setInterval(idleCheck, 60000); document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='visible') idleCheck(); });
+/* Cùng tài khoản đang mở ở thiết bị khác (máy chủ báo trong gói dữ liệu) */
+let OTHERS_NOTE = '';
+function othersBanner(n){ OTHERS_NOTE = n ? `<div class="note w" id="othersNote">⚠ Tài khoản này cũng đang mở trên <b>${n} thiết bị/phiên khác</b> (trong 10 phút qua). Tránh sửa cùng lúc ở 2 nơi; dùng chung tài khoản thì không biết ai nhập.</div>` : '';
+  const el = $('#othersBar'); if (el) el.innerHTML = OTHERS_NOTE; }
 
 /* ===================== KHỞI ĐỘNG ===================== */
 function setSub(){ if (!CFG.project.name) return; document.title = 'Báo cáo ngày – ' + CFG.project.code; const n = CFG.project.name.toLowerCase(), c = CFG.project.code;
@@ -1934,7 +2007,7 @@ function sampleDay(date, d){
   r.status = d===0 ? 'draft' : 'locked'; r.version = d===0 ? 0 : 1; r.lockCount = r.version; r.lockedBy = d? 'u_chot':''; r.lockedAt = d ? vi(date)+' 18:10' : '';
   Object.assign(r, mergeSubs(subs, true)); return {r, subs};
 }
-async function seed(){ for (const d of [2,1,0]){ const {r, subs} = sampleDay(addDays('2026-06-27', -d), d); await Store.saveReport(r); for (const s of subs) await Store.saveSub(s);
+async function seed(){ for (const d of [2,1,0]){ const {r, subs} = sampleDay(addDays('2026-06-27', -d), d); r.force = true; await Store.saveReport(r); for (const s of subs) { s.force = true; await Store.saveSub(s); }
   if (d===2 && r.review) { const o = clone(r); delete o.review; const h = (await sha(JSON.stringify(o))).toUpperCase().replace(/[^0-9A-F]/g,'').padEnd(8,'0');   // 25/06: TVGS đã xác nhận; 26/06: chờ kiểm tra
     r.review = {status:'approved', by:'u_tvgs', at:'25/06/2026 18:10', code:h.slice(0,4)+'-'+h.slice(4,8), version:1}; await IDB.put('reports', r.date, r);
     await IDB.put('kv','vlog', [{code:r.review.code, date:r.date, by:'DSPCons – TVGS (demo)', at:r.review.at}]); } } }
@@ -1961,8 +2034,10 @@ async function boot(){
   if (qv && c) { CFG = Object.assign(clone(GENERIC_CFG), c); const v = await Store.verify(qv); return showVerify(Object.assign({code:qv, project:c.project.code, projectName:c.project.name, consultant:c.project.consultantShort}, v)); }
   if (!c || !c.setupDone) { CFG = clone(GENERIC_CFG); return showSetup(); }
   CFG = Object.assign(clone(GENERIC_CFG), c); IDX = b.index || IDX; setSub();
-  let ss = null; try { ss = JSON.parse(localStorage.getItem('bcn_session')||'null'); } catch(x){}
-  if (ss && ss.code === CFG.project.code && CFG.users.find(u=>u.id===ss.uid)) return startSession(ss.token, ss.uid);
+  const ss = sessLoad();
+  if (ss && ss.code === CFG.project.code && CFG.users.find(u=>u.id===ss.uid)) {
+    if (idleOver()) { sessClear(); showLogin(); return toast(`Đã tự đăng xuất do không thao tác quá ${idleH()} giờ`, 5000); }
+    return startSession(ss.token, ss.uid); }
   showLogin();
 }
 window.addEventListener('beforeunload', ()=>{ flush(); });

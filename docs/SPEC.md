@@ -116,3 +116,34 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 - Cấu trúc: `<thư mục>/Báo cáo ngày/<yyyy-MM>` (tắt được “chia theo tháng”), `Báo cáo tuần`, `Báo cáo tháng`. Chưa chọn → thư mục mặc định `Báo cáo ngày – <mã>/PDF`.
 - Tài khoản triển khai app cần quyền Người chỉnh sửa (Editor). Mất quyền → xuất PDF báo lỗi rõ, không lưu nhầm chỗ khác. PDF cũ giữ nguyên chỗ cũ.
 - Quản trị có nút nhanh “📄 Thư mục PDF”.
+
+---
+
+# ĐẶC TẢ – Đợt 5: Kỳ tuần T6–T5, chống ghi đè, phiên đăng nhập, nhiều ảnh mặt bằng
+
+Trạng thái: **ĐÃ CHỐT** (16/11/2026).
+
+## 1. Báo cáo tuần
+- Kỳ tuần kết thúc ở **ngày chốt tuần** (Cấu hình → Cài đặt, mặc định **Thứ 5**) → tuần = Thứ 6 → Thứ 5. Khóa kỳ `W-<ngày đầu kỳ>`.
+- Báo cáo tháng giữ theo tháng dương lịch.
+- Tên PDF: `yyyymmdd(ngày cuối kỳ)-<mã>-Weekly Report.pdf`, `yyyymm-<mã>-Monthly Report.pdf`. PDF ngày: `yyyymmdd-<mã>-Daily Report.pdf` (xuất lại thay file cũ cùng tên).
+
+## 2. Chống ghi đè
+- Mỗi Report/Sub mang `rev` (máy chủ tăng mỗi lần lưu). Lưu kèm `baseRev`; máy chủ có `rev` khác → **từ chối** (lỗi `CONFLICT`), không ghi đè.
+- Giao diện báo: “Vừa được sửa ở thiết bị/người khác lúc … – Tải bản mới / Giữ bản của tôi (ghi đè)”.
+- Phiên ghi `seen` (lần gọi gần nhất). Cùng tài khoản có phiên khác hoạt động trong 10 phút → dòng nhắc “Tài khoản này cũng đang mở trên thiết bị khác”.
+
+## 3. Phiên đăng nhập
+- Ô **“Ghi nhớ đăng nhập trên máy này”** (mặc định bỏ chọn). Không chọn → phiên chỉ sống trong tab/trình duyệt (sessionStorage), máy chủ hết hạn sau 12 giờ.
+- Có chọn: Kỹ sư/TVGS/Xem 30 ngày; **Quản trị, Người chốt tối đa 7 ngày**.
+- **Tự đăng xuất sau 8 giờ không thao tác** (Cài đặt chỉnh được, 0 = tắt).
+- Sau khi nộp phiếu: thông báo có nút **Đăng xuất**.
+
+## 4. Mặt bằng thi công
+- Tối đa **6 ảnh** / ngày, mỗi ảnh có chú thích; ▲▼ sắp xếp, xóa từng ảnh; ngày sau kế thừa cả bộ. Chỉ nhận ảnh (không PDF).
+- Ảnh giữ cạnh dài ~2400 px (không nén như ảnh hiện trường).
+- PDF: **3 ảnh / trang A4**, mỗi ô cao ~1/3 trang, ảnh giữ tỷ lệ, chú thích dưới ảnh.
+- Dữ liệu: `layouts:[{id,img,fileId,caption}]`; bản cũ `layout` tự chuyển.
+
+## 5. Khác
+- Hộp thoại Mở khóa: “khi xuất lại, PDF mới thay file cũ cùng tên”.
