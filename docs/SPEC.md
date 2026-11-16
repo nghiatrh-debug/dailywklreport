@@ -107,6 +107,6 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 - Nút **▲ ▼** mỗi dòng (máy tính + điện thoại); thứ tự PDF đúng như màn hình và tự mang sang ngày sau.
 
 ## 3. Dấu TVGS = mã QR
-- PDF: **QR ~2 cm** + dòng `Verified by Consultant - XXXX-XXXX`. QR vẽ trong trình duyệt (qrcode-generator 1.5.2, MIT, nhúng sẵn).
+- PDF: **QR ~1 cm góc phải, ngang tiêu đề báo cáo** + dòng `Verified by Consultant - XXXX-XXXX` (bỏ dòng “Chốt bởi…”). QR vẽ trong trình duyệt (qrcode-generator 1.5.2, MIT, nhúng sẵn).
 - QR trỏ **trang xác thực công khai** `…/exec?v=<mã>` (không cần đăng nhập): hợp lệ / bản cũ / không tồn tại; dự án, ngày, bản, giờ nhà thầu chốt, TVGS kiểm tra, nút **Mở báo cáo PDF**.
 - File PDF ngày: **ai có link đều xem được (chỉ xem)**; ảnh, Google Sheet vẫn riêng tư.

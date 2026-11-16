@@ -61,7 +61,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await shot(pg, 'desk_chot_tasks');
     // ngày cũ đã chốt: dòng chốt
     await pg.selectOption('#dateSel', '2026-06-26'); await wait(600);
-    ok(/Chốt bởi .* 26\/06\/2026/.test(await pg.innerText('#doc')), 'PDF ngày đã chốt ghi thời điểm chốt');
+    ok(!/Chốt bởi/.test(await pg.innerText('#doc')), 'PDF ngày đã chốt: không còn dòng “Chốt bởi…”');
 
     await login(pg, 'u_than', '1111');
     ok(await pg.locator('#myPane table.ed').count() > 0, 'Kỹ sư (máy tính): bảng nhập');
@@ -87,7 +87,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(!!code, 'Xác nhận → tin nhắn Zalo soạn sẵn có mã xác thực ' + code);
     await pg.evaluate(() => closeModal());
     const d26 = await pg.innerText('#doc');
-    ok(d26.includes('Verified by Consultant - ' + code) && await pg.locator('#doc .qrst img').count() === 1, 'PDF: mã QR + “Verified by Consultant - ' + code + '”');
+    ok(d26.includes('Verified by Consultant - ' + code) && await pg.locator('#doc .ttl .qrst img').count() === 1, 'PDF: mã QR + “Verified by Consultant - ' + code + '”');
     const vurl = await pg.evaluate(() => verifyLink(R.review));
     const vp = await ctx.newPage(); await vp.goto(vurl); await wait(1200);
     const vt = await vp.innerText('body');

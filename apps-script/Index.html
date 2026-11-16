@@ -214,7 +214,8 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .phc img{width:100%;display:block;border:1px solid #e2e8f0}
 .doc .noph{border:1px dashed #cbd5e1;height:150px;color:#94a3b8;font-size:10px}
 .doc .sign td{width:50%;text-align:center;padding-top:22px;font-size:10.5px;vertical-align:top}
-.doc .qrst{text-align:center;font-size:7.5px;color:#1e3a8a;line-height:1.3}.doc .qrst img{width:76px;height:76px;display:block;margin:0 auto 2px}
+.doc .qrst{text-align:right;font-size:6.5px;color:#1e3a8a;line-height:1.25;white-space:nowrap}.doc .qrst img{width:40px;height:40px;display:block;margin:0 0 1px auto}
+.doc .ttl{width:100%;border-collapse:collapse}.doc .ttl td{vertical-align:top;padding:0}
 .doc .qrst .cd{font-family:monospace;font-weight:bold;letter-spacing:.5px}
 .doc .wxsrc{text-align:right;font-size:7.5px;color:#94a3b8;margin-top:1px}
 .doc .unv{border:1.5px dashed #dc2626;color:#dc2626;text-align:center;font-weight:bold;font-size:12px;padding:5px;margin:4px 0;letter-spacing:.5px}
@@ -1247,10 +1248,11 @@ async function loadLogos(){
   if (rest.length && IS_GAS) try { const m = await Store.images(rest) || {}; for (const [id,v] of Object.entries(m)) if (v) { IMGMEM[id] = v; got++; try { await IDB.put('imgs', id, v); } catch(e){} } } catch(e){}
   if (got) { if (VIEW==='day' && R) { renderDoc(); if (TAB==='general') renderForm(); } if (VIEW==='my' && S) renderMyDoc(); if (VIEW==='period' && P.reports) renderPeriod(); if (VIEW==='config') renderConfig(); }
 }
-function docHeader(title, o){
+function docHeader(title, o, r){
   const p = CFG.project;
   return `<table class="logos2"><tr>${LOGO_KINDS.map(([k,lab,cls,ic,sh])=>{ const src = logoSrc(k, o); return `<td>${src ? `<img src="${src}">` : `<div class="${cls}">${ic}${esc(p[sh])}</div>`}${lab}</td>`; }).join('')}</tr></table>
-  <h1>${title}</h1><div class="proj">CÔNG TRÌNH / PROJECT: ${esc(p.name)}</div><div class="loc"><b>ĐỊA ĐIỂM / LOCATION:</b> ${esc(p.location)}</div>
+  <table class="ttl"><tr><td style="width:120px"></td><td>
+  <h1>${title}</h1><div class="proj">CÔNG TRÌNH / PROJECT: ${esc(p.name)}</div><div class="loc"><b>ĐỊA ĐIỂM / LOCATION:</b> ${esc(p.location)}</div></td><td style="width:120px">${r ? qrHead(r) : ''}</td></tr></table>
   <table class="parties"><tr><td style="width:50%;padding-right:10px"><b>CHỦ ĐẦU TƯ / CLIENT:</b> ${esc(p.client)}</td><td><b>TƯ VẤN GIÁM SÁT / CONSULTANT:</b> ${esc(p.consultant)}</td></tr>
   <tr><td colspan="2"><b>NHÀ THẦU THI CÔNG / CONTRACTOR:</b> ${esc(p.contractor)}</td></tr></table><div class="hr"></div>`;
 }
@@ -1259,7 +1261,7 @@ function docSign(){ const p = CFG.project, s = CFG.signers, c = (p.contractorSho
 function docHTML(r, o={}){
   const tm = r.manpower.reduce((s,m)=>s+num(m.qty),0); let h = `<div class="doc">`;
   h += o.partial ? docHeader('PHIẾU BÁO CÁO HIỆN TRƯỜNG / SITE ENGINEER REPORT', o) + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}</b></td><td>Kỹ sư / Engineer:<b>${esc(o.who)}</b></td><td style="border:0">Khu vực:<b>${esc(zonesOf(S.uid).map(z=>z.name).join(', '))}</b></td></tr></table>`
-    : docHeader('BÁO CÁO NGÀY / DAILY REPORT', o) + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>` + (r.weatherSrc ? `<div class="wxsrc">Thời tiết: ${esc(r.weatherSrc)} · open-meteo.com (CC BY 4.0)</div>` : '') + lockLine(r);
+    : docHeader('BÁO CÁO NGÀY / DAILY REPORT', o, r) + `<table class="meta"><tr><td>Ngày / Date:<b>${vi(r.date)}${r.version>1?' (v'+r.version+')':''}</b></td><td>Sáng / Morning Weather:<b>${esc(r.weather.am)||'—'}</b></td><td>Chiều / Afternoon Weather:<b>${esc(r.weather.pm)||'—'}</b></td><td style="border:0">Nhiệt độ / Temp:<b>${esc(r.weather.temp)||'—'}</b></td></tr></table>` + (r.weatherSrc ? `<div class="wxsrc">Thời tiết: ${esc(r.weatherSrc)} · open-meteo.com (CC BY 4.0)</div>` : '') + lockLine(r);
   if (!o.partial) h += `<table><tr><td style="width:49%;vertical-align:top;padding-right:8px"><div class="sec">1. NHÂN LỰC / MANPOWER <span>TỔNG: ${tm} NGƯỜI</span></div>
     <table class="grid"><tr><th class="c">Stt</th><th>Chức vụ / Title</th><th class="c" style="width:60px">Số lượng</th></tr>${r.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c">${num(m.qty)}</td></tr>`).join('')}
     <tr class="tot"><td colspan="2" class="r">TỔNG CỘNG / TOTAL:</td><td class="c v">${tm}</td></tr></table></td><td style="vertical-align:top;padding-left:8px">
@@ -1315,7 +1317,7 @@ function lockLine(r){
 }
 function stampHtml(r){
   const rv = r.review || {};
-  if (r.status==='locked' && rv.status==='approved') return `<table style="width:100%;margin:2px 0"><tr><td></td><td style="width:150px"><div class="qrst">${qrImg(verifyLink(rv))}Verified by Consultant - <span class="cd">${esc(rv.code)}</span></div></td></tr></table>`;
+  if (r.status==='locked' && rv.status==='approved') return '';   // dấu QR nằm ngang tiêu đề (docHeader)
   if (r.status==='locked' && reviewOn()) return `<div class="unv">CHƯA KIỂM TRA – TVGS / NOT YET VERIFIED BY CONSULTANT</div>`;
   if (rv.status==='returned' && reviewOn()) return `<div class="unv">TVGS YÊU CẦU SỬA – CHƯA PHÁT HÀNH / RETURNED FOR CORRECTION</div>`;
   return '';
@@ -1326,7 +1328,7 @@ const QRMEM = {};
 /* Vẽ mã QR ngay trong trình duyệt (thư viện nhúng sẵn – không gọi dịch vụ ngoài) → ảnh PNG */
 function qrImg(text){
   if (!text) return '';
-  if (!QRMEM[text]) { try { const q = qrcode(0, 'M'); q.addData(text); q.make(); const n = q.getModuleCount(), k = 6, m = 2, c = document.createElement('canvas');
+  if (!QRMEM[text]) { try { const q = qrcode(0, 'L'); q.addData(text); q.make(); const n = q.getModuleCount(), k = 6, m = 2, c = document.createElement('canvas');
       c.width = c.height = (n + m*2) * k; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.fillStyle = '#0f172a';
       for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) g.fillRect((col+m)*k, (r+m)*k, k, k);
       QRMEM[text] = c.toDataURL('image/png'); } catch(e){ QRMEM[text] = ''; } }
@@ -1362,10 +1364,12 @@ async function autoWeather(force){
     if (force) toast(x.am || x.pm ? '🌦 Đã lấy thời tiết' + (x.pm ? '' : ' buổi sáng (buổi chiều có sau 18h)') : 'Chưa có số liệu thời tiết cho buổi đã qua của ngày này');
   } catch(e){ if (force) toast('⚠ Không lấy được thời tiết: ' + (e.message||e), 5000); }
 }
+/* Dấu TVGS: mã QR nhỏ góc phải, ngang tiêu đề báo cáo */
+function qrHead(r){ const rv = r.review || {}; if (r.status!=='locked' || rv.status!=='approved') return '';
+  return `<div class="qrst">${qrImg(verifyLink(rv))}Verified by Consultant - <span class="cd">${esc(rv.code)}</span></div>`; }
 function lockLine0(r){
   if (r.status !== 'locked') return `<div class="sm" style="text-align:right;color:#b45309;font-weight:bold">BẢN NHÁP – CHƯA CHỐT / DRAFT</div>`;
-  const n = lateDays(r);
-  return `<div class="sm" style="text-align:right">Chốt${r.lockedBy?' bởi '+esc(userName(r.lockedBy)):''} ${n>0?'ngày':'lúc'} ${esc(r.lockedAt)}${n>0?` – <span class="bad">trễ ${n} ngày</span>`:''}</div>`;
+  return '';   // bỏ dòng "Chốt bởi…" trên PDF – thời điểm chốt, trễ chốt vẫn xem trong app và nhật ký
 }
 function renderDoc(){ $('#doc').innerHTML = R ? docHTML(R) : ''; }
 function schedulePreview(){ clearTimeout(prevTimer); prevTimer = setTimeout(()=>{ if (VIEW==='my') renderMyDoc(); else { renderDoc(); const s=$('#sumMp'); if(s&&R) s.textContent=R.manpower.reduce((a,m)=>a+num(m.qty),0); } }, 150); }
