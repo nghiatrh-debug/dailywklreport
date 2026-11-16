@@ -130,7 +130,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-view=day]'); await wait(600);
     ok(await pg.evaluate(() => { const td = document.querySelectorAll('#doc .logos2 td'); return td.length === 3 && !!td[0].querySelector('img') && /TƯ VẤN GIÁM SÁT/.test(td[0].innerText) && /CHỦ ĐẦU TƯ/.test(td[1].innerText) && /NHÀ THẦU/.test(td[2].innerText); }), 'PDF: logo TVGS (trái) – CĐT (giữa) – Nhà thầu (phải)');
     await pg.click('[data-view=config]'); await wait(300); await pg.click('[data-cfgtab=settings]'); await wait(300);
-    ok(/Thư mục lưu PDF/.test(await pg.innerText('#configPane')) && await pg.isVisible('#pdfLink') && await pg.isVisible('[data-cfgchk="settings.pdfMonthly"]'), 'Cài đặt: chọn thư mục lưu PDF (dán link Drive) + chia thư mục theo tháng');
+    ok(/Thư mục lưu PDF/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#pdfLink') && await pg.isVisible('[data-cfgchk="settings.pdfMonthly"]'), 'Cài đặt: chọn thư mục lưu PDF (dán link Drive) + chia thư mục theo tháng');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');
