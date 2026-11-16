@@ -35,7 +35,7 @@
 | Thao tác | Kết quả |
 |---|---|
 | Đẩy code lên nhánh `main` | GitHub chạy kiểm thử. Đạt thì code tự vào Apps Script, bản **Thử nghiệm** (Triển khai → Kiểm tra triển khai → link `/dev`, chỉ chủ sở hữu mở được). **Link `/exec` của kỹ sư không đổi.** |
-| Đẩy tag `v…` (VD `v2.1`), hoặc vào tab **Actions → Kiểm thử & triển khai → Run workflow** và tick *release* | Như trên, sau đó **phát hành lên link chính thức `/exec`**: link giữ nguyên, kỹ sư tải lại app là thấy bản mới |
+| Đẩy code sang nhánh `release` (`git push origin main:release`), hoặc vào tab **Actions → Kiểm thử & triển khai → Run workflow** và tick *release* | Như trên, sau đó **phát hành lên link chính thức `/exec`**: link giữ nguyên, kỹ sư tải lại app là thấy bản mới |
 | Kiểm thử lỗi | Dừng, **không** đưa code lên. GitHub gửi email báo lỗi cho chủ repo |
 
 - Xem lịch sử chạy: tab **Actions** của repo.
