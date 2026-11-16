@@ -8,7 +8,7 @@ name: Kiểm thử & triển khai Apps Script
 on:
   push:
     branches: [main, release]
-    paths-ignore: ['docs/**', 'README.md']
+    paths-ignore: ['docs/**', 'README.md', 'site/**', '.github/workflows/pages.yml']
   workflow_dispatch:
     inputs:
       release:
