@@ -253,7 +253,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .doc .lyt{height:84mm;page-break-inside:avoid;text-align:center;margin:0 0 3mm;overflow:hidden}
 .doc .lyw{height:78mm;width:100%;border:1px solid #e2e8f0}.doc .lyw td{height:78mm;vertical-align:middle;text-align:center;padding:2px}
 .doc .lyw img{max-width:100%;max-height:76mm;display:block;margin:0 auto}
-.doc .lysec{page-break-before:always}
+.doc .lysec{page-break-inside:avoid}
 .doc table.winfo{width:100%;border-collapse:collapse;margin:4px 0 6px;font-size:10px}.doc .winfo td{border:1px solid #cbd5e1;padding:3px 6px}.doc .winfo td.k{background:#f1f5f9;width:19%;font-weight:bold}
 .doc .wrate td.c{font-size:9.5px;color:#475569}.doc .wrate td.on{background:#fef9c3;color:#111}.doc .wrate .x{font-size:13px;color:#b91c1c}
 .doc table.wovr{width:100%;border-collapse:collapse;margin:8px 0;border:2px solid #1e3a8a}.doc .wovr td{border:1px solid #cbd5e1;text-align:center;padding:6px 4px;width:25%}
@@ -1349,10 +1349,12 @@ async function loadImages(){
 }
 const LAYOUT_MAX = 6;
 /** Mặt bằng thi công: mỗi ảnh 1 ô cao ~1/3 trang A4 (3 ảnh / trang), ảnh giữ tỷ lệ, chú thích dưới. */
-function layoutsHtml(r, o){
+function layoutsHtml(r, o, head){
   const L = (r.layouts||[]).filter(l=>l.img || l.fileId);
-  if (!L.length) return `<table class="phc"><tr><td class="noph">Mặt bằng thi công</td></tr></table>`;
-  return L.map(l=>`<div class="lyt"><table class="lyw"><tr><td>${(l.img||(o&&o.pdf&&l.fileId)) ? `<img src="${imgSrc(l,o)}">` : '<span class="mut">Đang tải ảnh…</span>'}</td></tr></table><div class="sm">${esc(l.caption)}</div></div>`).join('');
+  if (!L.length) return head + `<table class="phc"><tr><td class="noph">Mặt bằng thi công</td></tr></table>`;
+  const A = L.map(l=>`<div class="lyt"><table class="lyw"><tr><td>${(l.img||(o&&o.pdf&&l.fileId)) ? `<img src="${imgSrc(l,o)}">` : '<span class="mut">Đang tải ảnh…</span>'}</td></tr></table><div class="sm">${esc(l.caption)}</div></div>`);
+  /* Tiêu đề dính với ảnh đầu: đủ chỗ thì nối tiếp trang đang in, không đủ thì cả hai cùng sang trang */
+  return `<div class="lysec">${head}${A[0]}</div>` + A.slice(1).join('');
 }
 /* PDF: ảnh đã có trên máy gửi kèm luôn (khỏi đọc lại Drive); chưa tải mới để máy chủ lấy từ Drive */
 const imgSrc = (ph, o) => o && o.pdf ? (ph.img || (ph.fileId ? 'fid:' + ph.fileId : '')) : (ph.img || '');
@@ -1422,8 +1424,7 @@ function docHTML(r, o={}){
     ${r.materials.length ? r.materials.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.name)}</td><td>${esc(t.spec)}</td><td class="c">${esc(t.unit)}</td><td class="c">${esc(t.qty)}</td></tr>`).join('') : '<tr><td></td><td colspan="4" class="mut">Không có vật tư nhập về</td></tr>'}</table>
     <div class="sec">7. SỨC KHỎE VÀ AN TOÀN / HEALTH AND SAFETY</div><div class="txt">${esc(r.safety.summary)}</div>
     ${r.safety.issues.length ? `<table class="grid" style="margin-top:6px"><tr><th class="c">Stt</th><th>Nhắc nhở / vi phạm / sự cố</th><th>Biện pháp xử lý</th></tr>${r.safety.issues.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td>${esc(t.action)}</td></tr>`).join('')}</table>`:''}
-    <div class="sec ${(r.layouts||[]).some(l=>l.img||l.fileId)?'lysec':''}">8. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>
-    ${layoutsHtml(r, o)}`;
+    ${layoutsHtml(r, o, '<div class="sec">8. MẶT BẰNG THI CÔNG / SITE LAYOUT</div>')}`;
   }
   h += `<div class="sec">${N[3]}. HÌNH ẢNH THỰC TẾ TRÊN CÔNG TRƯỜNG / ON-SITE PICTURES</div><table class="phc">`;
   for (let i=0;i<r.photos.length;i+=2) h += '<tr>' + [r.photos[i], r.photos[i+1]].map(ph => !ph ? '<td></td>' : `<td>${(ph.img||(o.pdf&&ph.fileId))?`<img src="${imgSrc(ph,o)}">`:`<div class="noph" style="display:table;width:100%"><span style="display:table-cell;vertical-align:middle">${ph.fileId?'Đang tải ảnh…':'Ảnh'}</span></div>`}<div style="margin-top:3px">${esc(ph.caption)}</div></td>`).join('') + '</tr>';
@@ -2147,7 +2148,7 @@ function weekDocHTML(w, o = {}){
   if (w.inspPlans.length) h += W3('II.3 KẾ HOẠCH NGHIỆM THU') + `<table class="grid"><tr><th class="c">Stt</th><th style="width:56px">Ngày</th><th>Nội dung</th><th style="width:110px">Vị trí</th></tr>${w.inspPlans.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td></tr>`).join('')}</table>`;
   if (w.matPlans.length) h += W3('II.4 KẾ HOẠCH VẬT TƯ') + `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">Khối lượng</th><th class="c">Ngày dự kiến</th></tr>${w.matPlans.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}${m.spec ? ' – ' + esc(m.spec) : ''}</td><td class="c">${esc(m.unit)}</td><td class="c">${esc(m.qty)}</td><td class="c">${vi(m.date)}</td></tr>`).join('')}</table>`;
   // III. MẶT BẰNG – HÌNH ẢNH
-  h += `<div class="wsec1 ${w.layouts.some(l=>l.img||l.fileId)?'lysec':''}">III – MẶT BẰNG THI CÔNG TRONG TUẦN – HÌNH ẢNH / SITE LAYOUT & PICTURES</div>${layoutsHtml(w, o)}`;
+  h += layoutsHtml(w, o, '<div class="wsec1">III – MẶT BẰNG THI CÔNG TRONG TUẦN – HÌNH ẢNH / SITE LAYOUT & PICTURES</div>');
   if (w.photos.length) { h += '<table class="phc wph3">'; photoGroups(w.photos).forEach(([nm, idx])=>{ h += `<tr><td colspan="3" class="wz phz">📍 ${esc(nm)} (${idx.length} ảnh)</td></tr>`;
     for (let i = 0; i < idx.length; i += 3) { const row = idx.slice(i, i+3).map(k=>{ const p = w.photos[k], src = (p.img || (o.pdf && p.fileId)) ? imgSrc(p, o) : '';
       return `<td>${src ? `<img src="${src}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)}</div><div class="sm">${vi(p.date)}</div></td>`; }); while (row.length < 3) row.push('<td></td>'); h += '<tr>' + row.join('') + '</tr>'; } }); h += '</table>'; }

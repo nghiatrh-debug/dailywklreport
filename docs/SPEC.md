@@ -265,3 +265,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - **Cấu hình → Danh mục → Vật tư (admin):** sửa tên/ĐVT/bộ môn/kiểu ghi/chi tiết, đổi thứ tự, ẩn, gộp mục trùng (tên cũ thành bí danh – dữ liệu cũ tự quy về). **Nhập từ file:** tải file mẫu (CSV mở bằng Excel, 5 cột: Bộ môn · Chủng loại · ĐVT · Kiểu ghi · Chi tiết), nạp file .xlsx/.csv hoặc dán vùng ô copy từ Excel; trùng chủng loại thì gộp chi tiết.
 - Tuan_VatTu thêm cột cuối `bo_mon`, `ngay_nhap`, `ghi_chu`; loai = NHAP_VE (khối lượng) / LO_HANG (theo lô) / KE_HOACH.
 - Máy chủ: lưu báo cáo ngày kèm `matMem` (chi tiết mới) → gộp vào danh mục; `apiCatalogAdd` (admin, chốt) thêm chủng loại; `apiSaveConfig` giữ mục/chi tiết danh mục do người chốt thêm trong lúc admin đang sửa.
+
+## Sửa nhỏ 7.1 – Mục mặt bằng không ép sang trang mới (17/11/2026)
+- Bỏ quy tắc "mục Mặt bằng thi công luôn sang trang mới" (báo cáo ngày mục 8, báo cáo tuần mục III).
+- Tiêu đề mục dính với ảnh mặt bằng đầu tiên: còn đủ chỗ thì in tiếp ngay sau mục trước; không đủ chỗ cho một ô ảnh (~1/3 trang) thì cả tiêu đề và ảnh cùng sang trang.
+- Ảnh tiếp theo vẫn mỗi ảnh một ô, không bị cắt ngang trang.
