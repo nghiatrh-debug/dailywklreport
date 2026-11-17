@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa nhỏ 7.3 – Đổi thứ tự mục báo cáo ngày (17/11/2026)
+- Nhân lực (5) và Thiết bị (6) chuyển xuống sau Vật tư (4), trước An toàn (7); đánh số lại các mục.
+- Kiểm thử mới (ui.js): kiểm tra đúng thứ tự 1→9 trên bản xem trước.
+- Đã in thử PDF bằng Chrome, xem 3 trang: hai bảng nhân lực/thiết bị vẫn nằm cạnh nhau.
+
+
 ### Sửa nhỏ 7.2 – Đầu mục chính nổi bật (17/11/2026)
 - Tiêu đề mục chính báo cáo ngày đổi sang nền navy, chữ trắng, viền vàng; báo cáo tuần thêm viền vàng.
 - Đã in thử PDF bằng Chrome, xem trang 1–2: chữ trắng rõ, số tổng bên phải đọc được.
@@ -212,3 +218,5 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 10:05 | 64d345b | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: kiểm thử .xlsx chạy được trên GitHub (cài xlsx) |
 | 2026-11-17 13:00 | c3d58c1 | đạt | 134 đạt / 0 lỗi | 166 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.1: mục mặt bằng không ép sang trang mới |
 | 2026-11-17 13:25 | 87e16e7 | đạt | 134 đạt / 0 lỗi | 166 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.2: đầu mục chính nền navy |
+| 2026-11-17 13:36 | ea14e8e | đạt | 134 đạt / 0 lỗi | 166 đạt / 1 lỗi | ❌ LỖI | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư |
+| 2026-11-17 13:38 | ea14e8e | đạt | 134 đạt / 0 lỗi | 167 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư (sửa kiểm thử tìm bảng) |

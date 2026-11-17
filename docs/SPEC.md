@@ -275,3 +275,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Tiêu đề mục chính báo cáo ngày (1, 2, 3…): nền xanh navy #1e3a8a, chữ trắng, viền trái vàng hổ phách #f59e0b; số tổng bên phải màu vàng nhạt.
 - Báo cáo tuần (mục I, II, III…): thêm viền vàng cho đồng bộ.
 - In giữ màu nền (print-color-adjust: exact).
+
+## Sửa nhỏ 7.3 – Đổi thứ tự mục báo cáo ngày (17/11/2026)
+- Nhân lực, Thiết bị chuyển xuống sau Vật tư, trước An toàn. Đánh số lại:
+  1 Công việc · 2 Kế hoạch ngày mai · 3 Nghiệm thu & thí nghiệm · 4 Vật tư · 5 Nhân lực · 6 Thiết bị · 7 An toàn · 8 Mặt bằng · 9 Hình ảnh.
+- Phiếu của kỹ sư (không có nhân lực/thiết bị) giữ nguyên.
