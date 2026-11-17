@@ -221,3 +221,12 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 6. II. KH tuần sau: II.1 Thi công xây dựng (khu vực XD, Hoàn thiện, Khác) · II.2 Thi công MEP; trong mỗi mục chia theo khu vực, nút "+ Thêm kế hoạch" từng khu vực. Nguyên tắc như kế hoạch ngày mai: nhập % dự kiến thực hiện trong tuần, lũy kế dự kiến = lũy kế hiện tại (theo việc cùng tên, cùng khu vực ở I.A) + % dự kiến, tối đa 100 → thành % KH tuần sau. "Tạo từ các việc chưa xong" = Tự sinh (việc < 100%).
 7. Điện thoại: nút ＋ nổi ở I.A và II như phiếu ngày (chọn khu vực → dòng mới hiện tại chỗ, con trỏ vào ô nội dung); thẻ kế hoạch có nút +2/+5/+7/+10.
 8. Bảng nhập trên máy tính: cột nội dung đủ rộng (bảng cuộn ngang trong khung như phiếu ngày).
+
+## Đợt 6E (17/11/2026) – Thư mục dữ liệu, tự dọn file cũ
+- Thư mục dữ liệu của app: **"Dữ liệu báo cáo <mã dự án>"** (cũ "Báo cáo ngày – <mã>": app tự đổi tên, giữ nguyên nội dung/mã file).
+- **Tự dọn, không có nút:** sau mỗi lần chốt ngày, giao diện gọi ngầm `apiCleanup` (không chờ, tối đa 1 lần/ngày, ≤ 25 giây). Chuyển vào **Thùng rác Drive** (lấy lại trong 30 ngày):
+  - ảnh trong bảng HinhAnh (ảnh hiện trường, mặt bằng) của ngày **quá 3 tháng**, ngày đó **đã chốt và đã xuất PDF**;
+  - ảnh Gantt / mặt bằng của báo cáo tuần quá 3 tháng, tuần đã chốt và đã xuất PDF.
+  - Không xóa: ảnh mặt bằng còn được ngày trong 3 tháng gần nhất dùng (kế thừa); file MSP (QR trỏ tới); logo; PDF báo cáo.
+  - Ghi tiến độ dọn (`CLEAN_UPTO`, `WCLEAN_UPTO`) để không quét lại. Ngày quá hạn mà chưa chốt/chưa xuất PDF thì giữ nguyên.
+- Cấu hình → Cài đặt: chỉ ghi chú cho người dùng biết quy tắc tự dọn.

@@ -13,7 +13,8 @@
 
 const SPREADSHEET_ID = '';
 const ROOT_FOLDER_ID = '';
-const ROOT_FOLDER_PREFIX = 'Báo cáo ngày – ';
+const ROOT_FOLDER_PREFIX = 'Dữ liệu báo cáo ', OLD_ROOT_PREFIX = 'Báo cáo ngày – ';
+const KEEP_MONTHS = 3;                 // ảnh quá 3 tháng (đã chốt + xuất PDF) tự chuyển vào thùng rác
 const TZ = 'Asia/Ho_Chi_Minh';
 const TOKEN_DAYS = 30;
 const CACHE_TTL = 21600;   // 6 giờ (tối đa của CacheService)
@@ -838,6 +839,46 @@ function auth_(token, roles) {
   if (roles && roles.indexOf(u.role) < 0) throw new Error('Không có quyền thực hiện thao tác này');
   return u;
 }
+/* ======================= TỰ DỌN FILE CŨ ======================= */
+/** Gọi ngầm sau khi chốt ngày (giao diện không chờ). Tối đa 1 lần/ngày. */
+function apiCleanup(token) {
+  auth_(token, ['admin', 'chot']);
+  const p = PropertiesService.getScriptProperties(), today = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  if (p.getProperty('CLEAN_DAY') === today) return JSON.stringify({ skipped: true });
+  p.setProperty('CLEAN_DAY', today);
+  const n = cleanOld_(25000); if (n) log_('', 'TU_DON_FILE', today, n + ' file quá ' + KEEP_MONTHS + ' tháng → thùng rác');
+  return JSON.stringify({ trashed: n });
+}
+/** Chuyển vào thùng rác ảnh của ngày/tuần quá KEEP_MONTHS tháng, đã chốt + đã xuất PDF. Giữ ảnh mặt bằng còn được kế thừa. */
+function cleanOld_(budgetMs, now) {
+  const t0 = Date.now(), p = PropertiesService.getScriptProperties(), d0 = now ? new Date(now) : new Date();
+  const cut = Utilities.formatDate(new Date(d0.getFullYear(), d0.getMonth() - KEEP_MONTHS, d0.getDate()), TZ, 'yyyy-MM-dd');
+  const trash = id => { try { DriveApp.getFileById(id).setTrashed(true); return 1; } catch (e) { return 0; } };
+  const hk = col_('HinhAnh', 0), hsrc = col_('HinhAnh', 1), hid = col_('HinhAnh', SCHEMA.HinhAnh.indexOf('file_id'));
+  const keep = {}; hk.forEach((d, i) => { if (d >= cut && hsrc[i] === 'MAT_BANG' && hid[i]) keep[hid[i]] = 1; });
+  let n = 0;
+  // Ngày
+  let upto = p.getProperty('CLEAN_UPTO') || '';
+  const bk = col_('BaoCao', 0), bst = col_('BaoCao', 1), bpdf = col_('BaoCao', SCHEMA.BaoCao.indexOf('pdf_url'));
+  const days = bk.map((d, i) => [d, i]).filter(([d]) => d > upto && d < cut).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  for (const [d, i] of days) {
+    if (Date.now() - t0 > budgetMs) break;
+    if (bst[i] === 'locked' && bpdf[i]) hk.forEach((x, j) => { if (x === d && hid[j] && !keep[hid[j]]) n += trash(hid[j]); });
+    upto = d;
+  }
+  p.setProperty('CLEAN_UPTO', upto);
+  // Tuần: ảnh Gantt + mặt bằng của báo cáo tuần
+  let wup = p.getProperty('WCLEAN_UPTO') || '';
+  const tk = col_('TongHopKy', 0), tto = col_('TongHopKy', 3), tst = col_('TongHopKy', SCHEMA.TongHopKy.indexOf('trang_thai')), tpdf = col_('TongHopKy', SCHEMA.TongHopKy.indexOf('pdf_url'));
+  const weeks = tk.map((k, i) => [k, i]).filter(([k, i]) => k.indexOf('W-') === 0 && tto[i] < cut && k > wup).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  for (const [k, i] of weeks) {
+    if (Date.now() - t0 > budgetMs) break;
+    if (tst[i] === 'locked' && tpdf[i]) { const w = weekGet_(k) || {}; (w.gantt || []).concat(w.layouts || []).forEach(x => { if (x && x.fileId && !keep[x.fileId]) n += trash(x.fileId); }); }
+    wup = k;
+  }
+  p.setProperty('WCLEAN_UPTO', wup);
+  return n;
+}
 function strip_(o) {
   const c = JSON.parse(JSON.stringify(o));
   (c.layouts || [c.layout]).concat(c.photos || [], c.extraPhotos || [], c.gantt || []).forEach(p => { if (p && p.fileId) p.img = ''; });
@@ -851,10 +892,11 @@ function uploadImg_(o, folder, name) {
 function dataUrl_(id) { const b = DriveApp.getFileById(id).getBlob(); return 'data:' + b.getContentType() + ';base64,' + Utilities.base64Encode(b.getBytes()); }
 function rootFolder_() {
   if (MEMO.root) return MEMO.root;
-  const name = ROOT_FOLDER_PREFIX + (projectCode_() || 'DU_AN');
-  if (ROOT_FOLDER_ID) return (MEMO.root = subFolder_(DriveApp.getFolderById(ROOT_FOLDER_ID), name));
-  const it = DriveApp.getFoldersByName(name);
-  return (MEMO.root = it.hasNext() ? it.next() : DriveApp.createFolder(name));
+  const code = projectCode_() || 'DU_AN', name = ROOT_FOLDER_PREFIX + code, base = ROOT_FOLDER_ID ? DriveApp.getFolderById(ROOT_FOLDER_ID) : DriveApp;
+  const find = n => { const it = base.getFoldersByName(n); return it.hasNext() ? it.next() : null; };
+  let f = find(name);
+  if (!f) { f = find(OLD_ROOT_PREFIX + code); if (f) f.setName(name); }      // thư mục tên cũ → đổi tên, giữ nội dung
+  return (MEMO.root = f || base.createFolder(name));
 }
 function subFolder_(parent) {
   let f = parent;

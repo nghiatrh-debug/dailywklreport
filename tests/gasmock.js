@@ -15,8 +15,8 @@ function mkSheet(name){ const data = []; const sh = {
       createTextFinder(q){ let whole=false; const tf={ matchEntireCell(b){ whole=b; return tf; }, findAll(){ stats.finds=(stats.finds||0)+1; const o=[];
         for(let i=0;i<nr;i++) for(let j=0;j<nc;j++){ const v=String((data[r0+i]||[])[c0+j] ?? ''); if (whole ? v===q : v.includes(q)) o.push({getRow:()=>r0+i+1}); } return o; } }; return tf; } }; } }; return sh; }
 const ss = { getSheetByName:n=>sheets[n]||null, insertSheet:n=>(sheets[n]=mkSheet(n)), getSheets:()=>Object.values(sheets), deleteSheet(){}, getId:()=>'SS1', getUrl:()=>'https://docs.google.com/spreadsheets/d/SS1' };
-function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://drive/'+name, getName:()=>name, getId:()=>'ID_'+name,
-  getFoldersByName(n){ const k=f.kids[n]; let used=false; return {hasNext:()=>!!k&&!used, next:()=>{used=true;return k;}}; },
+function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://drive/'+f.name, getName:()=>f.name, setName(n){ f.name=n; return f; }, getId:()=>'ID_'+name,
+  getFoldersByName(n){ const k=Object.values(f.kids).find(x=>x.name===n); let used=false; return {hasNext:()=>!!k&&!used, next:()=>{used=true;return k;}}; },
   createFolder(n){ return f.kids[n]=mkFolder(n); },
   createFile(blob){ const id='F'+(++fileSeq); files[id]={blob, name:blob.name, trashed:false}; f.files.push(id); return {getId:()=>id, getName:()=>blob.name, getUrl:()=>'https://drive/file/'+id, setSharing(a,b){ files[id].sharing = a+'/'+b; }, setTrashed(){ files[id].trashed = true; }}; },
   getFilesByName(n){ const ids=f.files.filter(i=>files[i].name===n&&!files[i].trashed); let k=0; return {hasNext:()=>k<ids.length, next:()=>({setTrashed(){files[ids[k++]].trashed=true;}})}; } }; return f; }
@@ -42,4 +42,4 @@ const ctx = {
 const CODE = process.env.GAS_CODE || require('path').join(__dirname, '..', 'apps-script', 'Code.gs');
 vm.createContext(ctx); vm.runInContext(fs.readFileSync(CODE,'utf8'), ctx);
 ctx.__resetMemo = () => { try { vm.runInContext('if (typeof MEMO!=="undefined") Object.keys(MEMO).forEach(k=>delete MEMO[k]);', ctx); } catch(e){} };
-module.exports = { shared, weekF, ctx, sheets, files, props, cacheStore, stats, ext, mkSS };
+module.exports = { root, shared, weekF, ctx, sheets, files, props, cacheStore, stats, ext, mkSS };

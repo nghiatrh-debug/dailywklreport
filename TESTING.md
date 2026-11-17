@@ -36,6 +36,20 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6E: thư mục "Dữ liệu báo cáo", tự dọn ảnh quá 3 tháng
+- **Sửa:**
+  - Thư mục dữ liệu đổi tên thành "Dữ liệu báo cáo <mã dự án>". Thư mục cũ "Báo cáo ngày – <mã>" được tự đổi tên, giữ nguyên ảnh và file.
+  - Tên tab trình duyệt sau khi đăng nhập đổi thành "Báo cáo thi công – <mã>" (trước đó vẫn còn chữ "Báo cáo ngày").
+  - Tự dọn: sau khi chốt ngày, app gọi ngầm (người dùng không phải chờ), tối đa 1 lần/ngày.
+    - Chuyển vào thùng rác Drive: ảnh của các ngày quá 3 tháng đã chốt và đã xuất PDF; ảnh Gantt và mặt bằng của các tuần quá 3 tháng đã chốt và đã xuất PDF.
+    - Giữ lại: ảnh mặt bằng còn được kế thừa; file MSP, logo, PDF báo cáo.
+    - Cài đặt chỉ có dòng ghi chú về quy tắc này.
+- **Kiểm thử mới:**
+  - gastest: đổi tên thư mục cũ; dọn đúng ảnh ngày quá hạn đã chốt và xuất PDF; giữ ảnh mặt bằng kế thừa, ngày chưa chốt, ảnh trong 3 tháng; không quét lại ngày đã dọn; apiCleanup chỉ chạy 1 lần/ngày.
+  - ui: Cài đặt có ghi chú tự dọn.
+- **Ảnh đã xem:** desk_settings.png.
+- **Rủi ro còn lại:** ngày quá 3 tháng mà chưa xuất PDF thì ảnh được giữ luôn (an toàn). Cột link trong bảng HinhAnh của ngày đã dọn sẽ trỏ tới file trong thùng rác. Xuất lại PDF của ngày đã dọn sẽ không có ảnh.
+
 ### 17/11 – Đợt 6D: chỉnh báo cáo tuần sau kiểm tra (8 mục)
 - **Sửa:**
   - IV MSP trên PDF chỉ còn mã QR, cỡ bằng QR TVGS (40 px). Ảnh Gantt tối đa 6.
@@ -112,3 +126,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 05:04 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 120 đạt / 0 lỗi | ✅ ĐẠT | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
 | 2026-11-17 05:54 | 1bd5ba0 | đạt | 121 đạt / 0 lỗi | 124 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dòng tổng hợp, tự xếp loại, đổi tên app |
 | 2026-11-17 06:42 | a2c1848 | đạt | 122 đạt / 0 lỗi | 136 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6D: QR MSP, 6 Gantt, mặt bằng tuần, KH tuần sau theo khu vực, nút + nổi |
+| 2026-11-17 07:10 | 66c37b1 | đạt | 127 đạt / 0 lỗi | 137 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6E: thư mục Dữ liệu báo cáo, tự dọn ảnh quá 3 tháng |

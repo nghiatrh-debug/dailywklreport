@@ -270,3 +270,26 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   const js = src.slice(src.lastIndexOf('<script>')).split('\n');
   const bad = js.filter(l => /:\/\//.test(l) || /['"`=][^'"`]*\/\*/.test(l));
   A([bad.length === 0, 'không có "/*" hay "://" trong chuỗi JS (GAS cắt nhầm): ' + bad.map(l=>l.trim().slice(0,60)).join(' | ')]); }
+
+// ===== Đợt 6E: đổi tên thư mục dữ liệu + tự dọn ảnh cũ =====
+(() => {
+  const { root } = require('./gasmock.js');
+  const code = J(ctx.apiPublicConfig()).project.code;
+  Object.keys(root.kids).forEach(k => { if (root.kids[k].name.indexOf(code) > 0) delete root.kids[k]; });
+  const oldF = root.createFolder('Báo cáo ngày – ' + code); oldF.files.push('OLDMARK');
+  C.__resetMemo(); const f = C.rootFolder_();
+  A([f === oldF && f.getName() === 'Dữ liệu báo cáo ' + code, 'thư mục cũ "Báo cáo ngày – mã" tự đổi tên thành "Dữ liệu báo cáo mã", giữ nội dung']);
+  const mk = n => f.createFile({ name: n }).getId();
+  const a1 = mk('old1.jpg'), a2 = mk('old2.jpg'), mb = mk('mb.jpg'), u1 = mk('unl.jpg'), r1 = mk('recent.jpg');
+  const BW = sheets.BaoCao.data[0].length, row = (d, st, pdf) => { const x = Array(BW).fill(''); x[0] = d; x[1] = st; x[SCHEMA_IDX_PDF] = pdf; return x; };
+  const SCHEMA_IDX_PDF = sheets.BaoCao.data[0].indexOf('pdf_url');
+  sheets.BaoCao.data.push(row('2026-01-05', 'locked', 'https://pdf/1'), row('2026-01-06', 'draft', ''), row('2026-11-10', 'locked', 'https://pdf/2'));
+  const HW = sheets.HinhAnh.data[0].length, hi = sheets.HinhAnh.data[0].indexOf('file_id'), h = (d, src, id) => { const x = Array(HW).fill(''); x[0] = d; x[1] = src; x[hi] = id; return x; };
+  sheets.HinhAnh.data.push(h('2026-01-05', 'Người chốt', a1), h('2026-01-05', 'KS A', a2), h('2026-01-05', 'MAT_BANG', mb), h('2026-01-06', 'KS A', u1), h('2026-11-10', 'MAT_BANG', mb), h('2026-11-10', 'KS A', r1));
+  C.__resetMemo(); props['CLEAN_UPTO'] = ''; const n = C.cleanOld_(25000, '2026-11-17T10:00:00+07:00');
+  A([files[a1].trashed && files[a2].trashed && n >= 2, 'tự dọn: ảnh ngày quá 3 tháng, đã chốt + xuất PDF → thùng rác (' + n + ' file)']);
+  A([!files[mb].trashed && !files[u1].trashed && !files[r1].trashed, 'tự dọn: giữ ảnh mặt bằng còn kế thừa, ngày chưa chốt, ảnh trong 3 tháng']);
+  C.__resetMemo(); A([C.cleanOld_(25000, '2026-11-17T10:00:00+07:00') === 0, 'tự dọn: không quét lại ngày đã dọn']);
+  const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tka = J(ctx.apiLogin(adm.id, '5678')).token;
+  const t1 = J(ctx.apiCleanup(tka)), t2 = J(ctx.apiCleanup(tka)); A([!t1.skipped && t2.skipped, 'apiCleanup chạy tối đa 1 lần/ngày']);
+})();

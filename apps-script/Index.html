@@ -674,6 +674,7 @@ const Store = IS_GAS ? {
   exportPdf: (html, name, key, kind) => gas('apiExportPdf', TOKEN, html, name, key, kind),
   review: async (d, act, note) => J(await gas('apiReview', TOKEN, d, act, note||'')),
   verify: async code => J(await gas('apiVerify', TOKEN, code)),
+  cleanup: async () => J(await gas('apiCleanup', TOKEN)),
   saveLogo: (kind, data, oldId) => gas('apiSaveLogo', TOKEN, kind, data, oldId||''),
   clearTestDays: () => gas('apiClearTestDays', TOKEN),
   checkFolder: async link => J(await gas('apiCheckFolder', TOKEN, link)),
@@ -693,6 +694,7 @@ const Store = IS_GAS ? {
     const b = { date:d, index, report: await IDB.get('reports', d), subs: day(d).subs, prev: pd ? { date:pd, report: await IDB.get('reports', pd), subs: all.filter(x=>x.date===pd).map(lite) } : null };
     return clone(b); },
   images: async () => ({}),
+  cleanup: async () => ({skipped:true}),
   saveConfig: async c => { const old = await IDB.get('kv','config') || {}; c = clone(c); c.pins = old.pins || {}; await IDB.put('kv','config',c); },
   setPin: async (u, pin) => { const c = await IDB.get('kv','config'); c.pins = c.pins||{}; c.pins[u] = await pinHash(u, pin); await IDB.put('kv','config',c); },
   saveSub: async s => { await markTestL(s.date); s = withBase(s); revL(s, await IDB.get('subs', s.key)); await IDB.put('subs', s.key, s); return {ok:true, rev:s.rev}; },
@@ -2083,12 +2085,13 @@ function renderConfig(){
       <div><label class="l">Ngày chốt báo cáo tuần (cuối ngày)</label><select class="in" data-cfg="settings.weekEnd">${DN.map((n,i)=>`<option value="${i}" ${i===we?'selected':''}>${n} → tuần ${DN[(i+1)%7]} – ${n}</option>`).join('')}</select></div>
       <div><label class="l">Tự đăng xuất khi không thao tác (giờ, 0 = tắt)</label><input class="in" type="number" min="0" max="72" data-cfg="settings.idleHours" value="${esc(st.idleHours ?? 8)}"></div></div>
     <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu PDF</h3></div>
-    <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https:\/\/drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Báo cáo ngày – ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
+    <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https:\/\/drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Dữ liệu báo cáo ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
     <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
     <input class="in" id="pdfLink" placeholder="https:\/\/drive.google.com/drive/folders/…">
     <div class="bar"><button class="btn pri" data-act="pdfFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.pdfFolderId?'<button class="btn" data-act="pdfFolderReset">↺ Về thư mục mặc định</button>':''}</div>
     ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tháng; báo cáo tuần lưu thẳng trong thư mục đã chọn (nếu chưa chọn thư mục riêng bên dưới). Đổi xong bấm “Lưu cài đặt”.')}
     <div class="hint" style="padding:2px 0 6px">Tài khoản triển khai app phải có quyền <b>Người chỉnh sửa (Editor)</b> trên thư mục – app tự kiểm tra bằng cách ghi thử 1 file rồi xóa. PDF đã xuất trước đó vẫn giữ ở chỗ cũ.</div>
+    <div class="note" style="margin-top:8px">🧹 <b>Tự dọn dữ liệu:</b> ảnh hiện trường, ảnh mặt bằng, ảnh Gantt trong thư mục <b>Dữ liệu báo cáo ${esc(CFG.project.code)}</b> của các ngày / tuần <b>quá 3 tháng</b> – đã chốt và đã xuất PDF – tự chuyển vào <b>Thùng rác Google Drive</b> (lấy lại được trong 30 ngày). Ảnh vẫn nằm đủ trong PDF đã xuất. Không xóa: file PDF báo cáo, file MS Project (QR trỏ tới), logo, ảnh mặt bằng còn đang dùng.</div>
     <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu báo cáo tuần</h3></div>
     <div class="note ${st.weekFolderId?'g':''}">${st.weekFolderId ? `Đang lưu PDF báo cáo tuần vào thư mục: <b><a href="https:\/\/drive.google.com/drive/folders/${esc(st.weekFolderId)}" target="_blank" rel="noopener">${esc(st.weekFolderName||st.weekFolderId)}</a></b>` : `Chưa chọn – báo cáo tuần lưu chung với thư mục PDF ở trên.`}</div>
     <label class="l">Dán link thư mục Google Drive để lưu báo cáo tuần</label>
@@ -2348,6 +2351,7 @@ document.addEventListener('click', async e=>{
     const acc = SUBS.filter(s=>s.status==='submitted'); acc.forEach(s=>{ s.status='accepted'; idxSet('subs',{date:s.date,uid:s.uid,status:s.status}); }); ACCEPT = acc.map(s=>s.uid);
     R.lockCount = (R.lockCount||0) + 1; R.version = R.lockCount; R.status='locked'; R.lockedBy = ME.id; R.lockedAt = nowStr(); R.log.push({act:'lock', by:ME.id, at:R.lockedAt, v:R.version});
     applyMerge(); await saveR(true); renderDateSel(); renderDayAll();
+    Store.cleanup().catch(()=>{});   // tự dọn ảnh cũ trên Drive (chạy ngầm, không chờ)
     if (reviewOn()) zaloModal('🔒 Đã chốt – chờ TVGS kiểm tra', `Báo cáo đã gửi sang TVGS. Sau khi TVGS xác nhận nội dung mới xuất được PDF chính thức. Có thể sao chép tin nhắn dưới đây gửi nhóm Zalo để nhắc TVGS:`,
       `📨 [${CFG.project.code}] Nhà thầu đã chốt Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Nhờ TVGS kiểm tra nội dung trên app báo cáo ngày.`);
     else toast(`🔒 Đã chốt báo cáo ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}. Bấm “Lưu PDF vào Google Drive”.`, 5000); }
@@ -2567,7 +2571,7 @@ function othersBanner(n){ OTHERS_NOTE = n ? `<div class="note w" id="othersNote"
   const el = $('#othersBar'); if (el) el.innerHTML = OTHERS_NOTE; }
 
 /* ===================== KHỞI ĐỘNG ===================== */
-function setSub(){ if (!CFG.project.name) return; document.title = 'Báo cáo ngày – ' + CFG.project.code; const n = CFG.project.name.toLowerCase(), c = CFG.project.code;
+function setSub(){ if (!CFG.project.name) return; document.title = 'Báo cáo thi công – ' + CFG.project.code; const n = CFG.project.name.toLowerCase(), c = CFG.project.code;
   $('#subTitle').textContent = 'Dự án ' + (n.charAt(0).toUpperCase()+n.slice(1)).replace(c.toLowerCase(), c); }
 /* Dữ liệu demo 3 ngày: 25–26/06 đã chốt, 27/06 Thân đã nộp, Lâm đang nhập */
 function sampleDay(date, d){
