@@ -1133,7 +1133,7 @@ function renderMy(){
   }
   if (MYTAB==='photos'){
     h += `<div class="ph"><h3>🖼 Hình ảnh hiện trường</h3><span class="hint">${S.photos.length} ảnh · tự cắt khung 4:3, đóng dấu ngày giờ + người chụp</span></div>
-    ${RO?'':`<div class="g2" style="grid-template-columns:1fr"><div><label class="l">Ảnh thuộc khu vực</label><select class="in" id="photoZone">${zOpts.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join('')}</select></div></div><div class="camrow"><label class="cam">📸 Chụp ảnh<input type="file" accept="image/*" capture="environment" data-img="subPhotos"></label><label class="lib">🖼 Chọn từ thư viện<input type="file" accept="image/*" multiple data-img="subPhotos"></label></div>`}
+    ${RO?'':`<div class="g2" style="grid-template-columns:1fr"><div><label class="l">Ảnh thuộc khu vực</label><select class="in" id="photoZone">${zOpts.map(o=>`<option value="${o.v}">${esc(o.t)}</option>`).join('')}</select></div></div><div class="camrow"><label class="cam">📸 Chụp ảnh<input type="file" accept="image/\*" capture="environment" data-img="subPhotos"></label><label class="lib">🖼 Chọn từ thư viện<input type="file" accept="image/\*" multiple data-img="subPhotos"></label></div>`}
     <div class="pgrid">${S.photos.map((ph,i)=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:`<div class="noimg">Chưa có ảnh</div>`}${ph.warn?`<span class="warn">⚠ ${esc(ph.warn)}</span>`:''}
       <div class="pc">${inp(`photos.${i}.caption`,ph.caption,'Chú thích ảnh')}${delBtn('photos',i)}</div></div>`).join('')}</div>`;
   }
@@ -1280,7 +1280,7 @@ function renderForm(){
   if (TAB==='layout'){
     const L = R.layouts, full = L.length >= LAYOUT_MAX;
     h += `<div class="ph"><h3>🗺 Mặt bằng thi công</h3><span class="hint">${L.length}/${LAYOUT_MAX} ảnh</span></div>
-    ${RO ? '' : full ? `<p class="note">Đã đủ ${LAYOUT_MAX} ảnh mặt bằng – xóa bớt để thêm ảnh khác.</p>` : `<label class="drop">📤 Thêm ảnh mặt bằng (chọn được nhiều ảnh, tối đa ${LAYOUT_MAX}). Ảnh giữ độ nét cao; ngày sau tự kế thừa cả bộ.<input type="file" accept="image/*" multiple data-img="layouts"></label>`}
+    ${RO ? '' : full ? `<p class="note">Đã đủ ${LAYOUT_MAX} ảnh mặt bằng – xóa bớt để thêm ảnh khác.</p>` : `<label class="drop">📤 Thêm ảnh mặt bằng (chọn được nhiều ảnh, tối đa ${LAYOUT_MAX}). Ảnh giữ độ nét cao; ngày sau tự kế thừa cả bộ.<input type="file" accept="image/\*" multiple data-img="layouts"></label>`}
     ${L.length ? `<div class="lylist">${L.map((l,i)=>`<div class="lyc"><div class="lyi">${l.img?`<img src="${l.img}">`:`<div class="noimg">${l.fileId?'Đang tải ảnh…':'—'}</div>`}</div>
       <div class="lyf"><b>Mặt bằng ${i+1}</b>${inp(`layouts.${i}.caption`, l.caption, 'Chú thích, VD: Mặt bằng tầng hầm B1')}<div class="bar" style="margin:6px 0 0">${mvBtns('layouts', i, L.length)}${delBtn('layouts', i)}</div></div></div>`).join('')}</div>` : '<p class="hint" style="margin-top:10px">Chưa có ảnh mặt bằng.</p>'}`;
   }
@@ -1289,7 +1289,7 @@ function renderForm(){
     h += `<div class="ph"><h3>🖼 Ảnh từ phiếu kỹ sư</h3><span class="hint">${subPh.length} ảnh</span></div>
     <div class="pgrid">${subPh.map(ph=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:'<div class="noimg">Ảnh trên Drive</div>'}${ph.warn?`<span class="warn">⚠ ${esc(ph.warn)}</span>`:''}<div class="hint" style="padding:6px">${esc(ph.caption)} · ${esc(userName(ph.by))}</div></div>`).join('') || '<p class="hint">Chưa có.</p>'}</div>
     <div class="ph" style="margin-top:18px"><h3>➕ Ảnh bổ sung của người chốt</h3></div>
-    ${RO?'':'<label class="drop">📸 Thêm ảnh<input type="file" accept="image/*" multiple data-img="extraPhotos"></label>'}
+    ${RO?'':'<label class="drop">📸 Thêm ảnh<input type="file" accept="image/\*" multiple data-img="extraPhotos"></label>'}
     <div class="pgrid">${R.extraPhotos.map((ph,i)=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:'<div class="noimg">—</div>'}<div class="pc">${inp(`extraPhotos.${i}.caption`,ph.caption,'Chú thích')}${delBtn('extraPhotos',i)}</div></div>`).join('')}</div>`;
   }
   $('#pane').innerHTML = h;
@@ -1814,7 +1814,7 @@ function renderWeek(){
       ${RO ? '' : `<label class="drop">📄 ${w.msp ? 'Thay' : 'Tải'} file PDF MS Project (≤ 20 MB) – lưu Drive, in QR + link vào báo cáo<input type="file" accept="application/pdf" data-wfile="msp"></label>`}
       <div class="ph" style="margin-top:14px"><h3>Ảnh Gantt (tối đa ${GANTT_MAX})</h3><span class="hint">mỗi ảnh in nguyên 1 trang ngang</span></div>
       ${w.gantt.map((g,i)=>`<div class="lyc"><div class="lyi">${g.img ? `<img src="${g.img}">` : '<div class="noimg">Đang tải ảnh…</div>'}</div><div class="lyf"><b>Gantt ${i+1}</b>${inp(`gantt.${i}.caption`, g.caption, 'Chú thích')}<div class="bar" style="margin:6px 0 0">${delBtn('gantt', i)}</div></div></div>`).join('')}
-      ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/*" data-img="wgantt"></label>`}`;
+      ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/\*" data-img="wgantt"></label>`}`;
   }
   if (WTAB === 'safe'){
     h += `<div class="ph"><h3>E. An toàn lao động</h3></div><label class="l">Nhận xét chung về an toàn trong tuần</label>${ta('safety.summary', w.safety.summary, '', 3)}<div class="ph" style="margin-top:10px"><h3>Hoạt động an toàn trong tuần</h3><span class="hint">huấn luyện, toolbox, kiểm tra…</span></div>`;
@@ -1970,7 +1970,7 @@ const CFG_TABS = [['project','Dự án'],['users','Người dùng & PIN'],['zone
 function logoBoxes(pending){
   return `<div class="lgrid">${LOGO_KINDS.map(([k,lab,,,,nm])=>{ const src = pending ? (pending[k]||'') : logoSrc(k);
     return `<div class="lbox"><div class="lprev">${src?`<img src="${src}">`:'<span>Chưa có logo</span>'}</div><b>${nm}</b>
-      <label class="btn sm">📁 ${src?'Đổi':'Tải'} logo<input type="file" accept="image/*" data-logo="${k}" hidden></label>${src?`<button class="btn sm ghost" data-act="delLogo" data-k="${k}">✕</button>`:''}</div>`; }).join('')}</div>
+      <label class="btn sm">📁 ${src?'Đổi':'Tải'} logo<input type="file" accept="image/\*" data-logo="${k}" hidden></label>${src?`<button class="btn sm ghost" data-act="delLogo" data-k="${k}">✕</button>`:''}</div>`; }).join('')}</div>
     <div class="hint" style="padding:6px 0 0">Thứ tự trên PDF: TVGS (trái) – Chủ đầu tư (giữa) – Nhà thầu (phải). Nên dùng ảnh PNG nền trong suốt; app tự thu nhỏ.</div>`;
 }
 async function fileToLogo(file){
