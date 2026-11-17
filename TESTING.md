@@ -36,6 +36,15 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6G: ảnh theo khu vực, hồ sơ chờ quá 7 ngày, nén ảnh PDF tuần
+- **Sửa:**
+  - Ảnh tiêu biểu nhóm theo khu vực (thứ tự trong Cấu hình) trên màn nhập và PDF. Mỗi ảnh có chú thích và ngày. Ảnh không gắn khu vực vào nhóm "Ảnh khác"; ảnh tự thêm chọn được khu vực. Ảnh cũ chưa có khu vực thì đoán theo tên khu vực ở đầu chú thích.
+  - B.3: hồ sơ chờ duyệt hoặc TVGS đang kiểm tra quá 7 ngày (tính đến ngày cuối kỳ) hiện đỏ "chờ X ngày"; dòng tổng hợp có "Chờ quá 7 ngày N". PDF cũng sắp xếp hồ sơ cần xử lý lên trước.
+  - Xuất PDF tuần: nén ảnh tiêu biểu (cạnh dài ≤ 900 px) và mặt bằng (≤ 1600 px); ảnh trên Drive giữ nguyên.
+- **Kiểm thử mới:** nhóm ảnh theo khu vực, đổi khu vực của ảnh tự thêm; hồ sơ chờ 12 ngày tô đỏ và ghi trên PDF; shrinkImg 2000 px → 900 px JPEG.
+- **Ảnh đã xem:** desk_week_qa.png, desk_week_photo.png.
+- **Rủi ro còn lại:** dung lượng PDF thực tế chưa đo trên Google. Ảnh chưa tải xong lúc xuất thì máy chủ lấy bản gốc từ Drive (không nén).
+
 ### 17/11 – Đợt 6F: 30 ảnh tiêu biểu, mặt bằng tuần 10 ảnh, B.3/B.4 tách riêng
 - **Sửa:**
   - Ảnh tiêu biểu tuần: lấy ngẫu nhiên tối đa 30 ảnh, rải đều các ngày. Người chốt thêm ảnh (nhãn "Tự thêm", tải lên Drive khi lưu) và xóa ảnh. "Đổi bộ ảnh khác" giữ ảnh tự thêm.
@@ -138,3 +147,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 06:42 | a2c1848 | đạt | 122 đạt / 0 lỗi | 136 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6D: QR MSP, 6 Gantt, mặt bằng tuần, KH tuần sau theo khu vực, nút + nổi |
 | 2026-11-17 07:10 | 66c37b1 | đạt | 127 đạt / 0 lỗi | 137 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6E: thư mục Dữ liệu báo cáo, tự dọn ảnh quá 3 tháng |
 | 2026-11-17 07:28 | f882adb | đạt | 128 đạt / 0 lỗi | 141 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6F: 30 ảnh tiêu biểu + thêm/xóa, mặt bằng tuần 10 ảnh, B.3/B.4 tách riêng |
+| 2026-11-17 07:41 | 9c0b2e3 | đạt | 128 đạt / 0 lỗi | 145 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6G: ảnh theo khu vực, hồ sơ chờ quá 7 ngày, nén ảnh PDF tuần |

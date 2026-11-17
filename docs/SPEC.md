@@ -235,3 +235,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 1. Hình ảnh tiêu biểu tuần: tự lấy ngẫu nhiên **30 ảnh** từ các báo cáo ngày (rải đều các ngày). Người chốt **thêm ảnh** (tải lên, tối đa tổng 30) và **xóa** ảnh không cần. "Đổi bộ ảnh khác" giữ ảnh tự thêm, chỉ đổi phần ảnh lấy ngẫu nhiên. Ảnh thêm tay tải lên Drive khi lưu.
 2. Mặt bằng thi công tuần: tối đa **10 ảnh** (báo cáo ngày vẫn 6).
 3. B.3 Tình trạng hồ sơ đệ trình và B.4 Văn bản trong tuần: **2 mục riêng**, mỗi mục 1 bảng (điện thoại: thẻ). B.3 có dòng tổng hợp số lượng theo tình trạng, sắp xếp: Trả về / Từ chối → Chờ duyệt / TVGS đang kiểm tra → Đã duyệt.
+
+## Đợt 6G (17/11/2026) – ảnh theo khu vực, hồ sơ chờ lâu, PDF tuần nhẹ
+1. Ảnh tiêu biểu trên PDF (và màn nhập) **nhóm theo khu vực** theo thứ tự khu vực trong Cấu hình; ảnh không gắn khu vực / tự thêm vào nhóm "Ảnh khác". Dưới mỗi ảnh: chú thích + ngày. Ảnh tự thêm chọn được khu vực. Ảnh cũ chưa có khu vực: đoán theo tên khu vực ở đầu chú thích.
+2. B.3: hồ sơ **Chờ duyệt / TVGS đang kiểm tra quá 7 ngày** (tính đến ngày cuối kỳ báo cáo) tô đỏ, ghi "chờ X ngày"; dòng tổng hợp có "Quá hạn N". Có trên màn nhập và PDF.
+3. Khi xuất PDF tuần: ảnh tiêu biểu nén còn cạnh dài ≤ 900 px (JPEG 0,72), ảnh mặt bằng ≤ 1600 px (JPEG 0,8); Gantt giữ nguyên. Ảnh lưu trên Drive không đổi.

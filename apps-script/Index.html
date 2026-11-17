@@ -189,6 +189,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 <style>
 .wrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--bd);border-radius:10px;padding:8px;margin:8px 0;background:#fff}.wrow .wg{flex:1;min-width:0}
 .wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.wg .w2{grid-column:span 2}.wact{display:flex;flex-direction:column;gap:4px;align-items:center}
+.late{color:#b91c1c;font-weight:700;font-size:12px;margin-top:3px}
 .regsum{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.regsum span{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12.5px;background:#fff}.regsum .ok{border-color:#a7f3d0;color:#047857}.regsum .bad{border-color:#fecaca;color:#b91c1c}.regsum .wait{border-color:#fde68a;color:#92400e}
 .lkv{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:7px 6px;text-align:center;color:#334155;min-height:34px;font-size:13px}.lkv.tx{text-align:left}
 tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
@@ -253,7 +254,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .doc .wovr td.hd{background:#1e3a8a;color:#fff;font-weight:bold;text-align:left;padding:4px 8px}.doc .wovr span{display:block;font-size:9.5px;color:#475569}.doc .wovr b{display:block;font-size:20px;margin:2px 0}
 .doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr td.ok{background:#dcfce7}.doc .wovr td.ok b{color:#166534}.doc .wovr td.warn{background:#fef3c7}.doc .wovr td.warn b{color:#92400e}
 .doc .wovr td.bad{background:#fee2e2}.doc .wovr td.bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
-.doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
+.doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc td.phz{text-align:left;padding:4px 6px;border-bottom:1px solid #cbd5e1}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
 .doc .gpb{page-break-before:always}.doc .wsec1{background:#1e3a8a;color:#fff;font-weight:bold;font-size:11.5px;padding:5px 8px;margin:12px 0 4px}
 .doc .wsec2{color:#1e3a8a;font-weight:bold;font-size:11px;border-bottom:1.5px solid #1e3a8a;padding:3px 0;margin:8px 0 4px}.doc .wsec2 span,.doc .wsec3 span{float:right;font-weight:normal;color:#475569}
 .doc .wsec3{font-weight:bold;font-size:10.5px;margin:6px 0 2px;padding-left:6px;border-left:3px solid #6366f1}.doc .wsec1,.doc .wsec2,.doc .wsec3{page-break-after:avoid}.doc .wchart{page-break-inside:avoid}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
@@ -1639,15 +1640,20 @@ const weekFileName = w => { const p = CFG.project; return `${w.to.replace(/-/g,'
 /* Hồ sơ đệ trình (B.3) / văn bản (B.4) – đọc từ file theo dõi */
 const regOn = () => !!(((CFG.settings||{}).register)||{}).id;
 const REG_ST = { approved:['✅','Đã duyệt','ok','b-acc'], returned:['↩','Trả về chỉnh sửa','bad','b-ret'], rejected:['⛔','Từ chối','bad','b-ret'], review:['🔎','TVGS đang kiểm tra','','b-sub'], pending:['⏳','Chờ duyệt','','b-draft'] };
+/** Hồ sơ chờ duyệt / TVGS đang kiểm tra: số ngày chờ tính đến ngày cuối kỳ; > 7 ngày = quá hạn. */
+const regWait = (x, w) => (x.st === 'pending' || x.st === 'review') && x.date ? Math.round((new Date(w.to) - new Date(x.date)) / 864e5) : null;
+const regLate = (x, w) => (regWait(x, w) ?? 0) > 7;
 const regTxt = x => REG_ST[x.st] ? REG_ST[x.st][1] : (x.raw || '—');
 const regBadge = x => `<span class="badge ${(REG_ST[x.st]||[])[3]||'b-none'}">${(REG_ST[x.st]||['•'])[0]} ${esc(regTxt(x))}</span>`;
 function regStatLine(w){ const L = w.submittals || [], c = k => L.filter(x=>x.st===k).length, nw = L.filter(x=>x.date >= w.from && x.date <= w.to).length;
-  return `Trình mới ${nw} · Đã duyệt ${c('approved')} · Trả về ${c('returned')}${c('rejected') ? ' · Từ chối ' + c('rejected') : ''} · Chờ ${c('pending') + c('review')}`; }
+  return `Trình mới ${nw} · Đã duyệt ${c('approved')} · Trả về ${c('returned')}${c('rejected') ? ' · Từ chối ' + c('rejected') : ''} · Chờ ${c('pending') + c('review')}${L.filter(x=>regLate(x, w)).length ? ' · Chờ quá 7 ngày ' + L.filter(x=>regLate(x, w)).length : ''}`; }
+const REG_ORD = {returned:0, rejected:0, pending:1, review:1, approved:2};
+const regSorted = L => L.slice().sort((a,b)=>(REG_ORD[a.st] ?? 1) - (REG_ORD[b.st] ?? 1) || String(a.date).localeCompare(String(b.date)));
 function regTbl(w){
   if (!w.regAt) return `<div class="txt mut">${regOn() ? 'Chưa đọc file theo dõi hồ sơ cho tuần này' : '—'}</div>`;
   const L = w.submittals || []; if (!L.length) return '<div class="txt mut">Không có hồ sơ phát sinh trong tuần</div>';
   return `<table class="grid"><tr><th class="c">Stt</th><th style="width:140px">Mã hồ sơ</th><th>Tên hồ sơ</th><th class="c" style="width:30px">Lần</th><th class="c" style="width:46px">Ngày trình</th><th class="c" style="width:84px">Tình trạng</th></tr>
-    ${L.map((x,i)=>`<tr><td class="n">${i+1}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td><td class="c">${esc(x.count||'')}</td><td class="c">${vi(x.date).slice(0,8)}</td><td class="c ${(REG_ST[x.st]||[])[2]||''}">${esc(regTxt(x))}${x.st!=='pending' && x.st!=='review' && x.resDate && x.resDate !== x.date ? `<div class="sm">${vi(x.resDate).slice(0,5)}</div>` : ''}</td></tr>`).join('')}</table>`;
+    ${regSorted(L).map((x,i)=>`<tr><td class="n">${i+1}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td><td class="c">${esc(x.count||'')}</td><td class="c">${vi(x.date).slice(0,8)}</td><td class="c ${(REG_ST[x.st]||[])[2]||''}${regLate(x, w) ? ' bad' : ''}">${esc(regTxt(x))}${regLate(x, w) ? `<div class="sm"><b>chờ ${regWait(x, w)} ngày</b></div>` : ''}${x.st!=='pending' && x.st!=='review' && x.resDate && x.resDate !== x.date ? `<div class="sm">${vi(x.resDate).slice(0,5)}</div>` : ''}</td></tr>`).join('')}</table>`;
 }
 async function readRegister(silent){
   if (!regOn() || !W) return; try { if (!silent) toast('⏳ Đang đọc file theo dõi hồ sơ…', 20000);
@@ -1720,11 +1726,16 @@ function genWeek(w, reps, pw){
   if (!w.photos.length) w.photos = pickPhotos(reps);
   autoRatings(w, pw); w.genAt = nowStr(); return w;
 }
-function photoPool(reps){ return reps.map(r=>(r.photos||[]).concat(r.extraPhotos||[]).filter(p=>p.fileId || p.img).map(p=>({id:uid(), fileId:p.fileId||'', img:p.img||'', caption:p.caption||'', date:r.date}))); }
+function photoPool(reps){ return reps.map(r=>(r.photos||[]).concat(r.extraPhotos||[]).filter(p=>p.fileId || p.img).map(p=>({id:uid(), fileId:p.fileId||'', img:p.img||'', caption:p.caption||'', date:r.date, zoneId:p.zoneId||''}))); }
 /** Chọn ngẫu nhiên WPHOTO_N ảnh, lần lượt từng ngày để rải đều cả tuần. */
 function pickPhotos(reps, max = WPHOTO_N){ const pools = photoPool(reps).map(a=>a.sort(()=>Math.random() - 0.5)).filter(a=>a.length), out = [];
   while (out.length < max && pools.some(a=>a.length)) pools.forEach(a=>{ if (a.length && out.length < max) out.push(a.pop()); });
   return out.sort((a,b)=>a.date.localeCompare(b.date)); }
+/** Khu vực của ảnh (ảnh cũ chưa có: đoán theo tên khu vực ở đầu chú thích). */
+const phZone = p => p.zoneId || ((CFG.zones.find(z=>z.name && String(p.caption||'').toLowerCase().startsWith(z.name.toLowerCase())) || {}).id || '');
+/** Nhóm ảnh theo khu vực (thứ tự Cấu hình) → [[tên nhóm, [chỉ số]]]; ảnh không khu vực vào "Ảnh khác". */
+function photoGroups(L){ const g = CFG.zones.map(z=>[z.name, L.map((p,i)=>i).filter(i=>phZone(L[i])===z.id)]).filter(x=>x[1].length);
+  const rest = L.map((p,i)=>i).filter(i=>!CFG.zones.some(z=>z.id===phZone(L[i]))); return rest.length ? g.concat([['Ảnh khác', rest]]) : g; }
 const mpTot = w => r1((w.manpower||[]).reduce((s,m)=>s+num(m.avg),0));
 /** Tự xếp loại đánh giá tuần (không sửa tay). */
 function autoRatings(w, pw = PW){ const ni = w.safety.issues.length, ev = wEval(w.overall);
@@ -1860,10 +1871,9 @@ function renderWeek(){
     if (!w.regAt) h += regOn() ? '<div class="hint">Chưa đọc file theo dõi hồ sơ cho tuần này – bấm “Đọc file theo dõi hồ sơ”.</div>' : '<div class="note w">Chưa khai báo file theo dõi hồ sơ – Quản trị vào <b>Cấu hình → Cài đặt → Hồ sơ đệ trình</b>.</div>';
     else {
       const L = w.submittals || [], c = k => L.filter(x=>x.st===k).length, nw = L.filter(x=>x.date >= w.from && x.date <= w.to).length;
-      h += `<div class="regsum"><span>Trình mới <b>${nw}</b></span><span class="ok">Đã duyệt <b>${c('approved')}</b></span><span class="bad">Trả về <b>${c('returned')}</b></span>${c('rejected') ? `<span class="bad">Từ chối <b>${c('rejected')}</b></span>` : ''}<span class="wait">Chờ <b>${c('pending') + c('review')}</b></span></div>
-        <div class="hint">Đọc lúc ${esc(w.regAt)} · chỉ liệt kê hồ sơ trình trong tuần hoặc có kết quả trong tuần. Hồ sơ cần xử lý (trả về, từ chối) xếp trước.</div>`;
-      const ORD = {returned:0, rejected:0, pending:1, review:1, approved:2}, S2 = L.map((x,i)=>i).sort((i,j)=>(ORD[L[i].st] ?? 1) - (ORD[L[j].st] ?? 1) || String(L[i].date).localeCompare(String(L[j].date)));
-      h += regView(S2.map(i=>L[i]), [['Mã hồ sơ', x=>`<b>${esc(x.code)}</b>`, 190], ['Tên hồ sơ', x=>esc(x.desc)], ['Loại', x=>esc(x.tab), 90], ['Lần', x=>esc(x.count||''), 44], ['Ngày trình', x=>vi(x.date), 92], ['Tình trạng', x=>regBadge(x) + (x.resDate ? `<div class="hint">KQ ${vi(x.resDate)}</div>` : ''), 150]], 'Không có hồ sơ phát sinh trong tuần.');
+      h += `<div class="regsum"><span>Trình mới <b>${nw}</b></span><span class="ok">Đã duyệt <b>${c('approved')}</b></span><span class="bad">Trả về <b>${c('returned')}</b></span>${c('rejected') ? `<span class="bad">Từ chối <b>${c('rejected')}</b></span>` : ''}<span class="wait">Chờ <b>${c('pending') + c('review')}</b></span>${L.filter(x=>regLate(x, w)).length ? `<span class="bad">⚠ Chờ quá 7 ngày <b>${L.filter(x=>regLate(x, w)).length}</b></span>` : ''}</div>
+        <div class="hint">Đọc lúc ${esc(w.regAt)} · chỉ liệt kê hồ sơ trình trong tuần hoặc có kết quả trong tuần. Hồ sơ cần xử lý (trả về, từ chối) xếp trước; hồ sơ chờ quá 7 ngày (tính đến ${vi(w.to)}) tô đỏ.</div>`;
+      h += regView(regSorted(L), [['Mã hồ sơ', x=>`<b>${esc(x.code)}</b>`, 190], ['Tên hồ sơ', x=>esc(x.desc)], ['Loại', x=>esc(x.tab), 90], ['Lần', x=>esc(x.count||''), 44], ['Ngày trình', x=>vi(x.date), 92], ['Tình trạng', x=>regBadge(x) + (regLate(x, w) ? `<div class="late">⚠ chờ ${regWait(x, w)} ngày</div>` : '') + (x.resDate ? `<div class="hint">KQ ${vi(x.resDate)}</div>` : ''), 150]], 'Không có hồ sơ phát sinh trong tuần.');
     }
     h += wHead('📨 B.4 Văn bản trong tuần');
     h += !w.regAt ? '<div class="hint">Lấy từ file theo dõi hồ sơ (trang tính loại “Văn bản”) khi bấm “Đọc file theo dõi hồ sơ”.</div>'
@@ -1925,8 +1935,10 @@ function renderWeek(){
     h += wHead(`🖼 Hình ảnh tiêu biểu (${w.photos.length}/${WPHOTO_N})`, RO ? '' : '<button class="btn sm" data-act="wShuffle">⟳ Đổi bộ ảnh khác</button>')
       + `<div class="hint">Tự lấy ngẫu nhiên tối đa ${WPHOTO_N} ảnh từ các báo cáo ngày trong tuần. Xóa ảnh không cần, thêm ảnh của mình; “Đổi bộ ảnh khác” giữ ảnh tự thêm.</div>`
       + (RO ? '' : w.photos.length >= WPHOTO_N ? `<p class="note">Đã đủ ${WPHOTO_N} ảnh – xóa bớt để thêm ảnh khác.</p>` : '<label class="drop">📸 Thêm ảnh (chọn được nhiều ảnh)<input type="file" accept="image/\*" multiple data-img="wphotos"></label>') + '<div class="wph">';
-    w.photos.forEach((p,i)=>{ h += `<div class="wphi">${p.img ? `<img src="${p.img}">` : '<div class="noimg">Đang tải…</div>'}${inp(`photos.${i}.caption`, p.caption, 'Chú thích')}<div class="hint">${vi(p.date)}${p.manual ? ' · <span class="tag d">Tự thêm</span>' : ''}</div>${delBtn('photos', i)}</div>`; });
-    h += '</div>';
+    h = h.replace(/<div class="wph">$/, '');
+    photoGroups(w.photos).forEach(([nm, idx])=>{ h += `<div class="zbar"><span>📍 ${esc(nm)} · ${idx.length} ảnh</span></div><div class="wph">`;
+      idx.forEach(i=>{ const p = w.photos[i]; h += `<div class="wphi">${p.img ? `<img src="${p.img}">` : '<div class="noimg">Đang tải…</div>'}${inp(`photos.${i}.caption`, p.caption, 'Chú thích')}${p.manual ? sel(`photos.${i}.zoneId`, p.zoneId || '', [{v:'', t:'— ảnh khác —'}, ...CFG.zones.map(z=>({v:z.id, t:z.name}))]) : ''}<div class="hint">${vi(p.date)}${p.manual ? ' · <span class="tag d">Tự thêm</span>' : ''}</div>${delBtn('photos', i)}</div>`; });
+      h += '</div>'; });
   }
   h += '</div>';
   $('#periodPane').innerHTML = h;
@@ -1966,6 +1978,11 @@ function svgToPng(svg, scale = 2){ return new Promise(res=>{ if (!/^<svg/.test(s
     const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/png')); };
   img.onerror = ()=>res(''); const vb = svg.match(/viewBox="0 0 (\d+) (\d+)"/); img.width = vb ? +vb[1] : 720; img.height = vb ? +vb[2] : 260;
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('width="100%"', `width="${img.width}" height="${img.height}"`)); }); }
+/** Thu nhỏ ảnh (cạnh dài ≤ mx px, JPEG chất lượng q) – dùng khi xuất PDF. */
+function shrinkImg(src, mx, q){ return new Promise(res=>{ const img = new Image(); img.onload = ()=>{ const k = Math.min(1, mx / Math.max(img.width, img.height));
+  if (k >= 1 && /^data:image\/jpeg/.test(src)) return res(src); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', q)); };
+  img.onerror = ()=>res(src); img.src = src; }); }
 /** Xoay ảnh Gantt 90° (ảnh ngang → in nguyên 1 trang dọc, đọc khi xoay giấy). */
 function rotateImg(src){ return new Promise(res=>{ if (!src) return res(''); const img = new Image(); img.onload = ()=>{ if (img.width <= img.height) return res(src);
   const c = document.createElement('canvas'); c.width = img.height; c.height = img.width; const x = c.getContext('2d'); x.translate(c.width, 0); x.rotate(Math.PI / 2); x.drawImage(img, 0, 0); res(c.toDataURL('image/jpeg', 0.9)); };
@@ -2004,7 +2021,7 @@ function weekDocHTML(w, o = {}){
     ${arr.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td><td class="c ${x.result==='Không đạt'?'bad':'ok'}">${esc(x.result)}</td></tr>`).join('') || `<tr><td></td><td colspan="4" class="mut">${none}</td></tr>`}</table>`;
   h += W3(`B.1 CÁC CÔNG VIỆC ĐÃ THỰC HIỆN NGHIỆM THU <span>${w.inspections.filter(x=>x.result==='Đạt').length} đạt / ${w.inspections.length}</span>`) + qaTbl(w.inspections, 'Không có nghiệm thu trong tuần');
   h += W3('B.2 CÁC HOẠT ĐỘNG THÍ NGHIỆM') + qaTbl(w.tests, 'Không có thí nghiệm trong tuần');
-  h += W3(`B.3 TÌNH TRẠNG HỒ SƠ GIẤY TỜ${w.regStat ? ` <span>${esc(w.regStat)}</span>` : ''}`) + regTbl(w);
+  h += W3(`B.3 TÌNH TRẠNG HỒ SƠ GIẤY TỜ${w.regAt ? ` <span>${esc(regStatLine(w))}</span>` : ''}`) + regTbl(w);
   if ((w.docs||[]).length) h += W3('B.4 VĂN BẢN – CHỈ THỊ – NCR TRONG TUẦN') + `<table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th style="width:90px">Loại</th><th style="width:150px">Số hiệu</th><th>Nội dung</th></tr>
     ${w.docs.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.tab)}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td></tr>`).join('')}</table>`;
   // C. vật tư – thiết bị
@@ -2034,7 +2051,9 @@ function weekDocHTML(w, o = {}){
   if (w.matPlans.length) h += W3('II.4 KẾ HOẠCH VẬT TƯ') + `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">Khối lượng</th><th class="c">Ngày dự kiến</th></tr>${w.matPlans.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}${m.spec ? ' – ' + esc(m.spec) : ''}</td><td class="c">${esc(m.unit)}</td><td class="c">${esc(m.qty)}</td><td class="c">${vi(m.date)}</td></tr>`).join('')}</table>`;
   // III. MẶT BẰNG – HÌNH ẢNH
   h += `<div class="wsec1 ${w.layouts.some(l=>l.img||l.fileId)?'lysec':''}">III – MẶT BẰNG THI CÔNG TRONG TUẦN – HÌNH ẢNH / SITE LAYOUT & PICTURES</div>${layoutsHtml(w, o)}`;
-  if (w.photos.length) { h += '<table class="phc wph3">'; for (let i = 0; i < w.photos.length; i += 3) { h += '<tr>' + w.photos.slice(i, i+3).map(p=>`<td>${(p.img || (o.pdf && p.fileId)) ? `<img src="${imgSrc(p, o)}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)} (${vi(p.date).slice(0,5)})</div></td>`).join('') + '</tr>'; } h += '</table>'; }
+  if (w.photos.length) { h += '<table class="phc wph3">'; photoGroups(w.photos).forEach(([nm, idx])=>{ h += `<tr><td colspan="3" class="wz phz">📍 ${esc(nm)} (${idx.length} ảnh)</td></tr>`;
+    for (let i = 0; i < idx.length; i += 3) { const row = idx.slice(i, i+3).map(k=>{ const p = w.photos[k], src = (p.img || (o.pdf && p.fileId)) ? imgSrc(p, o) : '';
+      return `<td>${src ? `<img src="${src}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)}</div><div class="sm">${vi(p.date)}</div></td>`; }); while (row.length < 3) row.push('<td></td>'); h += '<tr>' + row.join('') + '</tr>'; } }); h += '</table>'; }
   h += docSign();
   // IV. TIẾN ĐỘ MSP – TRACKING: QR file MS Project + mỗi ảnh Gantt 1 trang
   if (w.gantt.length || w.msp) {
@@ -2063,7 +2082,10 @@ async function exportWeek(){
   if (!W || W.status !== 'locked') throw new Error('Chốt báo cáo tuần trước khi xuất PDF');
   if (!W.no) throw new Error('Chưa có số tuần');
   const o = {pdf:true, chartPng: await svgToPng(mpChartSvg(W)), gRot: await Promise.all(W.gantt.map(g=>rotateImg(g.img)))};
-  const box = document.createElement('div'); box.innerHTML = weekDocHTML(W, o);
+  // PDF nhẹ: nén ảnh tiêu biểu ≤ 900 px, mặt bằng ≤ 1600 px (ảnh trên Drive giữ nguyên)
+  const sh = (L, mx, q) => Promise.all(L.map(async p=>Object.assign({}, p, {img: p.img ? await shrinkImg(p.img, mx, q) : ''})));
+  const wx = Object.assign({}, W, {photos: await sh(W.photos, 900, 0.72), layouts: await sh(W.layouts, 1600, 0.8)});
+  const box = document.createElement('div'); box.innerHTML = weekDocHTML(wx, o);
   return Store.exportPdf(docHtml(box), weekFileName(W), W.key, 'week');
 }
 
@@ -2233,6 +2255,7 @@ document.addEventListener('input', e=>{
     if (/^(plans|inspections|inspectionPlans|tests|testPlans)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
     if (t.dataset.root==='W' && W){ const mw = t.dataset.path.match(/^(tasks|nextPlans|manpower|equipment|inspections|tests|inspPlans|materials|matPlans|safety\.issues|safety\.activities|photos|layouts|gantt)\.(\d+)\./);
       if (mw || /^safety\./.test(t.dataset.path)) autoRatings(W);
+      if (/^photos\.\d+\.zoneId$/.test(t.dataset.path)) setTimeout(renderWeek, 0);
       const mpw = t.dataset.path.match(/^nextPlans\.(\d+)\.(add|desc)$/); if (mpw){ const pl = W.nextPlans[+mpw[1]]; if (mpw[2]==='add' && v !== '' && v < 0) { pl.add = 0; t.value = 0; } wPlanCalc(pl, W.tasks); const e = $('#wpt-'+mpw[1]); if (e) e.innerHTML = `<b>${wPct(pl.target)}</b>`; }
       if (/^overall\.(plan|actual)$/.test(t.dataset.path)) { autoRatings(W); const ev = wEval(W.overall), el = $('#wEval'); if (el) { el.className = 'note ' + (ev.c==='ok'?'g':'w'); el.innerHTML = ev.t ? `Chênh lệch ${ev.d > 0 ? '+' : ''}${ev.d}% → <b>${ev.t}</b> (ngưỡng 5%)` : 'Nhập % KH tuần này và % thực tế để tự đánh giá'; } } }
     markDirty(t.dataset.root); schedulePreview(); return; }
