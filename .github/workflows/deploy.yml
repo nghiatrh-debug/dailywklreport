@@ -49,7 +49,7 @@ jobs:
           node-version: 22
       - name: Cài Playwright + Chromium
         run: |
-          npm install --no-save playwright@1
+          npm install --no-save playwright@1 xlsx@0.18.5
           npx playwright install --with-deps chromium
       - name: Chạy kiểm thử giao diện
         run: node tests/ui.js

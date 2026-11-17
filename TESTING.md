@@ -196,3 +196,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 09:07 | fa9cceb | đạt | 129 đạt / 0 lỗi | 152 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6J: cột du_kien_tuan, B.3 ngày đủ năm, ô cấu hình khóa hiện xám + nhắc Sửa thông tin |
 | 2026-11-17 09:56 | a395304 | đạt | 134 đạt / 0 lỗi | 164 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: danh mục vật tư, C.1.1 XD / C.1.2 MEP, nhập danh mục từ Excel; sửa tự đăng xuất lại sau khi đăng nhập |
 | 2026-11-17 10:01 | a395304 | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: danh mục vật tư, C.1.1/C.1.2, nhập từ Excel; sửa tự đăng xuất lại |
+| 2026-11-17 10:05 | 64d345b | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: kiểm thử .xlsx chạy được trên GitHub (cài xlsx) |
