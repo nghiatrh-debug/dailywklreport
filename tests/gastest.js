@@ -258,7 +258,9 @@ A([J(ctx.apiSetup(JSON.stringify(cfg),'5678')).token,'setup again after reset'])
 const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
 
 
-// Apps Script tự xóa chú thích /* … */ khi phục vụ trang → không được có "/*" nằm trong chuỗi JS (vd. accept="image/*")
+// Apps Script tự xóa chú thích /* … */ và // khi phục vụ trang, nhưng nhận diện chuỗi sai (nhất là chuỗi `…`) →
+// trong khối JS không được có "/*" hay "://" nằm trong chuỗi (vd. accept="image/*", "https://…"); ghi image/\* và https:\/\/
 { const src = require('fs').readFileSync(__dirname + '/../apps-script/Index.html', 'utf8');
-  const bad = src.split('\n').filter(l => { const i = l.indexOf('/*'); return i > 0 && /['"`]/.test(l.slice(0, i)) && !/^\s*<script>/.test(l) && /[=:(?]\s*['"`][^'"`]*\/\*|"[^"]*\/\*/.test(l); });
-  A([bad.length === 0, 'không có "/*" trong chuỗi giao diện (GAS cắt nhầm): ' + bad.map(l=>l.trim().slice(0,60)).join(' | ')]); }
+  const js = src.slice(src.lastIndexOf('<script>')).split('\n');
+  const bad = js.filter(l => /:\/\//.test(l) || /['"`=][^'"`]*\/\*/.test(l));
+  A([bad.length === 0, 'không có "/*" hay "://" trong chuỗi JS (GAS cắt nhầm): ' + bad.map(l=>l.trim().slice(0,60)).join(' | ')]); }

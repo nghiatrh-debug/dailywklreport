@@ -1429,7 +1429,7 @@ const WXMEM = {};
 async function wxFetch(date){
   const lat = parseFloat(CFG.project.lat), lon = parseFloat(CFG.project.lon);
   const old = (new Date(today()+'T00:00:00') - new Date(date+'T00:00:00')) / 864e5 > 85;
-  const url = `https://${old ? 'archive-api' : 'api'}.open-meteo.com/v1/${old ? 'archive' : 'forecast'}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover&timezone=Asia%2FHo_Chi_Minh&start_date=${date}&end_date=${date}`;
+  const url = `https:\/\/${old ? 'archive-api' : 'api'}.open-meteo.com/v1/${old ? 'archive' : 'forecast'}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover&timezone=Asia%2FHo_Chi_Minh&start_date=${date}&end_date=${date}`;
   const res = await fetch(url); if (!res.ok) throw new Error('Open-Meteo ' + res.status); return res.json();
 }
 /* Gộp theo buổi: sáng 6–12h, chiều 12–18h. Mưa ≥10mm Mưa lớn · ≥2,5 Mưa · >0 Mưa rào · không mưa: mây <30% Nắng, <70% Nắng nhẹ, còn lại Nhiều mây */
@@ -1846,7 +1846,7 @@ function mpChartSvg(w){
   const top2 = Math.ceil(mx / step) * step, y = v => bot - (v / top2) * (bot - top);
   // chú giải: xếp theo độ dài chữ, tự xuống dòng
   const leg = []; let lx = 30, ly = bot + 30; T.forEach((t,j)=>{ const wd = 16 + Math.min(t.length, 34) * 5.2; if (lx + wd > W0 - 10) { lx = 30; ly += 14; } leg.push([lx, ly, t, j]); lx += wd + 10; });
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W0} ${ly + 10}" width="100%" style="display:block;font-family:Arial,sans-serif">
+  let s = `<svg xmlns="http:\/\/www.w3.org/2000/svg" viewBox="0 0 ${W0} ${ly + 10}" width="100%" style="display:block;font-family:Arial,sans-serif">
     <text x="${W0/2}" y="13" font-size="12" font-weight="bold" text-anchor="middle" fill="#111">NHÂN SỰ ${esc(CFG.project.code)}</text>`;
   for (let v = 0; v <= top2 + 1e-9; v += step) s += `<line x1="${left}" y1="${y(v)}" x2="${W0-6}" y2="${y(v)}" stroke="#e5e7eb" stroke-width="0.6"/><text x="${left-4}" y="${y(v)+3}" font-size="8" text-anchor="end" fill="#555">${Math.round(v)}</text>`;
   D.forEach((d,i)=>{ const x0 = left + i * gw + (gw - bw * T.length) / 2;
@@ -2001,9 +2001,9 @@ function renderConfig(){
       <div><label class="l">Ngày chốt báo cáo tuần (cuối ngày)</label><select class="in" data-cfg="settings.weekEnd">${DN.map((n,i)=>`<option value="${i}" ${i===we?'selected':''}>${n} → tuần ${DN[(i+1)%7]} – ${n}</option>`).join('')}</select></div>
       <div><label class="l">Tự đăng xuất khi không thao tác (giờ, 0 = tắt)</label><input class="in" type="number" min="0" max="72" data-cfg="settings.idleHours" value="${esc(st.idleHours ?? 8)}"></div></div>
     <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu PDF</h3></div>
-    <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https://drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Báo cáo ngày – ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
+    <div class="note ${st.pdfFolderId?'g':''}">${st.pdfFolderId ? `Đang lưu PDF vào thư mục: <b><a href="https:\/\/drive.google.com/drive/folders/${esc(st.pdfFolderId)}" target="_blank" rel="noopener">${esc(st.pdfFolderName||st.pdfFolderId)}</a></b>` : `Đang dùng thư mục mặc định của app: <b>Báo cáo ngày – ${esc(CFG.project.code)} / PDF</b> (trong Drive của tài khoản triển khai).`}</div>
     <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
-    <input class="in" id="pdfLink" placeholder="https://drive.google.com/drive/folders/…">
+    <input class="in" id="pdfLink" placeholder="https:\/\/drive.google.com/drive/folders/…">
     <div class="bar"><button class="btn pri" data-act="pdfFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.pdfFolderId?'<button class="btn" data-act="pdfFolderReset">↺ Về thư mục mặc định</button>':''}</div>
     ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tháng; báo cáo tuần lưu thẳng trong thư mục đã chọn. Đổi xong bấm “Lưu cài đặt”.')}
     <div class="hint" style="padding:2px 0 6px">Tài khoản triển khai app phải có quyền <b>Người chỉnh sửa (Editor)</b> trên thư mục – app tự kiểm tra bằng cách ghi thử 1 file rồi xóa. PDF đã xuất trước đó vẫn giữ ở chỗ cũ.</div>
@@ -2012,7 +2012,7 @@ function renderConfig(){
       <div class="tw"><table class="ed"><thead><tr><th>Trang tính</th><th style="width:150px">Loại</th><th>Cột nhận được</th></tr></thead><tbody>${st.register.tabs.map((t,i)=>`<tr><td style="padding:6px"><b>${esc(t.name)}</b>${t.rows?`<div class="hint">${t.rows} dòng</div>`:''}</td>
         <td><select class="in" data-cfg="settings.register.tabs.${i}.type">${[['sub','Hồ sơ đệ trình'],['doc','Văn bản'],['off','Bỏ qua']].map(([v,l])=>`<option value="${v}" ${t.type===v?'selected':''}>${l}</option>`).join('')}</select></td><td class="hint" style="padding:6px">${esc(t.note||'')}</td></tr>`).join('')}</tbody></table></div>
       <div class="hint" style="padding:4px 0">Kết quả “X/Y” = TVGS/CĐT, lấy chữ sau: A, B → Đã duyệt · C → Trả về chỉnh sửa · D → Từ chối · trống → Chờ duyệt. Đổi loại xong bấm “Lưu cài đặt”.</div>` : '<div class="note">Chưa khai báo – báo cáo tuần mục B.3 (hồ sơ) và B.4 (văn bản) để trống.</div>'}
-    <label class="l">Dán link file Google Sheet theo dõi hồ sơ (sổ theo dõi trình duyệt)</label><input class="in" id="regLink" placeholder="https://docs.google.com/spreadsheets/d/…">
+    <label class="l">Dán link file Google Sheet theo dõi hồ sơ (sổ theo dõi trình duyệt)</label><input class="in" id="regLink" placeholder="https:\/\/docs.google.com/spreadsheets/d/…">
     <div class="bar"><button class="btn pri" data-act="regSet">✔ Đọc & dùng file này</button>${st.register && st.register.id ? '<button class="btn" data-act="regOff">✕ Bỏ</button>' : ''}</div>
     <div class="hint" style="padding:2px 0 6px">App chỉ <b>đọc</b>, không sửa file. Tài khoản triển khai app cần quyền <b>xem</b> file.</div>
     <div class="ph" style="margin-top:12px"><h3>✔ TVGS kiểm tra nội dung</h3></div>

@@ -38,9 +38,9 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ### 17/11 – Sửa lỗi /dev mở ra trang trắng
 - **Nguyên nhân:** khi phục vụ trang, Apps Script tự xóa các chú thích `/* … */` và hiểu nhầm `accept="image/*"` (ô chọn ảnh) là chỗ bắt đầu chú thích. Nó cắt mất một đoạn code đến dấu `*/` kế tiếp, nên JavaScript lỗi cú pháp và app không chạy. Kiểm thử trên máy không thấy lỗi này vì không đi qua bước xóa chú thích của Google.
-- **Sửa:** ghi thành `image/\*`. Trình duyệt vẫn hiểu là `image/*`, còn Apps Script không còn coi đó là chú thích.
+- **Sửa:** ghi thành `image/\*`. Trình duyệt vẫn hiểu là `image/*`, còn Apps Script không còn coi đó là chú thích. Lỗi tương tự với `//` trong đường link (`https://…`), nên các link trong code cũng ghi thành `https:\/\/` (kết quả hiển thị không đổi).
 - **Thêm:** dải đỏ cuối màn hình hiện lỗi JavaScript (nếu có), để lần sau chụp màn hình là biết lỗi gì.
-- **Kiểm thử mới** (gastest): không có `/*` nằm trong chuỗi giao diện. Đã chạy thử trên bản cũ: kiểm thử báo lỗi đúng chỗ.
+- **Kiểm thử mới** (gastest): khối JS không có `/*` hay `://` nằm trong chuỗi. Đã chạy thử trên bản cũ: kiểm thử báo lỗi đúng chỗ.
 - **Rủi ro còn lại:** khi viết code mới, tránh viết `/*` hoặc `*/` trong chuỗi; kiểm thử trên sẽ chặn trường hợp này.
 
 Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử mới thêm, đã xem ảnh màn hình nào, rủi ro còn lại.
@@ -77,3 +77,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 - **Kiểm thử mới:** giao diện +1 (bảng nhân lực không còn “Tổng công/Cao nhất”).
 | 2026-11-17 04:39 | 07511c4 | đạt | 119 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Hiện lỗi JS trên màn hình (chẩn đoán /dev trắng) |
 | 2026-11-17 04:44 | 9766a73 | đạt | 120 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Sửa /dev trắng: GAS cắt nhầm accept=image/* như chú thích |
+| 2026-11-17 04:50 | 9e03095 | đạt | 120 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Sửa /dev trắng (2): ghi https:\/\/ trong chuỗi JS để GAS không cắt nhầm |
