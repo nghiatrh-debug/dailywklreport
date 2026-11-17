@@ -195,6 +195,8 @@ console.log('Dung lượng: xong');
     layouts: [], photos: [], gantt: [{ img, fileId: '', caption: 'Gantt 1' }], msp: null };
   let r = J(ctx.apiSavePeriod(tk, JSON.stringify(base)));
   A([r.ok && r.gantt[0], 'lưu tuần nháp: tải ảnh Gantt lên Drive']);
+  { const r2 = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }], layouts: [{ img, fileId: '', caption: 'MB thêm tay' }] }))));
+    A([r2.ok && r2.layouts && r2.layouts[0] && !JSON.stringify(sheets.TongHopKy.data.find(x => x[0] === base.key) || []).includes('data:image'), 'lưu tuần: ảnh mặt bằng thêm tay tải lên Drive, không lưu ảnh vào bảng']); }
   let err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'w.pdf', base.key, 'week'); } catch (e) { err = e.message; } A([/Chốt/.test(err), 'chưa chốt tuần → chặn xuất PDF']);
   r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
   A([r.review && r.review.status === 'pending', 'chốt tuần → chờ TVGS']);

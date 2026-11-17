@@ -211,3 +211,13 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - I.A: % KH lấy từ "KH tuần sau" của tuần trước (khóa); việc không có KH → ô KH nhập tay. Cột ghi chú luôn sửa được (giữ khi tổng hợp lại). Tuần đầu tiên: "kỳ trước" vật tư nhập tay.
 - **Đánh giá tuần tự xếp loại, không sửa:** An toàn: 0 vi phạm Tốt, 1–3 TB, >3 Kém. Thi công: chênh lệch tiến độ tổng ≥0 Tốt, ≥−5% TB, <−5% Kém (chưa nhập % → theo số việc trễ KH: 0 Tốt, ≤3 TB, >3 Kém). Nguồn lực: tổng nhân lực bình quân so tuần trước giảm <20% Tốt, 20–40% TB, >40% Kém (không có tuần trước → Tốt).
 - Vẫn nhập tay: tiến độ tổng (%), nhận xét, nhận xét an toàn, hoạt động an toàn, II.1/II.2 KH tuần sau, II.4 KH vật tư, ảnh, MSP.
+
+## Đợt 6D (17/11/2026) – chỉnh báo cáo tuần sau kiểm tra
+1. IV – MSP trên PDF: chỉ in mã QR (bỏ tên file + link), cỡ bằng QR "Verified by Consultant" của báo cáo ngày.
+2. Ảnh Gantt tối đa 6 (mỗi ảnh 1 trang).
+3. Tiêu đề không còn "?" khi chưa có số tuần.
+4. Mặt bằng thi công tuần: thêm / xóa / đổi thứ tự / chú thích như báo cáo ngày, tối đa 6 ảnh. Lần tổng hợp đầu lấy bộ mặt bằng của ngày cuối kỳ; sau đó "Tổng hợp lại" không ghi đè. Ảnh thêm mới tải lên Drive khi lưu.
+5. Sửa lỗi ảnh mặt bằng / ảnh tiêu biểu đứng ở "Đang tải ảnh…" sau khi bấm "Tổng hợp lại" hoặc "Đổi bộ ảnh khác".
+6. II. KH tuần sau: II.1 Thi công xây dựng (khu vực XD, Hoàn thiện, Khác) · II.2 Thi công MEP; trong mỗi mục chia theo khu vực, nút "+ Thêm kế hoạch" từng khu vực. Nguyên tắc như kế hoạch ngày mai: nhập % dự kiến thực hiện trong tuần, lũy kế dự kiến = lũy kế hiện tại (theo việc cùng tên, cùng khu vực ở I.A) + % dự kiến, tối đa 100 → thành % KH tuần sau. "Tạo từ các việc chưa xong" = Tự sinh (việc < 100%).
+7. Điện thoại: nút ＋ nổi ở I.A và II như phiếu ngày (chọn khu vực → dòng mới hiện tại chỗ, con trỏ vào ô nội dung); thẻ kế hoạch có nút +2/+5/+7/+10.
+8. Bảng nhập trên máy tính: cột nội dung đủ rộng (bảng cuộn ngang trong khung như phiếu ngày).

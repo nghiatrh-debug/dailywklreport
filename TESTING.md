@@ -36,6 +36,19 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6D: chỉnh báo cáo tuần sau kiểm tra (8 mục)
+- **Sửa:**
+  - IV MSP trên PDF chỉ còn mã QR, cỡ bằng QR TVGS (40 px). Ảnh Gantt tối đa 6.
+  - Tiêu đề không còn "?" khi chưa có số tuần.
+  - Mặt bằng tuần thêm / xóa / đổi thứ tự / chú thích như báo cáo ngày, tối đa 6. "Tổng hợp lại" không ghi đè. Ảnh thêm tay tải lên Drive khi lưu (máy chủ trả về mã file).
+  - Sửa lỗi ảnh đứng ở "Đang tải ảnh…" sau "Tổng hợp lại" / "Đổi bộ ảnh khác": tải lại ảnh sau 2 thao tác này.
+  - KH tuần sau tách II.1 Thi công xây dựng / II.2 Thi công MEP, chia theo khu vực, mỗi khu vực có nút thêm. Nhập % dự kiến → lũy kế dự kiến tự tính như kế hoạch ngày mai; điện thoại có nút +2/+5/+7/+10.
+  - Nút ＋ nổi trên điện thoại ở I.A và II (chọn khu vực → dòng mới hiện tại chỗ, con trỏ vào ô nội dung).
+  - Bảng nhập trên máy tính có độ rộng tối thiểu, cột nội dung rộng hơn, ô nội dung 2 dòng.
+- **Kiểm thử mới:** gastest – lưu tuần có ảnh mặt bằng thêm tay → tải lên Drive, bảng không chứa ảnh. ui – lũy kế dự kiến tự tính, tách II.1/II.2 theo khu vực; mặt bằng tuần thêm / đổi thứ tự / xóa, tổng hợp lại không ghi đè; báo đủ 6 ảnh; tiêu đề không "?"; QR MSP không chữ, cỡ ≤ 44 px; GANTT_MAX = 6; điện thoại – ＋ nổi thêm việc/kế hoạch, dòng mới trong màn hình, nút +5.
+- **Ảnh đã xem:** desk_week_plan.png, desk_week_photo.png, m_ip_week_plan.png.
+- **Rủi ro còn lại:** kế hoạch tuần sau đã lưu trước đây chỉ có "% mục tiêu" → app tự quy ra % dự kiến = mục tiêu − lũy kế hiện tại. Ô nhập trong bảng máy tính không viền khi chưa bấm vào (giống phiếu ngày).
+
 ### 17/11 – Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dữ liệu tổng hợp
 - **Sửa:**
   - Tên app thành "LẬP BÁO CÁO THI CÔNG" (tiêu đề, tab trình duyệt, tên icon).
@@ -98,3 +111,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 05:01 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 119 đạt / 1 lỗi | ❌ LỖI | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
 | 2026-11-17 05:04 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 120 đạt / 0 lỗi | ✅ ĐẠT | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
 | 2026-11-17 05:54 | 1bd5ba0 | đạt | 121 đạt / 0 lỗi | 124 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dòng tổng hợp, tự xếp loại, đổi tên app |
+| 2026-11-17 06:42 | a2c1848 | đạt | 122 đạt / 0 lỗi | 136 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6D: QR MSP, 6 Gantt, mặt bằng tuần, KH tuần sau theo khu vực, nút + nổi |

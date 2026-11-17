@@ -502,9 +502,10 @@ function saveWeek_(me, w) {
       log_(me.id, 'CHOT_TUAN', w.to, 'Tuần ' + w.no + ' v' + w.version); }
     const imgs = (w.gantt || []).filter(g => g && g.img && !g.fileId);
     if (imgs.length) { const f = subFolder_(rootFolder_(), 'Tuan'); (w.gantt || []).forEach((g, i) => uploadImg_(g, f, w.key + '_gantt_' + (i + 1))); }
+    if ((w.layouts || []).some(l => l && l.img && !l.fileId)) { const f = subFolder_(rootFolder_(), 'Tuan'); w.layouts.forEach((l, i) => uploadImg_(l, f, w.key + '_mb_' + (i + 1) + '_' + Date.now())); }
     weekWrite_(w);
     if (w.status === 'locked') writeWeekTables_(w, c);
-    return JSON.stringify({ ok: true, review: w.review || null, gantt: (w.gantt || []).map(g => g.fileId || ''), lockedAt: w.lockedAt || '' });
+    return JSON.stringify({ ok: true, review: w.review || null, gantt: (w.gantt || []).map(g => g.fileId || ''), layouts: (w.layouts || []).map(l => (l && l.fileId) || ''), lockedAt: w.lockedAt || '' });
   } finally { lock.releaseLock(); }
 }
 const pctW_ = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Math.round(Number(v) * 100) / 100;
