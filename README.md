@@ -1,4 +1,6 @@
-# Báo cáo ngày công trường (Daily / Weekly / Monthly Report)
+# Lập báo cáo thi công (Daily / Weekly Report)
+
+**© 2026 Huỳnh Trọng Nghĩa. Bảo lưu mọi quyền.** Kho mã công khai chỉ để triển khai, không phải giấy phép sử dụng – xem [LICENSE](LICENSE).
 
 Web app trên **Google Apps Script** để lập báo cáo ngày công trường, rồi tự tổng hợp thành báo cáo tuần và tháng. Dữ liệu lưu ở **Google Sheets**, ảnh và PDF lưu ở **Google Drive**.
 Đây là khuôn mẫu dùng chung: mỗi dự án dùng một bản copy riêng của file Google Sheet.

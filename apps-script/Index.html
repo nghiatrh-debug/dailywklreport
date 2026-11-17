@@ -190,6 +190,8 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .wrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--bd);border-radius:10px;padding:8px;margin:8px 0;background:#fff}.wrow .wg{flex:1;min-width:0}
 .wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.wg .w2{grid-column:span 2}.wact{display:flex;flex-direction:column;gap:4px;align-items:center}
 .late{color:#b91c1c;font-weight:700;font-size:12px;margin-top:3px}
+.copy{margin:14px 0 0;text-align:center;font-size:11px;color:#94a3b8}
+.about{margin-top:18px;border-top:1px dashed var(--bd);padding-top:10px;font-size:12px;color:#64748b;line-height:1.6}.about b{color:#334155}
 .regsum{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.regsum span{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12.5px;background:#fff}.regsum .ok{border-color:#a7f3d0;color:#047857}.regsum .bad{border-color:#fecaca;color:#b91c1c}.regsum .wait{border-color:#fde68a;color:#92400e}
 .lkv{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:7px 6px;text-align:center;color:#334155;min-height:34px;font-size:13px}.lkv.tx{text-align:left}
 tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
@@ -203,6 +205,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 @media(max-width:767px){.lyc{flex-direction:column}.lyi{width:100%}}
 </style>
 <style id="docCss">
+.doc .credit{margin-top:6px;text-align:right;font-size:6.5px;color:#9ca3af}
 .doc{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111827;background:#fff;padding:26px 28px;line-height:1.35}
 .doc table{border-collapse:collapse;width:100%}
 .doc .logos2 td{text-align:center;font-weight:bold;padding:6px;width:33%;font-size:9px;color:#475569}
@@ -445,10 +448,17 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
 </script>
 <script>
 /* =====================================================================
+   LẬP BÁO CÁO THI CÔNG – Báo cáo ngày · Báo cáo tuần
+   © 2026 Huỳnh Trọng Nghĩa. Bảo lưu mọi quyền (All rights reserved) – xem LICENSE.
+   Tác giả: Huỳnh Trọng Nghĩa · Phát hành lần đầu: 11/2026
+   ---------------------------------------------------------------------
    BÁO CÁO NGÀY CÔNG TRƯỜNG – khuôn mẫu dùng chung cho mọi dự án
    - Chạy độc lập (IndexedDB trên máy) hoặc Google Apps Script (Sheets + Drive)
    - Nhiều kỹ sư nhập phiếu riêng theo khu vực → người chốt gộp, kiểm tra, chốt
    ===================================================================== */
+const APP = { name:'Lập báo cáo thi công', author:'Huỳnh Trọng Nghĩa', ver:'1.6', since:'11/2026', year:2026 };
+const COPY = `© ${APP.year} ${APP.author} – ${APP.name} v${APP.ver}`;
+const docCredit = () => `<div class="credit">Lập bằng ứng dụng ${APP.name} · © ${APP.year} ${APP.author}</div>`;
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1413,7 +1423,7 @@ function docHTML(r, o={}){
   if (!r.photos.length) h += '<tr><td class="mut">Không có hình ảnh</td></tr>';
   h += '</table>';
   if (o.partial && o.note) h += `<div class="sec">${N[4]}. GHI CHÚ CHO NGƯỜI CHỐT</div><div class="txt">${esc(o.note)}</div>`;
-  if (!o.partial) h += docSign();
+  if (!o.partial) h += docSign() + docCredit();
   return h + '</div>';
 }
 function lockLine(r){
@@ -2054,7 +2064,7 @@ function weekDocHTML(w, o = {}){
   if (w.photos.length) { h += '<table class="phc wph3">'; photoGroups(w.photos).forEach(([nm, idx])=>{ h += `<tr><td colspan="3" class="wz phz">📍 ${esc(nm)} (${idx.length} ảnh)</td></tr>`;
     for (let i = 0; i < idx.length; i += 3) { const row = idx.slice(i, i+3).map(k=>{ const p = w.photos[k], src = (p.img || (o.pdf && p.fileId)) ? imgSrc(p, o) : '';
       return `<td>${src ? `<img src="${src}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)}</div><div class="sm">${vi(p.date)}</div></td>`; }); while (row.length < 3) row.push('<td></td>'); h += '<tr>' + row.join('') + '</tr>'; } }); h += '</table>'; }
-  h += docSign();
+  h += docSign() + docCredit();
   // IV. TIẾN ĐỘ MSP – TRACKING: QR file MS Project + mỗi ảnh Gantt 1 trang
   if (w.gantt.length || w.msp) {
     h += `<div class="wsec1 gpb">IV – TIẾN ĐỘ MSP – TRACKING ĐÍNH KÈM${ov.rev ? ' (' + esc(ov.rev) + ')' : ''}</div>`;
@@ -2192,6 +2202,8 @@ function renderConfig(){
     <p style="margin:0 0 10px;font-size:13px">Xóa <b>toàn bộ</b> thông tin dự án, người dùng, khu vực, báo cáo, phiếu và quay về màn hình <b>khai báo lần đầu</b>. ${IS_GAS ? 'Hệ thống tự tạo <b>bản copy Google Sheet</b> để lưu trữ trước khi xóa; ảnh và PDF trên Drive giữ nguyên.' : 'Nên sao chép JSON để lưu trữ trước.'}</p>
     <button class="btn" data-act="resetAll" style="border-color:#fca5a5;color:#b91c1c">⟲ Reset toàn bộ & khai báo dự án mới</button></div>`;
   }
+  h += `<div class="about"><b>ℹ️ Giới thiệu</b><div>${esc(APP.name)} – phiên bản ${esc(APP.ver)} · phát hành lần đầu ${esc(APP.since)}</div>
+    <div>Tác giả: <b>${esc(APP.author)}</b> · © ${APP.year} ${esc(APP.author)}. Bảo lưu mọi quyền – không sao chép, chỉnh sửa, phân phối khi chưa có sự đồng ý của tác giả.</div></div>`;
   $('#configPane').innerHTML = h;
 }
 
@@ -2570,7 +2582,7 @@ function showLogin(){ othersBanner(0);
     <label class="l">PIN</label><input class="in pin" id="pinIn" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
     <label class="swrow" style="margin-top:12px"><input type="checkbox" id="remember"><span><b>Ghi nhớ đăng nhập trên máy này</b><br><span class="hint">Chỉ chọn trên điện thoại / máy tính cá nhân. Không chọn: tắt trình duyệt là tự đăng xuất.</span></span></label>
     <button class="btn pri" data-act="doLogin" style="width:100%;justify-content:center;margin-top:12px;padding:10px">Đăng nhập</button>${demo}
-    <p class="hint" style="margin-top:12px;padding:0">Quên PIN: liên hệ người quản trị dự án để đặt lại.</p></div>`;
+    <p class="hint" style="margin-top:12px;padding:0">Quên PIN: liên hệ người quản trị dự án để đặt lại.</p><p class="copy">${esc(COPY)}</p></div>`;
   $('#login').classList.add('on');
 }
 const modeOf = u => { const m = CFG.users.find(x=>x.id===u); return m && (m.role==='ks') ? 'my' : 'day'; };

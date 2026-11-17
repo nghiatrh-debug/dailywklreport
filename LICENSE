@@ -1,0 +1,30 @@
+LẬP BÁO CÁO THI CÔNG (Báo cáo ngày · Báo cáo tuần)
+Copyright © 2026 Huỳnh Trọng Nghĩa. Bảo lưu mọi quyền / All rights reserved.
+
+Tác giả: Huỳnh Trọng Nghĩa
+Phát hành lần đầu: tháng 11/2026
+Kho mã nguồn: https://github.com/nghiatrh-debug/dailywklreport
+
+1. Phần mềm này (mã nguồn, giao diện, mẫu báo cáo, tài liệu kèm theo) là tác phẩm
+   của tác giả nêu trên và được bảo hộ theo pháp luật về quyền tác giả.
+
+2. Việc mã nguồn được đặt ở kho công khai chỉ nhằm mục đích triển khai kỹ thuật.
+   KHÔNG có nghĩa là cấp phép sử dụng.
+
+3. Nghiêm cấm sao chép, chỉnh sửa, phân phối, bán, cho thuê, tạo sản phẩm phái sinh
+   hoặc triển khai phần mềm này cho dự án / tổ chức khác, toàn bộ hay một phần,
+   khi chưa có sự đồng ý bằng văn bản của tác giả.
+
+4. Các dự án đang được tác giả triển khai được sử dụng theo thỏa thuận với tác giả.
+
+5. Thư viện bên thứ ba giữ giấy phép riêng:
+   - qrcode-generator 1.5.2 – MIT License – (c) Kazuhiko Arase.
+
+Liên hệ xin phép sử dụng: Huỳnh Trọng Nghĩa (qua chủ sở hữu kho mã nguồn trên GitHub).
+
+---------------------------------------------------------------------------------
+English summary: Copyright © 2026 Huỳnh Trọng Nghĩa. All rights reserved.
+This repository is publicly visible for deployment purposes only. No license is
+granted to copy, modify, distribute, sublicense, sell or deploy this software,
+in whole or in part, without prior written permission from the author.
+Third-party components retain their own licenses (see above).

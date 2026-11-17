@@ -1,4 +1,7 @@
 /**
+ * LẬP BÁO CÁO THI CÔNG – © 2026 Huỳnh Trọng Nghĩa. Bảo lưu mọi quyền (All rights reserved) – xem LICENSE.
+ * Tác giả: Huỳnh Trọng Nghĩa · Phát hành lần đầu: 11/2026
+ *
  * BÁO CÁO NGÀY CÔNG TRƯỜNG – Backend Google Apps Script (khuôn mẫu dùng chung, bản tối ưu tốc độ)
  * ---------------------------------------------------------------------------------------------
  * Tối ưu:

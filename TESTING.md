@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6H: đánh dấu bản quyền
+- **Sửa:** dòng "© 2026 Huỳnh Trọng Nghĩa – Lập báo cáo thi công v1.6" ở màn đăng nhập. Cấu hình có mục Giới thiệu (tác giả, phiên bản, phát hành lần đầu, bảo lưu quyền). PDF ngày/tuần có dòng chữ nhỏ dưới phần ký. Đầu Code.gs và Index.html có dòng bản quyền. Thêm file LICENSE (bảo lưu mọi quyền, kho công khai không phải giấy phép); README dẫn tới LICENSE. Thông tin tác giả/phiên bản nằm ở hằng `APP`.
+- **Kiểm thử mới (ui):** màn đăng nhập có dòng ©; Cấu hình có Giới thiệu; PDF tuần có dòng bản quyền.
+- **Ảnh đã xem:** desk_settings.png (mục Giới thiệu ở cuối thẻ).
+- **Rủi ro còn lại:** dòng trên PDF in chữ 6,5 pt màu xám – đủ đọc khi phóng to, không ảnh hưởng nội dung báo cáo.
+
 ### 17/11 – Đợt 6G: ảnh theo khu vực, hồ sơ chờ quá 7 ngày, nén ảnh PDF tuần
 - **Sửa:**
   - Ảnh tiêu biểu nhóm theo khu vực (thứ tự trong Cấu hình) trên màn nhập và PDF. Mỗi ảnh có chú thích và ngày. Ảnh không gắn khu vực vào nhóm "Ảnh khác"; ảnh tự thêm chọn được khu vực. Ảnh cũ chưa có khu vực thì đoán theo tên khu vực ở đầu chú thích.
@@ -148,3 +154,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 07:10 | 66c37b1 | đạt | 127 đạt / 0 lỗi | 137 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6E: thư mục Dữ liệu báo cáo, tự dọn ảnh quá 3 tháng |
 | 2026-11-17 07:28 | f882adb | đạt | 128 đạt / 0 lỗi | 141 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6F: 30 ảnh tiêu biểu + thêm/xóa, mặt bằng tuần 10 ảnh, B.3/B.4 tách riêng |
 | 2026-11-17 07:41 | 9c0b2e3 | đạt | 128 đạt / 0 lỗi | 145 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6G: ảnh theo khu vực, hồ sơ chờ quá 7 ngày, nén ảnh PDF tuần |
+| 2026-11-17 07:50 | 3dc975a | đạt | 128 đạt / 0 lỗi | 148 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6H: ghi bản quyền (đăng nhập, Cấu hình, PDF, đầu file code) + LICENSE |

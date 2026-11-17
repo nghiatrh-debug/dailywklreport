@@ -24,6 +24,7 @@ async function fresh(browser, opt) {
 }
 async function login(pg, uid, pin) {
   await pg.evaluate(() => { const b = document.querySelector('#userChip [data-act=logout]'); if (b) b.click(); }); await wait(400);
+  if (!login.copyOk) login.copyOk = /© 2026 Huỳnh Trọng Nghĩa/.test(await pg.innerText('#login'));
   await pg.selectOption('#loginUser', uid); await pg.fill('#pinIn', pin); await pg.click('[data-act=doLogin]'); await wait(1000);
 }
 const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
@@ -190,6 +191,8 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.locator('[data-act=speedTest]').count() === 1, 'Cài đặt: có nút Đo tốc độ');
     ok(/Thư mục lưu báo cáo tuần/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#weekLink') && await pg.locator('[data-act=weekFolderSet]').count() === 1, 'Cài đặt: chọn thư mục riêng lưu báo cáo tuần');
     ok(/Tự dọn dữ liệu/.test(await pg.innerText('#configPane')) && /quá 3 tháng/.test(await pg.innerText('#configPane')) && /Thùng rác/i.test(await pg.innerText('#configPane')), 'Cài đặt: ghi chú tự dọn ảnh quá 3 tháng vào thùng rác Drive');
+    ok(login.copyOk, 'Màn đăng nhập: dòng © 2026 Huỳnh Trọng Nghĩa');
+    ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');
@@ -208,6 +211,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     ok(/19\/06\/2026 → 25\/06\/2026/.test(await pg.innerText('#periodPane')) && /T6 → T5/.test(await pg.innerText('#perNav')) && !(await pg.locator('#pKind').count()), 'Tuần mặc định Thứ 6 → Thứ 5 (25/06 thuộc tuần 19–25/06), không còn chọn tháng');
+    ok(/© 2026 Huỳnh Trọng Nghĩa/.test(await pg.innerText('#pdoc')) && /Lập bằng ứng dụng/.test(await pg.innerText('#pdoc')), 'PDF tuần: dòng bản quyền dưới phần ký');
     ok(/LẬP BÁO CÁO THI CÔNG/.test(await pg.innerText('.brand h1')) && /Báo cáo tuần/.test(await pg.innerText('#nav')) && !/Tuần \/ Tháng/.test(await pg.innerText('#nav')), 'Tên app LẬP BÁO CÁO THI CÔNG, mục Báo cáo tuần');
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     /* ---- Báo cáo tuần (đợt 6A) ---- */

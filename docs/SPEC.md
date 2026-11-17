@@ -240,3 +240,10 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 1. Ảnh tiêu biểu trên PDF (và màn nhập) **nhóm theo khu vực** theo thứ tự khu vực trong Cấu hình; ảnh không gắn khu vực / tự thêm vào nhóm "Ảnh khác". Dưới mỗi ảnh: chú thích + ngày. Ảnh tự thêm chọn được khu vực. Ảnh cũ chưa có khu vực: đoán theo tên khu vực ở đầu chú thích.
 2. B.3: hồ sơ **Chờ duyệt / TVGS đang kiểm tra quá 7 ngày** (tính đến ngày cuối kỳ báo cáo) tô đỏ, ghi "chờ X ngày"; dòng tổng hợp có "Quá hạn N". Có trên màn nhập và PDF.
 3. Khi xuất PDF tuần: ảnh tiêu biểu nén còn cạnh dài ≤ 900 px (JPEG 0,72), ảnh mặt bằng ≤ 1600 px (JPEG 0,8); Gantt giữ nguyên. Ảnh lưu trên Drive không đổi.
+
+## Đợt 6H (17/11/2026) – Đánh dấu bản quyền
+- Màn đăng nhập (chân thẻ): "© 2026 Huỳnh Trọng Nghĩa – Lập báo cáo thi công v1.6".
+- Cấu hình (mọi thẻ, cuối trang): mục Giới thiệu – tên app, phiên bản, phát hành lần đầu 11/2026, tác giả, câu bảo lưu quyền.
+- PDF ngày và tuần: dòng chữ nhỏ dưới phần ký "Lập bằng ứng dụng Lập báo cáo thi công · © 2026 Huỳnh Trọng Nghĩa".
+- Đầu file Code.gs, Index.html: dòng bản quyền + tác giả. File LICENSE (bảo lưu mọi quyền, kho công khai không phải giấy phép), README dẫn tới LICENSE.
+- Thông tin tác giả/phiên bản đặt 1 chỗ: hằng `APP` trong Index.html.
