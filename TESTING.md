@@ -36,6 +36,26 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 7: danh mục vật tư, C.1.1 Xây dựng / C.1.2 MEP
+- **Sửa:**
+  - **Danh mục vật tư** (Cấu hình → Danh mục): chủng loại có ĐVT, bộ môn (XD/MEP), kiểu ghi (Khối lượng / Theo lô), danh sách chi tiết. Quản trị sửa, đổi thứ tự, ẩn, gộp mục trùng (tên cũ thành bí danh).
+  - Nhập danh mục từ file: tải file mẫu CSV, nạp .xlsx (bộ đọc Excel tải từ jsdelivr khi cần) hoặc .csv, hoặc dán vùng ô copy từ Excel.
+  - **Báo cáo ngày:** chọn chủng loại (ĐVT tự điền), gợi ý chi tiết; chi tiết mới tự vào danh mục khi lưu (`matMem` → `mergeMat_`). Người chốt thêm chủng loại mới qua "＋ Thêm chủng loại mới…" (`apiCatalogAdd`, trùng tên thì dùng mục có sẵn). Kiểu theo lô: nội dung lô + ghi chú.
+  - **Báo cáo tuần:**
+    - C.1.1 / C.1.2 nhóm theo chủng loại (thứ tự danh mục), có dòng Tổng.
+    - Chỉ hiện chi tiết có hàng về trong tuần. Lũy kế mọi chi tiết lưu ở `matCum`; tuần cũ chưa có thì lấy từ bảng vật tư.
+    - Lô hàng MEP ghi ngày nhập và ghi chú.
+    - Tuan_VatTu thêm cột bo_mon, ngay_nhap, ghi_chu; loại LO_HANG.
+  - `apiSaveConfig` giữ chủng loại / chi tiết người chốt vừa thêm khi admin lưu cấu hình cũ.
+  - **Sửa lỗi phát hiện khi kiểm thử:** đăng nhập lại ngay sau khi bị tự đăng xuất (trong vòng 30 giây) không ghi mốc thao tác mới, nên khoảng 1 phút sau lại bị đăng xuất. Nay đăng nhập luôn ghi mốc mới.
+- **Kiểm thử mới:**
+  - gastest: thêm chủng loại, trùng tên, chi tiết tự vào danh mục khi lưu báo cáo ngày, admin lưu cấu hình cũ không mất mục, kỹ sư không thêm được, Tuan_VatTu có lô hàng MEP và bộ môn.
+  - ui: dán từ Excel; nạp CSV; nạp .xlsx (bộ đọc giả lập từ bản cài sẵn); gộp mục; lưu; ô nhập ngày theo danh mục; thêm chủng loại mới (trùng và mới); tổng hợp tuần (kỳ trước = lũy kế còn lại, giữ lũy kế chi tiết không về, lô hàng); PDF C.1.1/C.1.2; chọn chủng loại ở báo cáo ngày → ĐVT tự điền; đăng nhập lại sau khi tự đăng xuất.
+- **Ảnh đã xem:** desk_cfg_materials.png, desk_week_mat.png, desk_day_mat.png.
+- **Rủi ro còn lại:**
+  - Đọc file .xlsx cần mạng để tải bộ đọc (jsdelivr). Nếu bị chặn, app báo lưu dạng CSV.
+  - Dữ liệu vật tư cũ gõ tự do, chưa có trong danh mục, vẫn được gom theo tên.
+
 ### 17/11 – Đợt 6J: cột % dự kiến tuần, ngày trình đủ năm, ô cấu hình bị khóa
 - **Sửa:**
   - Tuan_CongViec thêm cột cuối `du_kien_tuan` (% dự kiến thực hiện trong tuần của kế hoạch tuần sau).
@@ -174,3 +194,5 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 08:08 | cb98b50 | đạt | 128 đạt / 0 lỗi | 149 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6I: thời tiết buổi chiều có sau 17h, bấm sau 17h tính đến giờ hiện tại |
 | 2026-11-17 09:05 | fa9cceb | đạt | 129 đạt / 0 lỗi | 150 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6J: Tuan_CongViec thêm cột du_kien_tuan; B.3 PDF ngày trình đủ năm |
 | 2026-11-17 09:07 | fa9cceb | đạt | 129 đạt / 0 lỗi | 152 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6J: cột du_kien_tuan, B.3 ngày đủ năm, ô cấu hình khóa hiện xám + nhắc Sửa thông tin |
+| 2026-11-17 09:56 | a395304 | đạt | 134 đạt / 0 lỗi | 164 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: danh mục vật tư, C.1.1 XD / C.1.2 MEP, nhập danh mục từ Excel; sửa tự đăng xuất lại sau khi đăng nhập |
+| 2026-11-17 10:01 | a395304 | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: danh mục vật tư, C.1.1/C.1.2, nhập từ Excel; sửa tự đăng xuất lại |

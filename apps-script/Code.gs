@@ -37,7 +37,7 @@ const SCHEMA = {
   // Báo cáo tuần: ghi khi CHỐT tuần (khóa = ky_key 'W-<ngày đầu kỳ>')
   Tuan_TienDo:   ['ky_key','tuan_so','tu_ngay','den_ngay','kh_tuan','thuc_te_tuan_truoc','thuc_te','chenh_lech','danh_gia','kh_tuan_sau','ban_tien_do','an_toan','thi_cong','nguon_luc','nhan_luc_tb','ghi_chu'],
   Tuan_CongViec: ['ky_key','tuan_so','loai','bo_mon','khu_vuc','stt','noi_dung','dvt','kl_tuan','dau_tuan','kh_pct','thuc_te','chenh_lech','ghi_chu','du_kien_tuan'],
-  Tuan_VatTu:    ['ky_key','tuan_so','loai','chung_loai','quy_cach','dvt','ky_truoc','ky_nay','luy_ke','ngay_du_kien'],
+  Tuan_VatTu:    ['ky_key','tuan_so','loai','chung_loai','quy_cach','dvt','ky_truoc','ky_nay','luy_ke','ngay_du_kien','bo_mon','ngay_nhap','ghi_chu'],
   Tuan_NhanLuc:  ['ky_key','tuan_so','loai','ten','tb_ngay','cao_nhat','tong'],
   Tuan_NghiemThu:['ky_key','tuan_so','loai','ngay','noi_dung','vi_tri','ket_qua'],
   Tuan_AnToan:   ['ky_key','tuan_so','loai','ngay','noi_dung','bien_phap'],
@@ -109,6 +109,11 @@ function apiSaveConfig(token, json) {
   delete c.pins; delete c.demoPins;
   c.setupDone = true; c.setupAt = old.setupAt;
   c.wbsMemory = Object.assign({}, old.wbsMemory || {}, c.wbsMemory || {});
+  // danh mục vật tư: giữ mục / chi tiết người chốt vừa thêm trong lúc admin đang sửa
+  c.materials = c.materials || [];
+  (old.materials || []).forEach(o => { const n = c.materials.find(x => x.id === o.id);
+    if (!n) { if (!c.materials.some(x => nrm_(x.name) === nrm_(o.name))) c.materials.push(o); return; }
+    (o.specs || []).forEach(sp => { n.specs = n.specs || []; if (!n.specs.some(x => nrm_(x) === nrm_(sp))) n.specs.push(sp); }); });
   const meNew = c.users.find(u => u.id === me.id); if (meNew) { meNew.role = 'admin'; meNew.active = true; }
   saveCfg_(c);
   log_(me.id, 'SUA_CAU_HINH', '', '');
@@ -251,7 +256,7 @@ function apiSaveReport(token, json) {
     if (old && old.status === 'locked' && old.review && old.review.status === 'approved' && r.status === 'locked') throw new Error('Báo cáo đã được TVGS xác nhận – mở khóa trước khi sửa');
     if (r.status === 'locked') r.review = (!old || old.status !== 'locked') ? (reviewOn_(c) ? { status: 'pending', since: now_(), lastNote: kept && kept.status === 'returned' ? kept.note : '' } : null) : kept;
     else r.review = kept && kept.status === 'returned' ? kept : null;
-    mergeWbs_(r.wbsMem); delete r.wbsMem;
+    mergeWbs_(r.wbsMem); delete r.wbsMem; mergeMat_(r.matMem); delete r.matMem;
     if (!Array.isArray(r.layouts)) r.layouts = r.layout && (r.layout.img || r.layout.fileId) ? [r.layout] : [];
     delete r.layout;
     const need = r.layouts.concat(r.extraPhotos || []).some(p => p && !p.fileId && p.img);
@@ -527,8 +532,10 @@ function writeWeekTables_(w, c) {
     pctW_(t.startPct), pctW_(t.planPct), pctW_(t.actual), t.actual !== '' && t.planPct !== '' && t.actual != null && t.planPct != null ? pctW_(t.actual - t.planPct) : '', t.note || '', '']));
   (w.nextPlans || []).forEach((t, i) => cv.push([k, n, 'KE_HOACH_TUAN_SAU', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, '', '', '', pctW_(t.target), '', '', t.note || '', pctW_(t.add)]));
   replaceDay_('Tuan_CongViec', k, cv);
-  replaceDay_('Tuan_VatTu', k, (w.materials || []).map(m => [k, n, 'NHAP_VE', m.name, m.spec || '', m.unit || '', Number(m.prev) || 0, Number(m.now) || 0, (Number(m.prev) || 0) + (Number(m.now) || 0), ''])
-    .concat((w.matPlans || []).map(m => [k, n, 'KE_HOACH', m.name, m.spec || '', m.unit || '', '', Number(m.qty) || 0, '', m.date || ''])));
+  replaceDay_('Tuan_VatTu', k, (w.materials || []).map(m => m.mode === 'lot'
+      ? [k, n, 'LO_HANG', m.name, m.spec || '', m.unit || '', '', '', '', '', m.sec || 'MEP', m.date || '', m.note || '']
+      : [k, n, 'NHAP_VE', m.name, m.spec || '', m.unit || '', Number(m.prev) || 0, Number(m.now) || 0, (Number(m.prev) || 0) + (Number(m.now) || 0), '', m.sec || 'XD', '', ''])
+    .concat((w.matPlans || []).map(m => [k, n, 'KE_HOACH', m.name, m.spec || '', m.unit || '', '', Number(m.qty) || 0, '', m.date || '', '', '', ''])));
   replaceDay_('Tuan_NhanLuc', k, (w.manpower || []).map(m => [k, n, 'NHAN_LUC', m.title, m.avg, m.max, m.total])
     .concat((w.equipment || []).map(m => [k, n, 'THIET_BI', m.name, m.avg, m.max, ''])));
   replaceDay_('Tuan_NghiemThu', k, (w.inspections || []).map(x => [k, n, 'NGHIEM_THU', x.date || '', x.desc, x.loc || '', x.result || ''])
@@ -696,6 +703,24 @@ function cfg_() {
   return (MEMO.cfg = c);
 }
 function saveCfg_(c) { setKv_('config', JSON.stringify(c)); MEMO.cfg = c; delete MEMO.root; cdel_(['cfg', 'links']); }
+function catOf_(c, name) { const k = nrm_(name); return k ? (c.materials || []).find(x => nrm_(x.name) === k || (x.alias || []).some(a => nrm_(a) === k)) : null; }
+/** Chi tiết vật tư mới (từ báo cáo ngày) → thêm vào danh mục. */
+function mergeMat_(add) {
+  if (!add || !add.length) return;
+  const c = cfg_(); let ch = false;
+  add.forEach(a => { const m = catOf_(c, a.name); if (!m || !nrm_(a.spec)) return; m.specs = m.specs || [];
+    if (!m.specs.some(x => nrm_(x) === nrm_(a.spec))) { m.specs.push(String(a.spec).trim()); ch = true; } });
+  if (ch) saveCfg_(c);
+}
+/** Người chốt / admin thêm chủng loại vật tư mới. Trùng tên → trả mục có sẵn. */
+function apiCatalogAdd(token, json) {
+  const me = auth_(token, ['admin', 'chot']), e = JSON.parse(json), c = cfg_(); c.materials = c.materials || [];
+  if (!nrm_(e.name)) throw new Error('Nhập tên chủng loại');
+  const dup = catOf_(c, e.name); if (dup) return JSON.stringify({ dup: true, item: dup });
+  const it = { id: 'm' + Date.now().toString(36), name: String(e.name).trim(), unit: String(e.unit || '').trim(), sec: e.sec === 'MEP' ? 'MEP' : 'XD', mode: e.mode === 'lot' ? 'lot' : 'qty', specs: [], alias: [] };
+  c.materials.push(it); saveCfg_(c); log_(me.id, 'THEM_VAT_TU', '', it.name);
+  return JSON.stringify({ item: it });
+}
 function mergeWbs_(add) {
   if (!add || !Object.keys(add).length) return;
   const c = cfg_(); c.wbsMemory = c.wbsMemory || {}; let ch = false;

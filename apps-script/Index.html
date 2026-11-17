@@ -193,6 +193,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .copy{margin:14px 0 0;text-align:center;font-size:11px;color:#94a3b8}
 .about{margin-top:18px;border-top:1px dashed var(--bd);padding-top:10px;font-size:12px;color:#64748b;line-height:1.6}.about b{color:#334155}
 .in[readonly]{background:#f1f5f9;color:#475569;cursor:not-allowed}
+.msum{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:700;padding:4px 4px 12px;color:var(--ac2);font-size:13px}
 .regsum{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.regsum span{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12.5px;background:#fff}.regsum .ok{border-color:#a7f3d0;color:#047857}.regsum .bad{border-color:#fecaca;color:#b91c1c}.regsum .wait{border-color:#fde68a;color:#92400e}
 .lkv{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:7px 6px;text-align:center;color:#334155;min-height:34px;font-size:13px}.lkv.tx{text-align:left}
 tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
@@ -206,6 +207,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 @media(max-width:767px){.lyc{flex-direction:column}.lyi{width:100%}}
 </style>
 <style id="docCss">
+.doc tr.tot td{background:#f1f5f9}
 .doc .credit{margin-top:6px;text-align:right;font-size:6.5px;color:#9ca3af}
 .doc{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#111827;background:#fff;padding:26px 28px;line-height:1.35}
 .doc table{border-collapse:collapse;width:100%}
@@ -507,7 +509,7 @@ const GENERIC_CFG = {
   manpower:['Quản lý dự án/ Project Manager','Chỉ huy trưởng/ Site Manager','QA/QC/QS/ Shop drawing/ Thư ký','Giám sát thi công/ Construction supervisor','An Toàn/ Safety','Bảo vệ/ Body Guard','Trắc đạc/ Surveyor','Công nhân/ Workers'],
   equipment:['Xe đào / Excavator','Cẩu tháp / Tower crane','Xe cẩu / Crane','Máy hàn / Welding Machine','Máy bơm nước / Water Pump','Máy cắt, uốn sắt / Rebar cutting bending machine','Xe tải / Truck','Máy đầm dùi / Vibrator'],
   safetyDefault:'Tình hình An toàn lao động tại công trường đảm bảo / On-site occupational safety conditions are fully maintained and guaranteed.',
-  settings:{deadline:'17:00'}, wbsMemory:{}, setupDone:false
+  settings:{deadline:'17:00'}, wbsMemory:{}, materials:[], setupDone:false
 };
 /* Dữ liệu DEMO (CN8-2) – chỉ dùng để thử nghiệm */
 const SAMPLE_CFG = Object.assign(clone(GENERIC_CFG), {
@@ -688,6 +690,7 @@ const Store = IS_GAS ? {
   review: async (d, act, note) => J(await gas('apiReview', TOKEN, d, act, note||'')),
   verify: async code => J(await gas('apiVerify', TOKEN, code)),
   cleanup: async () => J(await gas('apiCleanup', TOKEN)),
+  catalogAdd: async e => J(await gas('apiCatalogAdd', TOKEN, JSON.stringify(e))),
   saveLogo: (kind, data, oldId) => gas('apiSaveLogo', TOKEN, kind, data, oldId||''),
   clearTestDays: () => gas('apiClearTestDays', TOKEN),
   checkFolder: async link => J(await gas('apiCheckFolder', TOKEN, link)),
@@ -708,6 +711,8 @@ const Store = IS_GAS ? {
     return clone(b); },
   images: async () => ({}),
   cleanup: async () => ({skipped:true}),
+  catalogAdd: async e => { const d = catOf(e.name); if (d) return {dup:true, item:d}; const it = {id:'m'+Date.now().toString(36), name:e.name.trim(), unit:(e.unit||'').trim(), sec:e.sec==='MEP'?'MEP':'XD', mode:e.mode==='lot'?'lot':'qty', specs:[], alias:[]};
+    MATS().push(it); const old = await IDB.get('kv','config') || {}; const c = clone(CFG); c.pins = old.pins || {}; await IDB.put('kv','config',c); return {item:it}; },
   saveConfig: async c => { const old = await IDB.get('kv','config') || {}; c = clone(c); c.pins = old.pins || {}; await IDB.put('kv','config',c); },
   setPin: async (u, pin) => { const c = await IDB.get('kv','config'); c.pins = c.pins||{}; c.pins[u] = await pinHash(u, pin); await IDB.put('kv','config',c); },
   saveSub: async s => { await markTestL(s.date); s = withBase(s); revL(s, await IDB.get('subs', s.key)); await IDB.put('subs', s.key, s); return {ok:true, rev:s.rev}; },
@@ -1261,7 +1266,7 @@ function renderForm(){
   }
   if (M && TAB==='mat'){
     h += `<div class="zbar"><span>📦 Vật tư nhập về</span>${addBtn('materials','Thêm','{"name":"","spec":"","unit":"","qty":""}')}</div>`
-      + listCards('materials', R.materials, (t,i)=> mf('Chủng loại', inp(`materials.${i}.name`,t.name)) + `<div class="g2" style="grid-template-columns:1fr 1fr">${mf('Quy cách', inp(`materials.${i}.spec`,t.spec))}${mf('ĐVT', inp(`materials.${i}.unit`,t.unit))}</div>` + mf('Số lượng', ninp(`materials.${i}.qty`,t.qty)))
+      + matDatalists() + listCards('materials', R.materials, (t,i)=>{ const x = matCells(t, i), lot = (catOf(t.name)||{}).mode==='lot'; return mf('Chủng loại', x[0]) + mf(lot ? 'Nội dung lô hàng' : 'Chi tiết / quy cách', x[1]) + `<div class="g2" style="grid-template-columns:1fr 1fr">${mf('ĐVT', x[2])}${mf(lot ? 'Ghi chú' : 'Số lượng', x[3])}</div>`; })
       + `<div class="zbar"><span>🦺 An toàn lao động</span></div>${ta('safety.summary', R.safety.summary, 'Tình hình an toàn', 3)}
       <div class="zbar"><span>⚠ Nhắc nhở / vi phạm / sự cố</span>${addBtn('safety.issues','Thêm','{"desc":"","action":""}')}</div>`
       + listCards('safety.issues', R.safety.issues, (t,i)=> mf('Nội dung ghi nhận', ta(`safety.issues.${i}.desc`,t.desc,'',2)) + mf('Biện pháp xử lý', ta(`safety.issues.${i}.action`,t.action,'',2)));
@@ -1297,8 +1302,9 @@ function renderForm(){
   }
   if (!M && TAB==='mat'){
     h += `<div class="ph"><h3>📦 Vật tư nhập về trong ngày</h3>${addBtn('materials','Thêm vật tư','{"name":"","spec":"","unit":"","qty":""}')}</div>
-    <div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Chủng loại</th><th style="width:130px">Quy cách</th><th style="width:70px">ĐVT</th><th style="width:100px">Số lượng</th><th style="width:40px"></th></tr></thead><tbody>
-    ${R.materials.map((t,i)=>`<tr><td class="n">${i+1}</td><td>${inp(`materials.${i}.name`,t.name)}</td><td>${inp(`materials.${i}.spec`,t.spec)}</td><td>${inp(`materials.${i}.unit`,t.unit)}</td><td>${ninp(`materials.${i}.qty`,t.qty)}</td><td>${delBtn('materials',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Không có vật tư nhập về.</td></tr>'}</tbody></table></div>
+    ${matDatalists()}<div class="hint">Chọn chủng loại trong danh mục (ĐVT tự điền). Chi tiết mới gõ vào sẽ tự thêm vào danh mục. Vật tư MEP “theo lô”: ghi nội dung lô, ngày nhập = ngày báo cáo.</div>
+    <div class="tw"><table class="ed" style="min-width:640px"><thead><tr><th>STT</th><th style="width:210px">Chủng loại</th><th>Chi tiết / nội dung lô</th><th style="width:70px">ĐVT</th><th style="width:130px">Số lượng / ghi chú</th><th style="width:40px"></th></tr></thead><tbody>
+    ${R.materials.map((t,i)=>`<tr><td class="n">${i+1}</td>${matCells(t, i).map(x=>`<td>${x}</td>`).join('')}<td>${delBtn('materials',i)}</td></tr>`).join('') || '<tr><td colspan="6" class="hint" style="padding:12px">Không có vật tư nhập về.</td></tr>'}</tbody></table></div>
     <div class="ph"><h3>🦺 Sức khỏe & an toàn lao động</h3></div>${ta('safety.summary', R.safety.summary, 'Tình hình an toàn', 3)}
     <div class="ph" style="margin-top:14px"><h4>Nhắc nhở / vi phạm / sự cố</h4>${addBtn('safety.issues','Thêm ghi nhận','{"desc":"","action":""}')}</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Nội dung ghi nhận</th><th>Biện pháp xử lý</th><th style="width:40px"></th></tr></thead><tbody>
@@ -1514,6 +1520,48 @@ function conflictModal(root, e){
 async function saveOtherSub(s){ try { const res = await Store.saveSub(IS_GAS ? lite(s) : s); if (res && res.rev) s.rev = res.rev; return true; }
   catch(e){ if (!isConflict(e)) throw e; toast('⚠ Phiếu của ' + userName(s.uid) + ' vừa được sửa ở nơi khác – đã tải lại ngày, thao tác lại giúp', 6000); await openDay(DATE); return false; } }
 
+/* ---- danh mục vật tư ---- */
+const nrm = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+const MATS = () => (CFG.materials = CFG.materials || []);
+function catOf(name){ const k = nrm(name); return k ? MATS().find(c=>nrm(c.name)===k || (c.alias||[]).some(a=>nrm(a)===k)) || null : null; }
+const matKey = m => [nrm(m.name), nrm(m.spec), nrm(m.unit)].join('|');
+const catIdx = name => { const c = catOf(name), i = c ? MATS().indexOf(c) : -1; return i < 0 ? 9999 : i; };
+/** Chi tiết mới (kiểu khối lượng) → thêm vào danh mục trên máy, trả danh sách gửi máy chủ. */
+function rememberMat(list){ const add = []; (list||[]).forEach(m=>{ const c = catOf(m.name), sp = String(m.spec||'').trim(); if (!c || c.mode==='lot' || !sp) return; c.specs = c.specs || [];
+  if (!c.specs.some(x=>nrm(x)===nrm(sp))) { c.specs.push(sp); add.push({name:c.name, spec:sp}); } }); return add; }
+const SEC_TXT = {XD:'Xây dựng', MEP:'MEP'}, MODE_TXT = {qty:'Khối lượng', lot:'Theo lô'};
+function matNameOpts(cur, sec){ const L = MATS().filter(c=>!c.hidden && (!sec || c.sec===sec)), o = [{v:'', t:'— chọn chủng loại —'}];
+  ['XD','MEP'].forEach(k=>L.filter(c=>c.sec===k).forEach(c=>o.push({v:c.name, t:`${c.name}${c.unit ? ' (' + c.unit + ')' : ''} · ${SEC_TXT[k]}${c.mode==='lot' ? ' · theo lô' : ''}`})));
+  if (cur && !catOf(cur)) o.push({v:cur, t:cur + ' (chưa có trong danh mục)'});
+  if (isChot()) o.push({v:'__new', t:'＋ Thêm chủng loại mới…'}); return o; }
+const matDatalists = () => MATS().filter(c=>c.mode!=='lot').map(c=>`<datalist id="dl-${esc(c.id)}">${(c.specs||[]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist>`).join('');
+/** Ô nhập vật tư ngày theo danh mục: [chủng loại, chi tiết/nội dung lô, ĐVT, số lượng/ghi chú] */
+function matCells(t, i){ const c = catOf(t.name), lot = c && c.mode==='lot';
+  return [sel(`materials.${i}.name`, c ? c.name : t.name, matNameOpts(t.name)),
+    lot ? inp(`materials.${i}.spec`, t.spec, 'Nội dung lô hàng') : inp(`materials.${i}.spec`, t.spec, 'Chi tiết / quy cách', c ? `list="dl-${esc(c.id)}"` : ''),
+    c ? `<div class="lkv">${esc(c.unit||'—')}</div>` : inp(`materials.${i}.unit`, t.unit),
+    lot ? inp(`materials.${i}.note`, t.note, 'Ghi chú, VD 120 cây') : ninp(`materials.${i}.qty`, t.qty)]; }
+/** Nạp danh mục từ các dòng [bộ môn, chủng loại, ĐVT, kiểu ghi, chi tiết]. Trả {add, spec}. */
+function importMatRows(rows){ let add = 0, sp = 0;
+  rows.forEach(r=>{ const [sec, name, unit, mode, spec] = [0,1,2,3,4].map(k=>String((r||[])[k] ?? '').trim()); if (!name || /^chủng loại$/i.test(name)) return;
+    let c = catOf(name); if (!c) { c = {id:'m'+Date.now().toString(36)+add, name, unit, sec:/mep|cơ điện|điện|nước|pccc/i.test(sec) ? 'MEP' : 'XD', mode:/lô/i.test(mode) ? 'lot' : 'qty', specs:[], alias:[]}; MATS().push(c); add++; }
+    if (!c.unit && unit) c.unit = unit;
+    spec.split(/\n|;/).map(x=>x.trim()).filter(Boolean).forEach(x=>{ c.specs = c.specs || []; if (!c.specs.some(y=>nrm(y)===nrm(x))) { c.specs.push(x); sp++; } }); });
+  return {add, sp}; }
+const MAT_TPL = [['Bộ môn','Chủng loại','ĐVT','Kiểu ghi','Chi tiết'], ['Xây dựng','Bê tông','m3','Khối lượng','B30(M400)R7'], ['Xây dựng','Bê tông','m3','Khối lượng','B35W12(M450B12)R28'],
+  ['Xây dựng','Thép','kg','Khối lượng','Ø16'], ['Xây dựng','Thép','kg','Khối lượng','Ø20'], ['MEP','Ống UPVC','m','Theo lô',''], ['MEP','Cáp điện','m','Khối lượng','CVV 4x16']];
+function csvRows(t){ const out = []; let row = [], cur = '', q = false; t = t.replace(/^\ufeff/, '');
+  for (let i = 0; i < t.length; i++){ const ch = t[i];
+    if (q) { if (ch === '"' && t[i+1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; continue; }
+    if (ch === '"') q = true; else if (ch === ',' || ch === ';' && !/,/.test(t.split('\n')[0])) { row.push(cur); cur = ''; } else if (ch === '\n') { row.push(cur.replace(/\r$/, '')); out.push(row); row = []; cur = ''; } else cur += ch; }
+  if (cur || row.length) { row.push(cur); out.push(row); } return out; }
+const loadXlsx = () => window.XLSX ? Promise.resolve(window.XLSX) : new Promise((res, rej)=>{ const sc = document.createElement('script'); sc.src = 'https:\/\/cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; sc.onload = ()=>res(window.XLSX); sc.onerror = ()=>rej(new Error('không tải được bộ đọc Excel – lưu file dạng CSV rồi chọn lại')); document.head.appendChild(sc); });
+function afterImport(r){ renderConfig(); toast(`✔ Đã nạp: ${r.add} chủng loại mới, ${r.sp} chi tiết mới – bấm “Lưu danh mục”`, 6000); }
+function newMatType(i){ newMatType.i = i;
+  modal(`<h3>＋ Thêm chủng loại vật tư</h3><div class="g2"><div><label class="l">Tên chủng loại</label><input class="in" id="nmName" placeholder="VD Gạch block"></div><div><label class="l">Đơn vị tính</label><input class="in" id="nmUnit" placeholder="VD viên, m3, kg"></div>
+    <div><label class="l">Bộ môn</label><select class="in" id="nmSec"><option value="XD">Xây dựng</option><option value="MEP">MEP</option></select></div>
+    <div><label class="l">Kiểu ghi</label><select class="in" id="nmMode"><option value="qty">Khối lượng (có lũy kế)</option><option value="lot">Theo lô (ngày nhập + nội dung)</option></select></div></div>
+    <div class="acts"><button class="btn" onclick="closeModal()">Hủy</button><button class="btn pri" data-act="matNewGo">✔ Thêm</button></div>`); setTimeout(()=>{ const e = $('#nmName'); if (e) e.focus(); }, 50); }
 function rememberWbs(list){ const add = {}; list.forEach(t=>{ const k=(t.desc||'').trim().toLowerCase(); if(k && t.wbs && CFG.wbsMemory[k]!==t.wbs){ CFG.wbsMemory[k]=t.wbs; add[k]=t.wbs; } }); return add; }
 function setSave(st){ const el = $('#saveState'); if (!el) return; el.style.display = st ? '' : (el.dataset.ok ? '' : 'none');
   if (st==='saving') el.textContent = '⏳ Đang lưu…'; else if (st==='sync') el.textContent = '⏳ Đang tải…';
@@ -1537,14 +1585,14 @@ async function saveS_(silent){
 }
 async function saveR_(silent){
   if (!R || !isChot() || CONFL.R) return; clearTimeout(saveTimer.R); dirty.R = false; setSave('saving');
-  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); if (FORCE.R) payload.force = true; if (ACCEPT.length) payload.acceptSubs = ACCEPT.slice();
+  try { applyMerge(); const payload = IS_GAS ? lite(R) : R; payload.wbsMem = rememberWbs(R.tasks); payload.matMem = rememberMat(R.materials); if (FORCE.R) payload.force = true; if (ACCEPT.length) payload.acceptSubs = ACCEPT.slice();
     if (IS_GAS && !saveR_.warned && JSON.stringify(payload).length > 150000) { saveR_.warned = 1; toast('⚠ Báo cáo ngày rất lớn (gần giới hạn lưu 180.000 ký tự) – nên gộp bớt việc/kế hoạch trùng', 8000); }
     const res = await Store.saveReport(payload); ACCEPT = [];
-    if (res && res.accepted) res.accepted.forEach((u,i)=>{ const sb = SUBS.find(x=>x.uid===u); if (sb) sb.rev = res.subRevs[i]; }); delete R.wbsMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
+    if (res && res.accepted) res.accepted.forEach((u,i)=>{ const sb = SUBS.find(x=>x.uid===u); if (sb) sb.rev = res.subRevs[i]; }); delete R.wbsMem; if (!IS_GAS && R.matMem && R.matMem.length) Store.saveConfig(CFG).catch(()=>{}); delete R.matMem; delete R.force; FORCE.R = false; if (res && res.rev) R.rev = res.rev;
     if (res && res.layouts) res.layouts.forEach((f,i)=>{ if (R.layouts[i] && f) R.layouts[i].fileId = f; }); if (res && res.extra) res.extra.forEach((f,i)=>{ if (R.extraPhotos[i] && f) R.extraPhotos[i].fileId = f; });
     if (res && 'review' in res) R.review = res.review;
     idxSet('reports', {date:R.date, status:R.status, version:R.version, review:revOf(R)}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
-  } catch(e){ delete R.wbsMem; delete R.force; dirty.R = true; if (isConflict(e)) return conflictModal('R', e); setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
+  } catch(e){ delete R.wbsMem; delete R.matMem; delete R.force; dirty.R = true; if (isConflict(e)) return conflictModal('R', e); setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
 }
 function markDirty(root){ dirty[root] = true; if (root==='W') { if (W) W._unsaved = true; setSave('saving'); clearTimeout(saveTimer.W); saveTimer.W = setTimeout(()=>saveW(true), IS_GAS ? 2500 : 600); return; } if (CONFL[root]) return; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
 async function flush(){ if (dirty.S) await saveS(true); if (dirty.R) await saveR(true); if (dirty.W) await saveW(true); }
@@ -1724,12 +1772,16 @@ function genWeek(w, reps, pw){
   w.tests = mergeAuto(w.tests, [].concat(...reps.map(r=>(r.tests||[]).filter(x=>x.desc).map(x=>({auto:'x:'+r.date+'|'+x.desc, id:uid(), date:r.date, desc:x.desc, loc:locText(x), result:x.result||''})))));
   const last = reps[reps.length - 1];
   if (last) w.inspPlans = mergeAuto(w.inspPlans, (last.inspectionPlans||[]).filter(x=>x.desc).map(x=>({auto:'ip:'+x.desc, id:uid(), date:'', desc:x.desc, loc:locText(x)})));
-  // C. vật tư: kỳ trước = lũy kế tuần trước
-  const pm = {}; ((pw && pw.materials) || []).forEach(m=>{ pm[[m.name,m.spec,m.unit].join('|')] = num(m.prev) + num(m.now); });
-  const mt = {}; reps.forEach(r=>r.materials.forEach(m=>{ if (!m.name) return; const k = [m.name,m.spec,m.unit].join('|');
-    (mt[k] = mt[k] || {auto:'m:'+k, id:uid(), name:m.name, spec:m.spec||'', unit:m.unit||'', prev:pm[k] || 0, now:0}).now = r1(mt[k].now + num(m.qty)); }));
-  Object.keys(pm).forEach(k=>{ if (!mt[k]) { const [name, spec, unit] = k.split('|'); mt[k] = {auto:'m:'+k, id:uid(), name, spec, unit, prev:pm[k], now:0}; } });
-  w.materials = mergeAuto(w.materials, Object.values(mt).sort((a,b)=>a.name.localeCompare(b.name)), pw ? [] : ['prev']);
+  // C. vật tư: nhóm theo danh mục; chỉ chi tiết có hàng về trong tuần; kỳ trước = lũy kế còn lại (matCum của tuần trước)
+  const pmc = prevMatCum(pw), mt = {}, lots = [];
+  reps.forEach(r=>r.materials.forEach(m=>{ if (!nrm(m.name) && !nrm(m.spec)) return; const c = catOf(m.name), g = c ? c.name : (String(m.name||'').trim() || 'Khác'),
+    sec = c ? c.sec : 'XD', unit = (c && c.unit) || m.unit || '';
+    if (c && c.mode==='lot') { lots.push({auto:'l:'+r.date+'|'+nrm(g)+'|'+nrm(m.spec), id:uid(), sec, mode:'lot', name:g, spec:m.spec||'', unit, date:r.date, note:m.note || (hasV(m.qty) ? m.qty + ' ' + unit : '')}); return; }
+    const it = {name:g, spec:String(m.spec||'').trim(), unit}, k = matKey(it);
+    (mt[k] = mt[k] || Object.assign(it, {auto:'m:'+k, id:uid(), sec, mode:'qty', prev:pmc[k] || 0, now:0})).now = r1(mt[k].now + num(m.qty)); }));
+  const mo = m => [catIdx(m.name), nrm(m.name), m.mode==='lot' ? m.date : nrm(m.spec)];
+  const fresh = Object.values(mt).concat(lots).sort((a,b)=>{ const x = mo(a), y = mo(b); return x[0]-y[0] || x[1].localeCompare(y[1]) || String(x[2]).localeCompare(String(y[2])); });
+  w.materials = mergeAuto(w.materials, fresh, pw ? [] : ['prev']); w.matCum = calcMatCum(w, pw);
   // E. an toàn
   w.safety.issues = mergeAuto(w.safety.issues, [].concat(...reps.map(r=>(r.safety.issues||[]).filter(x=>x.desc).map(x=>({auto:'s:'+r.date+'|'+x.desc, id:uid(), date:r.date, desc:x.desc, action:x.action||''})))));
   // H. mặt bằng ngày cuối có ảnh; 6 ảnh hiện trường ngẫu nhiên (chỉ khi chưa có)
@@ -1738,6 +1790,11 @@ function genWeek(w, reps, pw){
   if (!w.photos.length) w.photos = pickPhotos(reps);
   autoRatings(w, pw); w.genAt = nowStr(); return w;
 }
+/** Lũy kế vật tư (mọi chi tiết) đến hết tuần trước. Tuần cũ chưa có matCum → lấy từ bảng vật tư tuần đó. */
+function prevMatCum(pw){ if (!pw) return {}; if (pw.matCum) return Object.assign({}, pw.matCum); const o = {};
+  (pw.materials||[]).forEach(m=>{ if (m.mode!=='lot') o[matKey({name:(catOf(m.name)||{}).name || m.name, spec:m.spec, unit:(catOf(m.name)||{}).unit || m.unit})] = r1(num(m.prev) + num(m.now)); }); return o; }
+/** Lũy kế sau tuần này = lũy kế tuần trước + các chi tiết có trong tuần (kỳ trước + kỳ này). */
+function calcMatCum(w, pw){ const o = prevMatCum(pw); (w.materials||[]).forEach(m=>{ if (m.mode!=='lot' && nrm(m.name)) o[matKey(m)] = r1(num(m.prev) + num(m.now)); }); return o; }
 function photoPool(reps){ return reps.map(r=>(r.photos||[]).concat(r.extraPhotos||[]).filter(p=>p.fileId || p.img).map(p=>({id:uid(), fileId:p.fileId||'', img:p.img||'', caption:p.caption||'', date:r.date, zoneId:p.zoneId||''}))); }
 /** Chọn ngẫu nhiên WPHOTO_N ảnh, lần lượt từng ngày để rải đều cả tuần. */
 function pickPhotos(reps, max = WPHOTO_N){ const pools = photoPool(reps).map(a=>a.sort(()=>Math.random() - 0.5)).filter(a=>a.length), out = [];
@@ -1760,7 +1817,7 @@ function autoRatings(w, pw = PW){ const ni = w.safety.issues.length, ev = wEval(
 /* ---- lưu ---- */
 async function saveW(silent){
   if (!W || !isChot() || W.status === 'locked' && !W._lockNow) return; clearTimeout(saveTimer.W); dirty.W = false; setSave('saving');
-  try { const p = clone(W); delete p._unsaved; delete p._lockNow; (p.photos||[]).concat(p.layouts||[], p.gantt||[]).forEach(x=>{ if (x && x.fileId) x.img = ''; });
+  try { W.matCum = calcMatCum(W, PW); const p = clone(W); delete p._unsaved; delete p._lockNow; (p.photos||[]).concat(p.layouts||[], p.gantt||[]).forEach(x=>{ if (x && x.fileId) x.img = ''; });
     const res = await Store.savePeriod(p) || {}; delete W._unsaved; delete W._lockNow;
     if (res.gantt) res.gantt.forEach((f,i)=>{ if (W.gantt[i] && f) W.gantt[i].fileId = f; });
     if (res.layouts) res.layouts.forEach((f,i)=>{ if (W.layouts[i] && f) W.layouts[i].fileId = f; });
@@ -1824,6 +1881,17 @@ function regView(L, cols, empty){
   return `<div class="tw"><table class="ed" style="min-width:760px"><thead><tr><th style="width:44px">STT</th>${cols.map(([l,,w])=>`<th ${w ? `style="width:${w}px"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>
     ${L.map((x,i)=>`<tr><td class="n">${i+1}</td>${cols.map(([,f])=>`<td style="padding:9px 8px">${f(x) || '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
+/* ---- vật tư tuần: nhóm theo chủng loại (thứ tự danh mục) ---- */
+const ROM = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV'];
+function matGroups(L, sec){ const g = {}; L.forEach((m,i)=>{ if ((m.sec || (catOf(m.name)||{}).sec || 'XD') !== sec) return; const k = (catOf(m.name)||{}).name || m.name || ''; (g[k] = g[k] || []).push(i); });
+  return Object.keys(g).sort((a,b)=>catIdx(a) - catIdx(b) || a.localeCompare(b)).map(k=>[k, g[k]]); }
+/** Tổng nhóm (chỉ khi cùng 1 ĐVT). */
+function matSum(L){ const us = [...new Set(L.map(m=>nrm(m.unit)))]; if (us.length > 1) return null;
+  return L.reduce((t,m)=>({prev:r1(t.prev + num(m.prev)), now:r1(t.now + num(m.now)), cum:r1(t.cum + num(m.prev) + num(m.now))}), {prev:0, now:0, cum:0}); }
+const fmtN = v => num(v).toLocaleString('vi-VN');
+const QCOLS = sec => [{l:'Chủng loại', k:'name', t:'s', o:matNameOpts('', sec).filter(o=>o.v!=='__new'), w:170}, {l:'Chi tiết / quy cách', k:'spec', t:'t'}, {l:'ĐVT', k:'unit', t:'t', w:60},
+  {l:'Kỳ trước', k:'prev', t:'n', w:90, freeIf:()=>!PW}, {l:'Kỳ này', k:'now', t:'n', w:90}, {l:'Lũy kế', calc:m=>fmtN(r1(num(m.prev) + num(m.now))), w:90}];
+const LCOLS = sec => [{l:'Chủng loại', k:'name', t:'s', o:matNameOpts('', sec).filter(o=>o.v!=='__new'), w:170}, {l:'Nội dung lô hàng', k:'spec', t:'ta'}, {l:'Ngày nhập', k:'date', t:'d', w:130}, {l:'Ghi chú', k:'note', t:'t', w:140}];
 function renderWeek(){
   const pr = periodRange(); EDIT = 'W'; RO = weekRO(); const w = W, rv = w.review || {}, A = aggregate(P.reports), M = isMobile();
   if (w.status !== 'locked') autoRatings(w);
@@ -1892,10 +1960,16 @@ function renderWeek(){
       : regView(w.docs || [], [['Số / ký hiệu', x=>`<b>${esc(x.code)}</b>`, 190], ['Trích yếu', x=>esc(x.desc)], ['Loại', x=>esc(x.tab), 90], ['Ngày', x=>vi(x.date), 92]], 'Không có văn bản trong tuần.');
   }
   if (WTAB === 'mat'){
-    h += lockHint + wHead('📦 C.1 Vật tư đã về trong tuần', addBtn('materials', 'Thêm vật tư', JSON.stringify({name:'', spec:'', unit:'', prev:0, now:0})))
-      + `<div class="hint">Kỳ trước = lũy kế tuần trước${first ? ' (tuần đầu tiên: nhập tay)' : ''}.</div>`
-      + wList('materials', w.materials, [{l:'Chủng loại', k:'name', t:'t'}, {l:'Quy cách', k:'spec', t:'t', w:120}, {l:'ĐVT', k:'unit', t:'t', w:60},
-        {l:'Kỳ trước', k:'prev', t:'n', w:80, freeIf:()=>!PW}, {l:'Kỳ này', k:'now', t:'n', w:80}, {l:'Lũy kế', calc:m=>r1(num(m.prev) + num(m.now)), w:80}])
+    h += lockHint + `<div class="hint">Chỉ hiện chi tiết có hàng về trong tuần. Kỳ trước = lũy kế còn lại từ lần về gần nhất${first ? ' (tuần đầu tiên: nhập tay kỳ trước)' : ''}. Nhóm theo Danh mục vật tư (Cấu hình → Danh mục).</div>`
+      + matDatalists() + [['XD','📦 C.1.1 Vật tư xây dựng'], ['MEP','🔌 C.1.2 Vật tư MEP']].map(([sec, title])=>{
+        const add = addBtn('materials', 'Thêm vật tư', JSON.stringify({sec, mode:'qty', name:'', spec:'', unit:'', prev:0, now:0})) + (sec==='MEP' ? addBtn('materials', 'Thêm lô hàng', JSON.stringify({sec, mode:'lot', name:'', spec:'', unit:'', date:w.to, note:''})) : '');
+        const gs = matGroups(w.materials, sec); let x = wHead(title, add);
+        if (!gs.length) return x + '<p class="hint" style="padding:6px 2px">Không có vật tư về trong tuần.</p>';
+        gs.forEach(([g, idx], gi)=>{ const lot = w.materials[idx[0]].mode==='lot', c = catOf(g), un = (c && c.unit) || w.materials[idx[0]].unit || '';
+          x += `<div class="zbar ${sec==='MEP' ? 'mep' : ''}"><span>${ROM[gi] || gi+1}. ${esc(g || '(chưa chọn chủng loại)')}${un ? ' (' + esc(un) + ')' : ''}${lot ? ' · theo lô' : ''}</span></div>`
+            + wList('materials', w.materials, lot ? LCOLS(sec) : QCOLS(sec), idx, '', {minW:700});
+          if (!lot) { const t = matSum(idx.map(i=>w.materials[i])); if (t) x += `<div class="msum"><span>Tổng ${esc(g)}</span><span>kỳ trước ${fmtN(t.prev)} · kỳ này ${fmtN(t.now)} · lũy kế ${fmtN(t.cum)} ${esc(un)}</span></div>`; } });
+        return x; }).join('')
       + wHead('🔧 C.2 Thiết bị máy móc', addBtn('equipment', 'Thêm thiết bị', JSON.stringify({name:'', avg:'', max:''})))
       + wList('equipment', w.equipment, [{l:'Thiết bị', k:'name', t:'t'}, {l:'TB/ngày', k:'avg', t:'n', w:90}, {l:'Cao nhất', k:'max', t:'n', w:90}]);
   }
@@ -2037,12 +2111,23 @@ function weekDocHTML(w, o = {}){
   if ((w.docs||[]).length) h += W3('B.4 VĂN BẢN – CHỈ THỊ – NCR TRONG TUẦN') + `<table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th style="width:90px">Loại</th><th style="width:150px">Số hiệu</th><th>Nội dung</th></tr>
     ${w.docs.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.tab)}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td></tr>`).join('')}</table>`;
   // C. vật tư – thiết bị
-  h += W2('C', 'VẬT TƯ – THIẾT BỊ – MÁY MÓC / MATERIALS & EQUIPMENT') + W3('C.1 VẬT TƯ ĐÃ VỀ TRONG TUẦN') + `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">KL kỳ trước</th><th class="c">KL kỳ này</th><th class="c">KL lũy kế</th></tr>`;
-  const groups = {}; w.materials.forEach(m=>(groups[m.name || '—'] = groups[m.name || '—'] || []).push(m));
-  Object.keys(groups).forEach((g,gi)=>{ h += `<tr><td colspan="6" class="grp">${ROMAN[gi] || gi+1}. ${esc(g)}</td></tr>`;
-    groups[g].forEach((m,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(m.spec || m.name)}</td><td class="c">${esc(m.unit)}</td><td class="c">${num(m.prev).toLocaleString('vi-VN')}</td><td class="c"><b>${num(m.now).toLocaleString('vi-VN')}</b></td><td class="c">${r1(num(m.prev)+num(m.now)).toLocaleString('vi-VN')}</td></tr>`; }); });
-  if (!w.materials.length) h += '<tr><td></td><td colspan="5" class="mut">Không có vật tư nhập về trong tuần</td></tr>';
-  h += '</table>' + W3('C.2 THIẾT BỊ MÁY MÓC') + `<table class="grid"><tr><th class="c">Stt</th><th>Thiết bị / Equipment</th><th class="c" style="width:70px">TB/ngày</th><th class="c" style="width:70px">Cao nhất</th></tr>
+  h += W2('C', 'VẬT TƯ – THIẾT BỊ – MÁY MÓC / MATERIALS & EQUIPMENT');
+  [['XD','C.1.1 VẬT TƯ XÂY DỰNG ĐÃ VỀ TRONG TUẦN'], ['MEP','C.1.2 VẬT TƯ MEP ĐÃ VỀ TRONG TUẦN']].forEach(([sec, title])=>{
+    const gs = matGroups(w.materials, sec); h += W3(title);
+    if (!gs.length) { h += '<div class="txt mut">Không có vật tư về trong tuần</div>'; return; }
+    const q = gs.filter(([,idx])=>w.materials[idx[0]].mode!=='lot'), l = gs.filter(([,idx])=>w.materials[idx[0]].mode==='lot'); let gi = 0;
+    if (q.length) { h += `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Chi tiết</th><th class="c" style="width:44px">ĐVT</th><th class="c" style="width:80px">KL kỳ trước</th><th class="c" style="width:74px">KL kỳ này</th><th class="c" style="width:80px">KL lũy kế</th></tr>`;
+      q.forEach(([g, idx])=>{ const L = idx.map(i=>w.materials[i]), un = ((catOf(g)||{}).unit) || L[0].unit || '', t = matSum(L);
+        h += `<tr><td class="c grp">${ROM[gi++] || gi}</td><td colspan="5" class="grp">${esc(g)}${un ? ' (' + esc(un) + ')' : ''}</td></tr>`;
+        L.forEach((m,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(m.spec || m.name)}</td><td class="c">${esc(m.unit)}</td><td class="c">${fmtN(m.prev)}</td><td class="c"><b>${fmtN(m.now)}</b></td><td class="c">${fmtN(r1(num(m.prev) + num(m.now)))}</td></tr>`; });
+        if (t) h += `<tr class="tot"><td></td><td class="c"><b>Tổng</b></td><td class="c">${esc(un)}</td><td class="c"><b>${fmtN(t.prev)}</b></td><td class="c"><b>${fmtN(t.now)}</b></td><td class="c"><b>${fmtN(t.cum)}</b></td></tr>`; });
+      h += '</table>'; }
+    if (l.length) { h += `<table class="grid" style="margin-top:4px"><tr><th class="c">Stt</th><th>Chủng loại / Nội dung lô hàng</th><th class="c" style="width:70px">Ngày nhập</th><th style="width:120px">Ghi chú</th></tr>`;
+      l.forEach(([g, idx])=>{ const L = idx.map(i=>w.materials[i]).sort((a,b)=>String(a.date).localeCompare(String(b.date))), un = ((catOf(g)||{}).unit) || L[0].unit || '';
+        h += `<tr><td class="c grp">${ROM[gi++] || gi}</td><td colspan="3" class="grp">${esc(g)}${un ? ' (' + esc(un) + ')' : ''}</td></tr>`;
+        L.forEach((m,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(m.spec)}</td><td class="c">${m.date ? vi(m.date) : ''}</td><td>${esc(m.note || '')}</td></tr>`; }); });
+      h += '</table>'; } });
+  h += W3('C.2 THIẾT BỊ MÁY MÓC') + `<table class="grid"><tr><th class="c">Stt</th><th>Thiết bị / Equipment</th><th class="c" style="width:70px">TB/ngày</th><th class="c" style="width:70px">Cao nhất</th></tr>
   ${w.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td></tr>`).join('') || '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
   // D. nhân lực
   h += W2('D', `NHÂN LỰC NHÀ THẦU / CONTRACTOR'S MANPOWER <span>BÌNH QUÂN ${r1(mpT)} NGƯỜI/NGÀY</span>`) + `<div class="wchart">${o.chartPng ? `<img src="${o.chartPng}" style="width:100%">` : mpChartSvg(w)}</div>
@@ -2195,6 +2280,20 @@ function renderConfig(){
     <div class="g2"><div><label class="l">Danh mục nhân lực mặc định (mỗi dòng 1 chức danh)</label><textarea class="in" rows="9" id="mpText">${esc(CFG.manpower.join('\n'))}</textarea></div>
     <div><label class="l">Danh mục thiết bị mặc định</label><textarea class="in" rows="9" id="eqText">${esc(CFG.equipment.join('\n'))}</textarea></div></div>
     <label class="l">Câu an toàn mặc định mỗi ngày</label><input class="in" data-cfg="safetyDefault" value="${esc(CFG.safetyDefault)}">
+    <div class="ph" style="margin-top:16px"><h3>📦 Danh mục vật tư</h3><span class="hint">${MATS().length} chủng loại · thứ tự này là thứ tự trên báo cáo</span></div>
+    <div class="hint" style="padding:0 0 6px">Người chốt tự thêm chủng loại / chi tiết mới khi nhập báo cáo ngày. Ở đây quản trị sửa, gộp mục trùng, ẩn mục không dùng. Chi tiết: mỗi dòng 1 chi tiết.</div>
+    <div class="tw"><table class="ed" style="min-width:900px"><thead><tr><th style="width:56px"></th><th style="width:170px">Chủng loại</th><th style="width:70px">ĐVT</th><th style="width:125px">Bộ môn</th><th style="width:130px">Kiểu ghi</th><th>Chi tiết</th><th style="width:60px">Ẩn</th><th style="width:150px">Gộp vào</th></tr></thead><tbody>
+    ${MATS().map((c,i)=>`<tr><td><div class="mv"><button data-act="matMv" data-i="${i}" data-d="-1" ${i?'':'disabled'}>▲</button><button data-act="matMv" data-i="${i}" data-d="1" ${i<MATS().length-1?'':'disabled'}>▼</button></div></td>
+      <td><input class="in" data-cfg="materials.${i}.name" value="${esc(c.name)}">${(c.alias||[]).length ? `<div class="hint">tên cũ: ${esc(c.alias.join(', '))}</div>` : ''}</td><td><input class="in" data-cfg="materials.${i}.unit" value="${esc(c.unit)}"></td>
+      <td><select class="in" data-cfg="materials.${i}.sec">${['XD','MEP'].map(k=>`<option value="${k}" ${c.sec===k?'selected':''}>${SEC_TXT[k]}</option>`).join('')}</select></td>
+      <td><select class="in" data-cfg="materials.${i}.mode">${['qty','lot'].map(k=>`<option value="${k}" ${c.mode===k?'selected':''}>${MODE_TXT[k]}</option>`).join('')}</select></td>
+      <td><textarea class="in" rows="2" data-matspecs="${i}" ${c.mode==='lot'?'placeholder="(kiểu theo lô không cần)"':''}>${esc((c.specs||[]).join('\n'))}</textarea></td>
+      <td style="text-align:center"><input type="checkbox" data-cfgchk="materials.${i}.hidden" ${c.hidden?'checked':''} style="width:18px;height:18px;margin-top:9px"></td>
+      <td><select class="in" data-matmerge="${i}"><option value="">—</option>${MATS().map((d,j)=>j===i?'':`<option value="${j}">${esc(d.name)}</option>`).join('')}</select></td></tr>`).join('') || '<tr><td colspan="8" class="hint" style="padding:12px">Chưa có – nhập từ file mẫu bên dưới, hoặc để người chốt thêm khi nhập báo cáo.</td></tr>'}</tbody></table></div>
+    <div class="ph" style="margin-top:10px"><h4>Nhập danh mục từ file Excel (tổ vật tư)</h4></div>
+    <div class="hint" style="padding:0 0 6px">File 5 cột: <b>Bộ môn</b> (Xây dựng / MEP) · <b>Chủng loại</b> · <b>ĐVT</b> · <b>Kiểu ghi</b> (Khối lượng / Theo lô) · <b>Chi tiết</b> (mỗi dòng 1 chi tiết). Trùng chủng loại thì gộp chi tiết, không tạo mục mới.</div>
+    <div class="bar"><button class="btn" data-act="matTpl">⬇ Tải file mẫu</button><label class="btn">📂 Chọn file .xlsx / .csv<input type="file" accept=".xlsx,.xls,.csv" data-matfile="1" hidden></label></div>
+    <textarea class="in" rows="3" id="matPaste" placeholder="Hoặc copy vùng 5 cột trong Excel rồi dán vào đây"></textarea><div class="bar"><button class="btn" data-act="matPasteGo">⤵ Nạp từ vùng dán</button></div>
     <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu danh mục</button></div>`;
   }
   if (CFGTAB==='backup'){
@@ -2267,9 +2366,12 @@ document.addEventListener('input', e=>{
     const mp = t.dataset.path.match(/^plans\.(\d+)\.(add|desc|loc|zoneId)$/); if (mp && t.dataset.root==='S'){ const pl = S.plans[+mp[1]];
       if (mp[2]==='add' && v!=='' && v < 0) { pl.add = 0; t.value = 0; } planCalc(pl, S.tasks); const e = $('#pt-'+mp[1]); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; }
     if (/^(plans|inspections|inspectionPlans|tests|testPlans)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
+    const mmat = t.dataset.path.match(/^materials\.(\d+)\.name$/); if (mmat && t.dataset.root==='R'){ const it = R.materials[+mmat[1]];
+      if (v==='__new'){ it.name = ''; renderForm(); return newMatType(+mmat[1]); } const c = catOf(v); if (c) { it.name = c.name; it.unit = c.unit; } setTimeout(()=>{ renderForm(); renderDoc(); }, 0); }
     if (t.dataset.root==='W' && W){ const mw = t.dataset.path.match(/^(tasks|nextPlans|manpower|equipment|inspections|tests|inspPlans|materials|matPlans|safety\.issues|safety\.activities|photos|layouts|gantt)\.(\d+)\./);
       if (mw || /^safety\./.test(t.dataset.path)) autoRatings(W);
       if (/^photos\.\d+\.zoneId$/.test(t.dataset.path)) setTimeout(renderWeek, 0);
+      const mwm = t.dataset.path.match(/^materials\.(\d+)\.name$/); if (mwm){ const it = W.materials[+mwm[1]], c = catOf(v); if (c) { it.unit = c.unit; it.sec = c.sec; } setTimeout(renderWeek, 0); }
       const mpw = t.dataset.path.match(/^nextPlans\.(\d+)\.(add|desc)$/); if (mpw){ const pl = W.nextPlans[+mpw[1]]; if (mpw[2]==='add' && v !== '' && v < 0) { pl.add = 0; t.value = 0; } wPlanCalc(pl, W.tasks); const e = $('#wpt-'+mpw[1]); if (e) e.innerHTML = `<b>${wPct(pl.target)}</b>`; }
       if (/^overall\.(plan|actual)$/.test(t.dataset.path)) { autoRatings(W); const ev = wEval(W.overall), el = $('#wEval'); if (el) { el.className = 'note ' + (ev.c==='ok'?'g':'w'); el.innerHTML = ev.t ? `Chênh lệch ${ev.d > 0 ? '+' : ''}${ev.d}% → <b>${ev.t}</b> (ngưỡng 5%)` : 'Nhập % KH tuần này và % thực tế để tự đánh giá'; } } }
     markDirty(t.dataset.root); schedulePreview(); return; }
@@ -2297,6 +2399,14 @@ document.addEventListener('change', async e=>{
     } catch(e){ toast('⚠ Lỗi logo: ' + (e.message||e), 5000); }
     return;
   }
+  if (t.dataset.matmerge !== undefined && t.value !== ''){ const L = MATS(), src = L[+t.dataset.matmerge], dst = L[+t.value]; if (!src || !dst) return;
+    if (!(await ask('Gộp danh mục vật tư', `Gộp <b>${esc(src.name)}</b> vào <b>${esc(dst.name)}</b>? Chi tiết được gộp lại; tên “${esc(src.name)}” thành tên cũ của “${esc(dst.name)}” – dữ liệu đã nhập tự quy về.`, 'Gộp'))) { t.value = ''; return; }
+    dst.specs = [...new Set((dst.specs||[]).concat(src.specs||[]))]; dst.alias = [...new Set((dst.alias||[]).concat([src.name], src.alias||[]))]; L.splice(L.indexOf(src), 1);
+    renderConfig(); toast('✔ Đã gộp – bấm “Lưu danh mục”'); return; }
+  if (t.dataset.matfile){ const f = t.files && t.files[0]; if (!f) return;
+    try { let rows; if (/\.csv$/i.test(f.name)) rows = csvRows(await f.text());
+      else { toast('⏳ Đang đọc file Excel…'); const X = await loadXlsx(), wb = X.read(await f.arrayBuffer(), {type:'array'}); rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1, raw:false}); }
+      afterImport(importMatRows(rows)); } catch(err){ toast('⚠ Không đọc được file: ' + (err.message||err), 6000); } t.value = ''; return; }
   if (t.dataset.wfile==='msp'){ const f = t.files[0]; if (!f) return; if (f.size > 20e6) return toast('File quá 20 MB – xuất PDF MS Project nhẹ hơn', 5000);
     try { toast('⏳ Đang tải file lên Drive…', 20000); const data = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>res(fr.result); fr.onerror = rej; fr.readAsDataURL(f); });
       W.msp = IS_GAS ? await Store.uploadFile(data, f.name) : {fileId:'', url:'', name:f.name}; markDirty('W'); renderWeek(); toast('✔ Đã tải file MS Project'); }
@@ -2348,6 +2458,16 @@ document.addEventListener('click', async e=>{
       return pick(c==='wtask' ? 'Thêm việc vào khu vực' : 'Thêm kế hoạch tuần sau vào khu vực', zs.map(z=>[z.id, '📍 ' + z.name + ' · ' + ((SECTIONS.find(x=>x.k===(z.section||'XD'))||{}).label || 'Xây dựng')]), id=>addItem('W', path, tpl(zoneById(id)))); }
     if (c==='people') return pick('Thêm mới', [['manpower','👥 Nhân lực'],['equipment','🔧 Máy móc thiết bị']], k=>addItem('R', k, k==='manpower'?{title:'',qty:0}:{name:'',qty:0}));
     if (c==='mat') return pick('Thêm mới', [['materials','📦 Vật tư nhập về'],['safety.issues','⚠ Nhắc nhở / vi phạm ATLĐ']], k=>addItem('R', k, k==='materials'?{name:'',spec:'',unit:'',qty:''}:{desc:'',action:''})); }
+  if (a==='matMv'){ const L = MATS(), i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; renderConfig(); return; }
+  if (a==='matTpl'){ const csv = '\ufeff' + MAT_TPL.map(r=>r.map(x=>'"' + String(x).replace(/"/g,'""') + '"').join(',')).join('\r\n');
+    const u = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'})), l = document.createElement('a'); l.href = u; l.download = 'Mau_danh_muc_vat_tu.csv'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u), 2000); return; }
+  if (a==='matPasteGo'){ const t = ($('#matPaste').value||'').trim(); if (!t) return toast('Dán vùng 5 cột từ Excel vào ô trước');
+    return afterImport(importMatRows(t.split(/\r?\n/).map(l=>l.split('\t').length > 1 ? l.split('\t') : csvRows(l)[0] || []))); }
+  if (a==='matNewGo'){ const e = {name:($('#nmName').value||'').trim(), unit:($('#nmUnit').value||'').trim(), sec:$('#nmSec').value, mode:$('#nmMode').value};
+    if (!e.name) return toast('Nhập tên chủng loại'); if (!e.unit) return toast('Nhập đơn vị tính');
+    try { const r = await Store.catalogAdd(e), it = r.item; if (!catOf(it.name)) MATS().push(it); closeModal();
+      const m = R && R.materials[newMatType.i]; if (m) { m.name = it.name; m.unit = it.unit; markDirty('R'); renderForm(); renderDoc(); }
+      toast(r.dup ? `Đã có “${it.name}” trong danh mục – dùng mục này` : `✔ Đã thêm “${it.name}” vào danh mục`, 4000); } catch(err){ toast('⚠ ' + (err.message||err), 5000); } return; }
   if (a==='pick'){ closeModal(); const f = pick._cb; pick._cb = null; if (f) f(b.dataset.v); return; }
   if (a==='gotoDate'){ await flush(); DATE = b.dataset.d; TAB = 'status'; return openDay(DATE); }
   if (a==='bumpPlan'){ const i = +b.dataset.i, pl = S.plans[i]; const room = Math.max(0, 100 - (pl.base||0)); pl.add = r1(Math.min(room, num(pl.add) + (+b.dataset.v))); planCalc(pl, S.tasks);
@@ -2497,6 +2617,8 @@ document.addEventListener('click', async e=>{
     if ($('#wbsText')) CFG.wbs = $('#wbsText').value.split('\n').map(l=>l.split(/\t| {2,}|;/)).filter(x=>x[0]&&x[0].trim()).map(x=>({code:x[0].trim(), name:(x.slice(1).join(' ')||'').trim()}));
     if ($('#mpText')) CFG.manpower = $('#mpText').value.split('\n').map(s=>s.trim()).filter(Boolean);
     if ($('#eqText')) CFG.equipment = $('#eqText').value.split('\n').map(s=>s.trim()).filter(Boolean);
+    document.querySelectorAll('[data-matspecs]').forEach(e=>{ const c = MATS()[+e.dataset.matspecs]; if (c) c.specs = [...new Set(e.value.split('\n').map(x=>x.trim()).filter(Boolean))]; });
+    CFG.materials = MATS().filter(c=>nrm(c.name));
     CFG.zones = CFG.zones.filter(z=>z.name.trim());
     renderConfig.edit = false; try { await Store.saveConfig(CFG); setSub(); ME = CFG.users.find(u=>u.id===ME.id); renderNav(); renderConfig(); renderDateSel(); toast('✔ Đã lưu cấu hình'); } catch(err){ toast('⚠ ' + (err.message||err), 5000); } }
   if (a==='exportJson'){ const all = await Store.allReports(); const txt = JSON.stringify({project:CFG.project, reports:all.map(stripImgs)}, null, 1);
@@ -2594,7 +2716,7 @@ async function doLogin(){ const u = $('#loginUser').value, pin = $('#pinIn').val
   try { const r = await Store.login(u, pin, modeOf(u), rem); if (!r) { $('#pinIn').classList.add('err'); toast('PIN không đúng'); return; } await startSession(r.token, r.uid, r.bundle, rem); }
   catch(e){ toast('⚠ ' + (e.message||e)); } finally { btn.disabled = false; btn.textContent = 'Đăng nhập'; } }
 async function startSession(token, u, bundle, remember){
-  TOKEN = token; if (remember !== undefined) sessSave({token, uid:u, code:CFG.project.code}, remember); touchAct(); OTHERS_NOTE = '';
+  TOKEN = token; if (remember !== undefined) sessSave({token, uid:u, code:CFG.project.code}, remember); touchAct(true); OTHERS_NOTE = '';
   ME = CFG.users.find(x=>x.id===u); if (!ME || ME.active===false) { toast('Tài khoản không còn hoạt động'); return showLogin(); }
   $('#login').classList.remove('on'); setSub(); R = null; S = null;
   VIEW = navItems()[0][0]; renderNav(); loadLogos();
@@ -2620,7 +2742,7 @@ function sessClear(){ try { localStorage.removeItem('bcn_session'); } catch(x){}
 /* Tự đăng xuất khi không thao tác quá N giờ (Cài đặt, mặc định 8, 0 = tắt) */
 const idleH = () => { const v = parseFloat((CFG.settings||{}).idleHours); return isNaN(v) ? 8 : v; };
 let ACT_T = 0;
-function touchAct(){ const n = Date.now(); if (n - ACT_T < 30000) return; ACT_T = n; try { localStorage.setItem('bcn_act', String(n)); } catch(x){} }
+function touchAct(force){ const n = Date.now(); if (!force && n - ACT_T < 30000) return; ACT_T = n; try { localStorage.setItem('bcn_act', String(n)); } catch(x){} }
 function idleOver(){ const h = idleH(); if (!(h > 0)) return false; let t = 0; try { t = +localStorage.getItem('bcn_act') || 0; } catch(x){} return t > 0 && Date.now() - t > h * 3600e3; }
 ['pointerdown','keydown'].forEach(ev=>document.addEventListener(ev, ()=>{ if (ME) touchAct(); }, {passive:true}));
 async function idleCheck(){ if (!ME || !idleOver()) return; await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; closeModal(); showLogin(); toast(`Đã tự đăng xuất do không thao tác quá ${idleH()} giờ`, 6000); }

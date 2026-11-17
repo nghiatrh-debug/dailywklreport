@@ -175,6 +175,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.evaluate(() => idleCheck()); await wait(500);
     ok(await pg.isVisible('#login') && /tự đăng xuất/.test(await pg.innerText('#toast')), 'Tự đăng xuất hiện thông báo');
     await login(pg, 'u_chot', '1234');
+    ok(await pg.evaluate(() => !idleOver() && Date.now() - +localStorage.getItem('bcn_act') < 60000), 'Đăng nhập lại ngay sau khi tự đăng xuất: ghi mốc thao tác mới (không bị đăng xuất tiếp)');
 
     /* ---- Cấu hình: thứ tự thẻ, logo, chế độ thử nghiệm ---- */
     await pg.click('[data-view=config]'); await wait(300);
@@ -204,6 +205,44 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
       'Thời tiết: chiều có sau 17h (12–17h); bấm lúc 19h tính đến 19h; ngày đã qua tính 12–17h');
     ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền');
     await shot(pg, 'desk_settings');
+    /* ---- Đợt 7: danh mục vật tư ---- */
+    await pg.click('[data-cfgtab=lists]'); await wait(300);
+    await pg.fill('#matPaste', 'Bộ môn\tChủng loại\tĐVT\tKiểu ghi\tChi tiết\nXây dựng\tBê tông\tm3\tKhối lượng\tB30(M400)R7\nXây dựng\tbê  tông\tm3\tKhối lượng\tB50R28(M650)\nMEP\tỐng UPVC\tm\tTheo lô\t');
+    await pg.click('[data-act=matPasteGo]'); await wait(300);
+    ok(await pg.evaluate(() => MATS().length === 2 && catOf('BÊ TÔNG').specs.length === 2 && catOf('Ống UPVC').mode === 'lot' && catOf('Ống UPVC').sec === 'MEP'), 'Danh mục vật tư: dán từ Excel, gộp trùng chủng loại (hoa thường, khoảng trắng), nhận bộ môn & kiểu ghi');
+    await pg.setInputFiles('input[data-matfile]', { name: 'dm.csv', mimeType: 'text/csv', buffer: Buffer.from('﻿"Bộ môn","Chủng loại","ĐVT","Kiểu ghi","Chi tiết"\r\n"Xây dựng","Thép","kg","Khối lượng","Ø16"\r\n"Xây dựng","Thép","kg","Khối lượng","Ø20"\r\n') }); await wait(500);
+    ok(await pg.evaluate(() => catOf('Thép') && catOf('Thép').specs.join() === 'Ø16,Ø20'), 'Danh mục vật tư: nạp file CSV (file mẫu)');
+    const XL = require('/tmp/pwnode/node_modules/xlsx'); const wbx = XL.utils.book_new(); XL.utils.book_append_sheet(wbx, XL.utils.aoa_to_sheet([['Bộ môn','Chủng loại','ĐVT','Kiểu ghi','Chi tiết'], ['MEP','Cáp điện','m','Khối lượng','CVV 4x16']]), 'DM');
+    await pg.route('**/cdn.jsdelivr.net/npm/xlsx**', r => r.fulfill({ contentType: 'application/javascript', body: require('fs').readFileSync('/tmp/pwnode/node_modules/xlsx/dist/xlsx.full.min.js', 'utf8') }));
+    await pg.setInputFiles('input[data-matfile]', { name: 'dm.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XL.write(wbx, { type: 'buffer', bookType: 'xlsx' }) }); await wait(1500);
+    ok(await pg.evaluate(() => catOf('Cáp điện') && catOf('Cáp điện').sec === 'MEP' && catOf('Cáp điện').specs[0] === 'CVV 4x16'), 'Danh mục vật tư: nạp file Excel .xlsx');
+    await pg.selectOption('[data-matmerge="0"]', String(await pg.evaluate(() => MATS().findIndex(c=>c.name==='Thép')))); await wait(200); await pg.click('#mOk'); await wait(300);
+    ok(await pg.evaluate(() => !MATS().some(c=>c.name==='Bê tông') && catOf('Bê tông') && catOf('Bê tông').name === 'Thép' && catOf('Thép').specs.includes('B30(M400)R7')), 'Danh mục vật tư: gộp mục – tên cũ thành bí danh, chi tiết gộp lại');
+    await pg.evaluate(() => { const t = catOf('Thép'); t.specs = t.specs.filter(x=>/Ø/.test(x)); t.alias = []; MATS().unshift({id:'mBT', name:'Bê tông', unit:'m3', sec:'XD', mode:'qty', specs:['B30(M400)R7'], alias:[]}); renderConfig(); });
+    await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
+    ok(await pg.evaluate(async () => (await IDB.get('kv','config')).materials.length === 4), 'Danh mục vật tư: lưu cấu hình');
+    await shot(pg, 'desk_cfg_materials');
+    ok(await pg.evaluate(() => { const a = matCells({name:'bê tông', spec:'', qty:''}, 0).join(''), b = matCells({name:'Ống UPVC'}, 0).join(''), o = matNameOpts('Gạch cũ').map(x=>x.v);
+      return /list="dl-mBT"/.test(a) && /m3/.test(a) && /Nội dung lô hàng/.test(b) && /Ghi chú/.test(b) && o.includes('Gạch cũ') && o.includes('__new') && /B30\(M400\)R7/.test(matDatalists()); }), 'Báo cáo ngày – vật tư: chọn chủng loại từ danh mục, ĐVT tự điền, gợi ý chi tiết; theo lô nhập nội dung + ghi chú; giữ tên cũ ngoài danh mục');
+    ok(await pg.evaluate(() => { const R0 = {materials:[{name:'Bê tông', spec:'B35 mới', qty:3}, {name:'Ống UPVC', spec:'D27'}]}; const add = rememberMat(R0.materials); return add.length === 1 && catOf('Bê tông').specs.includes('B35 mới'); }), 'Lưu báo cáo ngày: chi tiết mới tự vào danh mục (kiểu theo lô không thêm)');
+    await pg.evaluate(() => newMatType(-1)); await wait(200);
+    await pg.fill('#nmName', ' bê tông '); await pg.fill('#nmUnit', 'm3'); await pg.click('[data-act=matNewGo]'); await wait(300);
+    ok(/Đã có “Bê tông”/.test(await pg.innerText('#toast')) && await pg.evaluate(() => MATS().length === 4), 'Thêm chủng loại mới trùng tên → báo đã có, dùng mục có sẵn');
+    await pg.evaluate(() => newMatType(-1)); await wait(200);
+    await pg.fill('#nmName', 'Gạch block'); await pg.fill('#nmUnit', 'viên'); await pg.click('[data-act=matNewGo]'); await wait(300);
+    ok(await pg.evaluate(async () => catOf('gạch BLOCK') && catOf('Gạch block').unit === 'viên' && (await IDB.get('kv','config')).materials.some(c=>c.name==='Gạch block')), 'Người chốt thêm chủng loại mới (Gạch block, viên) → lưu vào danh mục');
+    ok(await pg.evaluate(() => { const pw = {matCum:{[matKey({name:'Bê tông', spec:'B30(M400)R7', unit:'m3'})]:314, [matKey({name:'Thép', spec:'Ø16', unit:'kg'})]:289656}};
+      const reps = [normReport({date:'2026-06-26', materials:[{name:'bê tông', spec:'B30(M400)R7', unit:'m3', qty:5}, {name:'Bê tông', spec:'B50 mới', unit:'m3', qty:10}, {name:'Ống UPVC', spec:'Ống nước D27, D34', unit:'m', note:'120 cây'}]}),
+        normReport({date:'2026-06-27', materials:[{name:'Bê tông', spec:'B30(M400)R7', unit:'m3', qty:2}]})];
+      const w = normWeek({key:'W-x', from:'2026-06-26', to:'2026-07-02'}); genWeek(w, reps, pw); window.__wt = w;
+      const b30 = w.materials.find(m=>m.spec==='B30(M400)R7'), b50 = w.materials.find(m=>m.spec==='B50 mới'), lot = w.materials.find(m=>m.mode==='lot');
+      return w.materials.length === 3 && b30.prev === 314 && b30.now === 7 && b50.prev === 0 && lot.date === '2026-06-26' && lot.sec === 'MEP' && lot.note === '120 cây'
+        && w.matCum[matKey(b30)] === 321 && w.matCum[matKey({name:'Thép', spec:'Ø16', unit:'kg'})] === 289656 && !w.materials.some(m=>m.name==='Thép'); }),
+      'Tuần: gom vật tư theo danh mục; chỉ chi tiết có hàng về; kỳ trước = lũy kế còn lại; chi tiết không về vẫn giữ lũy kế; lô hàng MEP theo ngày');
+    ok(await pg.evaluate(() => { const box = document.createElement('div'); box.innerHTML = weekDocHTML(window.__wt, {}); const t = box.innerText;
+      return /C\.1\.1 VẬT TƯ XÂY DỰNG/.test(t) && /C\.1\.2 VẬT TƯ MEP/.test(t) && /I\s*Bê tông \(m3\)/.test(t) && /Tổng/.test(t) && /321/.test(t) && /Ống nước D27, D34/.test(t) && /26\/06\/2026/.test(t) && !/Ø16/.test(t); }),
+      'PDF tuần: C.1.1 nhóm theo chủng loại có dòng Tổng; C.1.2 MEP lô hàng có ngày nhập; chi tiết không về trong tuần không in');
+    await pg.click('[data-cfgtab=settings]'); await wait(300);
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');
     await pg.click('[data-view=day]'); await wait(600);
@@ -304,7 +343,8 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-act=wLock]'); await wait(700);
     ok(await pg.evaluate(async () => { const w = await IDB.get('periods', W.key); return W.status === 'locked' && w.status === 'locked' && w.review && w.review.status === 'pending'; }), 'Chốt tuần → chờ TVGS kiểm tra');
     await pg.click('[data-wtab=prog]'); await shot(pg, 'desk_week_locked');
-    await login(pg, 'u_tvgs', '3333'); await pg.click('[data-view=period]'); await wait(500);
+    await login(pg, 'u_tvgs', '3333');
+    await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
     await pg.click('[data-act=wApprove]'); await wait(700);
     const wcode = await pg.evaluate(() => W.review && W.review.code);
@@ -316,6 +356,13 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.evaluate(() => W.no === 35 && W.overall.plan === 11 && W.overall.actualPrev === 10.4 && !PW === false), 'Tuần sau: số tuần 35, KH tuần này & thực tế tuần trước tự lấy');
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
     ok(await pg.locator('[data-act=drivePeriod]').count() === 1 && await pg.locator('[data-root=W]:not([disabled])').count() === 0, 'Tuần đã xác nhận: khóa nhập, hiện nút xuất PDF');
+    await pg.click('[data-wtab=mat]'); await wait(300); await shot(pg, 'desk_week_mat');
+    await pg.click('[data-view=day]'); await wait(600); await pg.click('[data-tab=mat]'); await wait(300);
+    if (await pg.locator('[data-act=add][data-path=materials]').count()) { await pg.click('[data-act=add][data-path=materials]'); await wait(300);
+      await pg.selectOption('[data-root=R][data-path="materials.0.name"]', 'Bê tông'); await wait(300);
+      ok(await pg.evaluate(() => R.materials[0].unit === 'm3' && !!document.querySelector('[data-root=R][data-path="materials.0.spec"][list]')), 'Báo cáo ngày: chọn “Bê tông” → ĐVT m3 tự điền, ô chi tiết có gợi ý');
+      await pg.fill('[data-root=R][data-path="materials.0.spec"]', 'B30(M400)R7'); await pg.fill('[data-root=R][data-path="materials.0.qty"]', '12'); await wait(300); }
+    await shot(pg, 'desk_day_mat');
     ok(!errs.length, 'Không lỗi JavaScript (máy tính) ' + errs.join(' | '));
     await ctx.close();
   }

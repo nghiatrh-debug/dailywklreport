@@ -257,3 +257,11 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Tuan_CongViec thêm cột cuối `du_kien_tuan` = % dự kiến thực hiện trong tuần của dòng KE_HOACH_TUAN_SAU (kh_pct vẫn là lũy kế dự kiến).
 - PDF B.3: ngày trình ghi đủ dd/mm/yyyy (hồ sơ có thể trình từ tháng/năm trước).
 - Cấu hình → Dự án: ô thông tin cố định khi chưa bấm "✎ Sửa thông tin" hiện nền xám; bấm vào ô thì nhắc bấm "✎ Sửa thông tin" (trước đây trông như ô nhập được nhưng gõ không vào).
+
+## Đợt 7 (17/11/2026) – Danh mục vật tư, C.1.1 Xây dựng / C.1.2 MEP
+- **Danh mục vật tư** `CFG.materials = [{id, name, unit, sec:'XD'|'MEP', mode:'qty'|'lot', specs:[], alias:[], hidden}]`. Thứ tự trong danh mục = thứ tự trên báo cáo.
+- **Báo cáo ngày – vật tư nhập về:** chọn Chủng loại từ danh mục (ĐVT tự điền) hoặc "＋ Thêm chủng loại mới…" (người chốt/admin: tên, ĐVT, bộ môn, kiểu ghi; trùng tên – không phân biệt hoa thường, khoảng trắng – thì dùng mục có sẵn). Kiểu Khối lượng: chọn/gõ chi tiết (gợi ý từ danh mục) + số lượng; chi tiết mới tự vào danh mục khi lưu. Kiểu Theo lô: nội dung lô + ghi chú; ngày nhập = ngày báo cáo. Dữ liệu cũ gõ tự do vẫn giữ.
+- **Báo cáo tuần C.1:** C.1.1 Vật tư xây dựng · C.1.2 Vật tư MEP. Nhóm theo chủng loại (thứ tự danh mục), mỗi nhóm kiểu Khối lượng có dòng Tổng (kỳ trước, kỳ này, lũy kế của các chi tiết hiện trong tuần). **Chỉ hiện chi tiết có hàng về trong tuần**; lũy kế mọi chi tiết lưu ở `matCum` của báo cáo tuần → lần về sau: kỳ trước = lũy kế còn lại. Tuần đầu: kỳ trước nhập tay. Kiểu Theo lô: chỉ các lô về trong tuần (ngày nhập, nội dung, ghi chú).
+- **Cấu hình → Danh mục → Vật tư (admin):** sửa tên/ĐVT/bộ môn/kiểu ghi/chi tiết, đổi thứ tự, ẩn, gộp mục trùng (tên cũ thành bí danh – dữ liệu cũ tự quy về). **Nhập từ file:** tải file mẫu (CSV mở bằng Excel, 5 cột: Bộ môn · Chủng loại · ĐVT · Kiểu ghi · Chi tiết), nạp file .xlsx/.csv hoặc dán vùng ô copy từ Excel; trùng chủng loại thì gộp chi tiết.
+- Tuan_VatTu thêm cột cuối `bo_mon`, `ngay_nhap`, `ghi_chu`; loai = NHAP_VE (khối lượng) / LO_HANG (theo lô) / KE_HOACH.
+- Máy chủ: lưu báo cáo ngày kèm `matMem` (chi tiết mới) → gộp vào danh mục; `apiCatalogAdd` (admin, chốt) thêm chủng loại; `apiSaveConfig` giữ mục/chi tiết danh mục do người chốt thêm trong lúc admin đang sửa.

@@ -190,7 +190,7 @@ console.log('Dung lượng: xong');
   const base = { v: 2, kind: 'week', key: 'W-2026-11-06', from: '2026-11-06', to: '2026-11-12', no: 34, status: 'draft', version: 1,
     overall: { plan: 10.47, actualPrev: 10.2, actual: 10.68, planNext: 10.92, rev: 'Rev02', note: '', eval: 'Đạt' }, ratings: { safety: 'mid', work: 'good', resource: 'good' },
     tasks: [{ section: 'XD', zoneId: 'z1', desc: 'Cột vách B1', unit: 'm3', qty: 50, startPct: 60, planPct: 80, actual: 100, note: '' }], nextPlans: [{ section: 'XD', zoneId: 'z1', desc: 'Sàn GF', add: 30, target: 50 }],
-    manpower: [{ title: 'Thép', avg: 32, max: 34, total: 224 }], equipment: [{ name: 'Cẩu tháp', avg: 2, max: 2 }], materials: [{ name: 'Bê tông', spec: 'B50', unit: 'm3', prev: 693.5, now: 93 }],
+    manpower: [{ title: 'Thép', avg: 32, max: 34, total: 224 }], equipment: [{ name: 'Cẩu tháp', avg: 2, max: 2 }], materials: [{ name: 'Bê tông', spec: 'B50', unit: 'm3', prev: 693.5, now: 93 }, { sec: 'MEP', mode: 'lot', name: 'Ống UPVC', spec: 'Ống nước D27, D34', unit: 'm', date: '2026-11-11', note: '120 cây' }],
     matPlans: [], inspections: [{ date: '2026-11-07', desc: 'NT thép sàn', loc: 'Z2', result: 'Đạt' }], tests: [], inspPlans: [], safety: { summary: 'Ổn', activities: [{ date: '2026-11-06', desc: 'Toolbox' }], issues: [] },
     layouts: [], photos: [], gantt: [{ img, fileId: '', caption: 'Gantt 1' }], msp: null };
   let r = J(ctx.apiSavePeriod(tk, JSON.stringify(base)));
@@ -203,6 +203,8 @@ console.log('Dung lượng: xong');
   r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
   A([r.review && r.review.status === 'pending', 'chốt tuần → chờ TVGS']);
   const td = sheets.Tuan_TienDo.data.find(x => x[0] === base.key), hd = sheets.Tuan_TienDo.data[0];
+  { const hv = sheets.Tuan_VatTu.data[0], lo = sheets.Tuan_VatTu.data.find(x => x[0] === base.key && x[2] === 'LO_HANG'), nv = sheets.Tuan_VatTu.data.find(x => x[0] === base.key && x[2] === 'NHAP_VE');
+    A([lo && lo[hv.indexOf('bo_mon')] === 'MEP' && lo[hv.indexOf('ngay_nhap')] === '2026-11-11' && lo[hv.indexOf('ghi_chu')] === '120 cây' && nv[hv.indexOf('bo_mon')] === 'XD', 'Tuan_VatTu: lô hàng MEP (ngày nhập, ghi chú), vật tư khối lượng ghi bộ môn']); }
   { const hc = sheets.Tuan_CongViec.data[0], r = sheets.Tuan_CongViec.data.find(x => x[0] === base.key && x[2] === 'KE_HOACH_TUAN_SAU');
     A([hc[hc.length - 1] === 'du_kien_tuan' && r[hc.indexOf('du_kien_tuan')] === 30 && r[hc.indexOf('kh_pct')] === 50, 'Tuan_CongViec: cột cuối du_kien_tuan = % dự kiến trong tuần, kh_pct = lũy kế dự kiến']); }
   A([td && td[hd.indexOf('thuc_te')] === 10.68 && td[hd.indexOf('kh_tuan_sau')] === 10.92 && td[hd.indexOf('chenh_lech')] === 0.21 && td[hd.indexOf('an_toan')] === 'Trung bình', 'Tuan_TienDo: KH, thực tế, chênh lệch, xếp loại']);
@@ -296,4 +298,25 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   C.__resetMemo(); A([C.cleanOld_(25000, '2026-11-17T10:00:00+07:00') === 0, 'tự dọn: không quét lại ngày đã dọn']);
   const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tka = J(ctx.apiLogin(adm.id, '5678')).token;
   const t1 = J(ctx.apiCleanup(tka)), t2 = J(ctx.apiCleanup(tka)); A([!t1.skipped && t2.skipped, 'apiCleanup chạy tối đa 1 lần/ngày']);
+})();
+
+// ===== Đợt 7: danh mục vật tư =====
+(() => {
+  const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tka = J(ctx.apiLogin(adm.id, '5678')).token;
+  const c0 = J(ctx.apiPublicConfig()); c0.materials = [{ id: 'mBT', name: 'Bê tông', unit: 'm3', sec: 'XD', mode: 'qty', specs: ['B30'], alias: [] }];
+  if (!c0.users.some(u => u.id === 'uC7')) c0.users.push({ id: 'uC7', name: 'Chốt 7', role: 'chot', active: true });
+  ctx.apiSaveConfig(tka, JSON.stringify(c0)); ctx.apiSetPin(tka, 'uC7', '7777'); const tkc = J(ctx.apiLogin('uC7', '7777')).token;
+  const r1 = J(ctx.apiCatalogAdd(tkc, JSON.stringify({ name: 'Ống UPVC', unit: 'm', sec: 'MEP', mode: 'lot' }))), r2 = J(ctx.apiCatalogAdd(tkc, JSON.stringify({ name: '  bê   TÔNG ', unit: 'm3' })));
+  A([r1.item && r1.item.mode === 'lot' && r1.item.sec === 'MEP' && r2.dup && r2.item.id === 'mBT', 'apiCatalogAdd: người chốt thêm chủng loại; trùng tên (hoa thường, khoảng trắng) → dùng mục có sẵn']);
+  const rp = { date: '2026-12-01', status: 'draft', version: 0, weather: { am: '', pm: '', temp: '' }, manpower: [], equipment: [], safety: { summary: '', issues: [] }, tasks: [], plans: [], inspections: [], inspectionPlans: [], tests: [], testPlans: [], photos: [], layouts: [], extraPhotos: [], log: [],
+    materials: [{ name: 'Bê tông', spec: 'B50R28', unit: 'm3', qty: 10 }], matMem: [{ name: 'Bê tông', spec: 'B50R28' }] };
+  ctx.apiSaveReport(tkc, JSON.stringify(rp));
+  const bt = J(ctx.apiPublicConfig()).materials.find(x => x.id === 'mBT');
+  A([bt.specs.includes('B50R28') && bt.specs.includes('B30'), 'lưu báo cáo ngày: chi tiết mới tự thêm vào danh mục']);
+  const stale = c0; stale.materials[0].unit = 'm³'; ctx.apiSaveConfig(tka, JSON.stringify(stale));
+  const c3 = J(ctx.apiPublicConfig()).materials;
+  A([c3.some(x => x.name === 'Ống UPVC') && c3.find(x => x.id === 'mBT').specs.includes('B50R28') && c3.find(x => x.id === 'mBT').unit === 'm³', 'admin lưu cấu hình cũ: giữ chủng loại / chi tiết người chốt vừa thêm, nhận sửa của admin']);
+  const c4 = J(ctx.apiPublicConfig()); if (!c4.users.some(u => u.id === 'uK7')) { c4.users.push({ id: 'uK7', name: 'KS 7', role: 'ks', active: true }); ctx.apiSaveConfig(tka, JSON.stringify(c4)); } ctx.apiSetPin(tka, 'uK7', '7171');
+  const tkK = J(ctx.apiLogin('uK7', '7171')).token; let err = ''; try { ctx.apiCatalogAdd(tkK, JSON.stringify({ name: 'X', unit: 'kg' })); } catch (e) { err = e.message; }
+  A([/quyền/.test(err), 'kỹ sư không thêm được chủng loại']);
 })();
