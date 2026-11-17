@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa nhỏ 7.2 – Đầu mục chính nổi bật (17/11/2026)
+- Tiêu đề mục chính báo cáo ngày đổi sang nền navy, chữ trắng, viền vàng; báo cáo tuần thêm viền vàng.
+- Đã in thử PDF bằng Chrome, xem trang 1–2: chữ trắng rõ, số tổng bên phải đọc được.
+- Rủi ro: chỉ đổi CSS, không đổi dữ liệu.
+
+
 ### Sửa nhỏ 7.1 – Mục mặt bằng không để trống nửa trang (17/11/2026)
 - **Lỗi:** PDF báo cáo ngày mục 7 ngắn, mục 8 Mặt bằng bị ép sang trang mới nên để trống hơn nửa trang.
 - **Sửa:** bỏ ép sang trang; tiêu đề mục 8 (và mục III báo cáo tuần) gói chung với ảnh đầu, không đủ chỗ thì cả hai cùng sang trang.
@@ -205,3 +211,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 10:01 | a395304 | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: danh mục vật tư, C.1.1/C.1.2, nhập từ Excel; sửa tự đăng xuất lại |
 | 2026-11-17 10:05 | 64d345b | đạt | 134 đạt / 0 lỗi | 165 đạt / 0 lỗi | ✅ ĐẠT | Đợt 7: kiểm thử .xlsx chạy được trên GitHub (cài xlsx) |
 | 2026-11-17 13:00 | c3d58c1 | đạt | 134 đạt / 0 lỗi | 166 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.1: mục mặt bằng không ép sang trang mới |
+| 2026-11-17 13:25 | 87e16e7 | đạt | 134 đạt / 0 lỗi | 166 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.2: đầu mục chính nền navy |

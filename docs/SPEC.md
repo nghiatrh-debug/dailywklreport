@@ -270,3 +270,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Bỏ quy tắc "mục Mặt bằng thi công luôn sang trang mới" (báo cáo ngày mục 8, báo cáo tuần mục III).
 - Tiêu đề mục dính với ảnh mặt bằng đầu tiên: còn đủ chỗ thì in tiếp ngay sau mục trước; không đủ chỗ cho một ô ảnh (~1/3 trang) thì cả tiêu đề và ảnh cùng sang trang.
 - Ảnh tiếp theo vẫn mỗi ảnh một ô, không bị cắt ngang trang.
+
+## Sửa nhỏ 7.2 – Đầu mục chính có màu nền (17/11/2026)
+- Tiêu đề mục chính báo cáo ngày (1, 2, 3…): nền xanh navy #1e3a8a, chữ trắng, viền trái vàng hổ phách #f59e0b; số tổng bên phải màu vàng nhạt.
+- Báo cáo tuần (mục I, II, III…): thêm viền vàng cho đồng bộ.
+- In giữ màu nền (print-color-adjust: exact).
