@@ -188,6 +188,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(/Thư mục lưu PDF/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#pdfLink') && await pg.isVisible('[data-cfgchk="settings.pdfMonthly"]'), 'Cài đặt: chọn thư mục lưu PDF (dán link Drive) + chia thư mục theo tháng');
     ok(await pg.locator('[data-cfg="settings.weekEnd"]').count() === 1 && await pg.inputValue('[data-cfg="settings.weekEnd"]') === '4' && await pg.locator('[data-cfg="settings.idleHours"]').count() === 1, 'Cài đặt: ngày chốt tuần (mặc định Thứ 5) + giờ tự đăng xuất');
     ok(await pg.locator('[data-act=speedTest]').count() === 1, 'Cài đặt: có nút Đo tốc độ');
+    ok(/Thư mục lưu báo cáo tuần/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#weekLink') && await pg.locator('[data-act=weekFolderSet]').count() === 1, 'Cài đặt: chọn thư mục riêng lưu báo cáo tuần');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
     ok(await pg.isVisible('#testBar'), 'Bật chế độ thử nghiệm → dải vàng');

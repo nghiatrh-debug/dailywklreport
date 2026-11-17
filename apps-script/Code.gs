@@ -357,6 +357,9 @@ function verifyUrl_(code) { let u = ''; try { u = ScriptApp.getService().getUrl(
 /** Thư mục đã chọn trong Cấu hình (thường là thư mục Drive chia sẻ của dự án); chưa chọn → thư mục mặc định của app. */
 function pdfFolder_(c, kind, key) {
   const st = (c && c.settings) || {}, mon = String(key).slice(0, 7);
+  if (kind === 'week' && st.weekFolderId) {     // báo cáo tuần: thư mục riêng đã chọn
+    try { return DriveApp.getFolderById(st.weekFolderId); } catch (e) { throw new Error('Không mở được thư mục lưu báo cáo tuần đã chọn (“' + (st.weekFolderName || st.weekFolderId) + '”). Quản trị kiểm tra quyền truy cập trong Cấu hình → Cài đặt.'); }
+  }
   if (!st.pdfFolderId) return subFolder_(rootFolder_(), 'PDF', kind === 'day' ? mon : (kind === 'week' ? 'Tuan' : 'Thang'));
   let base; try { base = DriveApp.getFolderById(st.pdfFolderId); } catch (e) { throw new Error('Không mở được thư mục lưu PDF đã chọn (“' + (st.pdfFolderName || st.pdfFolderId) + '”). Quản trị kiểm tra quyền truy cập trong Cấu hình → Cài đặt.'); }
   if (kind === 'week') return base;     // báo cáo tuần: lưu thẳng vào thư mục đã chọn

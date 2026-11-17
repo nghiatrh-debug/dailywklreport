@@ -20,13 +20,13 @@ function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://
   createFolder(n){ return f.kids[n]=mkFolder(n); },
   createFile(blob){ const id='F'+(++fileSeq); files[id]={blob, name:blob.name, trashed:false}; f.files.push(id); return {getId:()=>id, getName:()=>blob.name, getUrl:()=>'https://drive/file/'+id, setSharing(a,b){ files[id].sharing = a+'/'+b; }, setTrashed(){ files[id].trashed = true; }}; },
   getFilesByName(n){ const ids=f.files.filter(i=>files[i].name===n&&!files[i].trashed); let k=0; return {hasNext:()=>k<ids.length, next:()=>({setTrashed(){files[ids[k++]].trashed=true;}})}; } }; return f; }
-const root = mkFolder('root'), shared = mkFolder('CN8-2 Shared');
+const root = mkFolder('root'), shared = mkFolder('CN8-2 Shared'), weekF = mkFolder('CN8-2 Weekly');
 function blob(bytes, mime, name){ return { bytes, mime, name, getContentType:()=>mime, getBytes:()=>bytes, getAs(){ return blob(bytes,'application/pdf',name); }, setName(n){ this.name=n; return this; } }; }
 const ctx = {
   console, JSON, Date, Math, Object, Array, String, Number, Error,
   SpreadsheetApp:{ getActive:()=>ss, openById:id=>{ if (ext[id]) return ext[id]; if (id === 'NOPE') throw new Error('no access'); return ss; } },
   ScriptApp:{ getService:()=>({ getUrl:()=>'https://script.google.com/macros/s/TEST/dev' }) },
-  DriveApp:{ Access:{ANYONE_WITH_LINK:'ANYONE_WITH_LINK'}, Permission:{VIEW:'VIEW'}, getFoldersByName:n=>root.getFoldersByName(n), createFolder:n=>root.createFolder(n), getFolderById:id=>{ if (id==='SHAREDFOLDER01') return shared; if (id==='NOACCESSFOLDER') throw new Error('No item with the given ID could be found'); return root; },
+  DriveApp:{ Access:{ANYONE_WITH_LINK:'ANYONE_WITH_LINK'}, Permission:{VIEW:'VIEW'}, getFoldersByName:n=>root.getFoldersByName(n), createFolder:n=>root.createFolder(n), getFolderById:id=>{ if (id==='SHAREDFOLDER01') return shared; if (id==='WEEKFOLDER01') return weekF; if (id==='NOACCESSFOLDER') throw new Error('No item with the given ID could be found'); return root; },
     getFileById:id=>({ getBlob:()=>files[id].blob, setTrashed(){files[id].trashed=true;}, makeCopy:(n)=>({getUrl:()=>'https://drive/copy/'+n}) }) },
   Utilities:{ getUuid:()=>crypto.randomUUID(), sleep(){}, formatDate:(d,tz,f)=>{ const p=n=>String(n).padStart(2,'0'); const v=new Date(d.getTime()+7*3600e3); const Y=v.getUTCFullYear(),M=p(v.getUTCMonth()+1),D=p(v.getUTCDate()),h=p(v.getUTCHours()),m=p(v.getUTCMinutes()); return f==='yyyy-MM-dd'?Y+'-'+M+'-'+D:f==='dd/MM/yyyy HH:mm'?D+'/'+M+'/'+Y+' '+h+':'+m:''+Y+M+D+'_'+h+m; },
     computeDigest:(alg,s)=>[...crypto.createHash('sha256').update(s,'utf8').digest()].map(x=>x>127?x-256:x),
@@ -42,4 +42,4 @@ const ctx = {
 const CODE = process.env.GAS_CODE || require('path').join(__dirname, '..', 'apps-script', 'Code.gs');
 vm.createContext(ctx); vm.runInContext(fs.readFileSync(CODE,'utf8'), ctx);
 ctx.__resetMemo = () => { try { vm.runInContext('if (typeof MEMO!=="undefined") Object.keys(MEMO).forEach(k=>delete MEMO[k]);', ctx); } catch(e){} };
-module.exports = { shared, ctx, sheets, files, props, cacheStore, stats, ext, mkSS };
+module.exports = { shared, weekF, ctx, sheets, files, props, cacheStore, stats, ext, mkSS };

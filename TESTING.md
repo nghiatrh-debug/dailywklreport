@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Thư mục riêng lưu báo cáo tuần
+- **Sửa:** Cấu hình → Cài đặt có thêm mục "📁 Thư mục lưu báo cáo tuần". Dán link thư mục Drive, bấm "Kiểm tra & dùng thư mục này" (app ghi thử để kiểm tra quyền). Đã chọn → PDF báo cáo tuần lưu thẳng vào đó; chưa chọn → lưu chung với thư mục PDF như cũ. Có nút bỏ chọn.
+- **Kiểm thử mới:** gastest – chọn thư mục riêng thì PDF tuần nằm trong thư mục đó, không nằm ở thư mục PDF chung; ui – màn Cài đặt có ô dán link và nút kiểm tra.
+- **Ảnh đã xem:** desk_settings.png – mục mới nằm dưới "Thư mục lưu PDF".
+- **Rủi ro còn lại:** thư mục bị đổi quyền sau khi chọn → xuất PDF báo lỗi rõ, quản trị chọn lại.
+
 ### 17/11 – Sửa lỗi /dev mở ra trang trắng
 - **Nguyên nhân:** khi phục vụ trang, Apps Script tự xóa các chú thích `/* … */` và hiểu nhầm `accept="image/*"` (ô chọn ảnh) là chỗ bắt đầu chú thích. Nó cắt mất một đoạn code đến dấu `*/` kế tiếp, nên JavaScript lỗi cú pháp và app không chạy. Kiểm thử trên máy không thấy lỗi này vì không đi qua bước xóa chú thích của Google.
 - **Sửa:** ghi thành `image/\*`. Trình duyệt vẫn hiểu là `image/*`, còn Apps Script không còn coi đó là chú thích. Lỗi tương tự với `//` trong đường link (`https://…`), nên các link trong code cũng ghi thành `https:\/\/` (kết quả hiển thị không đổi).
@@ -78,3 +84,5 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 04:39 | 07511c4 | đạt | 119 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Hiện lỗi JS trên màn hình (chẩn đoán /dev trắng) |
 | 2026-11-17 04:44 | 9766a73 | đạt | 120 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Sửa /dev trắng: GAS cắt nhầm accept=image/* như chú thích |
 | 2026-11-17 04:50 | 9e03095 | đạt | 120 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Sửa /dev trắng (2): ghi https:\/\/ trong chuỗi JS để GAS không cắt nhầm |
+| 2026-11-17 05:01 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 119 đạt / 1 lỗi | ❌ LỖI | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
+| 2026-11-17 05:04 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 120 đạt / 0 lỗi | ✅ ĐẠT | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |

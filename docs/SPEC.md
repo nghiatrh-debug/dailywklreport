@@ -199,3 +199,7 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
   - Tình trạng: “X/Y” lấy chữ sau – A/B Đã duyệt, C Trả về chỉnh sửa, D Từ chối; trống → Chờ duyệt (đã có ngày TVGS → TVGS đang kiểm tra).
   - **B.4** = văn bản (SI, cảnh báo, NCR, phạt, thư) có ngày trong tuần.
   - Đọc khi bấm “Tổng hợp” hoặc “⟳ Đọc file theo dõi hồ sơ”; chụp lại vào báo cáo; chốt tuần ghi bảng `Tuan_HoSo`.
+
+## Bổ sung 17/11/2026 – Thư mục lưu báo cáo tuần
+- Cấu hình → Cài đặt có thêm mục "📁 Thư mục lưu báo cáo tuần" (`settings.weekFolderId`, `weekFolderName`): dán link thư mục Drive, app kiểm tra quyền ghi như thư mục PDF.
+- Đã chọn → PDF báo cáo tuần lưu thẳng vào thư mục này. Chưa chọn → như cũ (thẳng trong thư mục PDF đã chọn, hoặc thư mục mặc định PDF/Tuan).

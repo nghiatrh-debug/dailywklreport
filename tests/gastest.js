@@ -1,4 +1,4 @@
-const { ctx: C, sheets, files, props, cacheStore, shared, stats, ext, mkSS } = require('./gasmock.js');
+const { ctx: C, sheets, files, props, cacheStore, shared, weekF, stats, ext, mkSS } = require('./gasmock.js');
 const ctx = new Proxy(C, { get(o,k){ const f=o[k]; return typeof f==='function' && String(k).startsWith('api') ? (...a)=>{ o.__resetMemo(); return f(...a); } : f; } });
 const A = (c)=>{ if(!c[0]) { console.log('FAIL', c[1]); process.exitCode=1; } else console.log('ok', c[1]); };
 const J = s=>{ const o = JSON.parse(s); if (o && o.index && o.index.r) o.index = C.idxDec_(o.index); return o; };
@@ -210,6 +210,10 @@ console.log('Dung lượng: xong');
   const url = ctx.apiExportPdf(tk, '<p>x</p>', '20261112-TST-VC-WR-34-Weekly report and Tracking MSP(checked).pdf', base.key, 'week');
   const fid = shared.files.find(i => files[i].name.indexOf('WR-34') > 0);
   A([fid && files[fid].sharing === 'ANYONE_WITH_LINK/VIEW' && sheets.TongHopKy.data.some(x => x[0] === base.key && x[5] === url), 'xuất PDF tuần: thư mục đã chọn, ai có link xem được, ghi link vào TongHopKy']);
+  { const c9 = J(ctx.apiPublicConfig()); c9.settings = Object.assign({}, c9.settings, { weekFolderId: 'WEEKFOLDER01', weekFolderName: 'CN8-2 Weekly' }); ctx.apiSaveConfig(tk, JSON.stringify(c9));
+    ctx.apiExportPdf(tk, '<p>x</p>', '20261112-TST-VC-WR-34b.pdf', base.key, 'week');
+    A([weekF.files.some(i => files[i].name.indexOf('WR-34b') > 0) && !shared.files.some(i => files[i].name.indexOf('WR-34b') > 0), 'chọn thư mục riêng cho báo cáo tuần → PDF tuần lưu vào đó']);
+    c9.settings.weekFolderId = ''; ctx.apiSaveConfig(tk, JSON.stringify(c9)); }
   const pw = J(ctx.apiPeriod(tk, '2026-11-13', '2026-11-19', 'W-2026-11-13')).prevWeek;
   A([pw && pw.no === 34 && pw.overall.planNext === 10.92 && pw.nextPlans[0].target === 50, 'mở tuần sau: trả kèm báo cáo tuần trước']);
   r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'draft', version: 2 })))); A([!r.review.status && ctx.apiVerify(tk, rv.code) && J(ctx.apiVerify(tk, rv.code)).ok !== 'current', 'mở khóa tuần → mã cũ không còn là bản hiện hành']);

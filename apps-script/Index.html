@@ -2005,8 +2005,13 @@ function renderConfig(){
     <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
     <input class="in" id="pdfLink" placeholder="https:\/\/drive.google.com/drive/folders/…">
     <div class="bar"><button class="btn pri" data-act="pdfFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.pdfFolderId?'<button class="btn" data-act="pdfFolderReset">↺ Về thư mục mặc định</button>':''}</div>
-    ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tháng; báo cáo tuần lưu thẳng trong thư mục đã chọn. Đổi xong bấm “Lưu cài đặt”.')}
+    ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tháng; báo cáo tuần lưu thẳng trong thư mục đã chọn (nếu chưa chọn thư mục riêng bên dưới). Đổi xong bấm “Lưu cài đặt”.')}
     <div class="hint" style="padding:2px 0 6px">Tài khoản triển khai app phải có quyền <b>Người chỉnh sửa (Editor)</b> trên thư mục – app tự kiểm tra bằng cách ghi thử 1 file rồi xóa. PDF đã xuất trước đó vẫn giữ ở chỗ cũ.</div>
+    <div class="ph" style="margin-top:12px"><h3>📁 Thư mục lưu báo cáo tuần</h3></div>
+    <div class="note ${st.weekFolderId?'g':''}">${st.weekFolderId ? `Đang lưu PDF báo cáo tuần vào thư mục: <b><a href="https:\/\/drive.google.com/drive/folders/${esc(st.weekFolderId)}" target="_blank" rel="noopener">${esc(st.weekFolderName||st.weekFolderId)}</a></b>` : `Chưa chọn – báo cáo tuần lưu chung với thư mục PDF ở trên.`}</div>
+    <label class="l">Dán link thư mục Google Drive để lưu báo cáo tuần</label>
+    <input class="in" id="weekLink" placeholder="https:\/\/drive.google.com/drive/folders/…">
+    <div class="bar"><button class="btn pri" data-act="weekFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.weekFolderId?'<button class="btn" data-act="weekFolderReset">↺ Bỏ chọn (lưu chung thư mục PDF)</button>':''}</div>
     <div class="ph" style="margin-top:12px"><h3>📑 Hồ sơ đệ trình (file theo dõi)</h3></div>
     ${st.register && st.register.id ? `<div class="note g">Đang đọc: <b><a href="${esc(st.register.url)}" target="_blank" rel="noopener">${esc(st.register.name)}</a></b> – dùng cho mục B.3/B.4 báo cáo tuần</div>
       <div class="tw"><table class="ed"><thead><tr><th>Trang tính</th><th style="width:150px">Loại</th><th>Cột nhận được</th></tr></thead><tbody>${st.register.tabs.map((t,i)=>`<tr><td style="padding:6px"><b>${esc(t.name)}</b>${t.rows?`<div class="hint">${t.rows} dòng</div>`:''}</td>
@@ -2276,6 +2281,12 @@ document.addEventListener('click', async e=>{
     try { const f = await Store.checkFolder(link); CFG.settings = CFG.settings || {}; CFG.settings.pdfFolderId = f.id; CFG.settings.pdfFolderName = f.name;
       await Store.saveConfig(CFG); LINKS = LINKS ? Object.assign(LINKS, {pdf:f.url}) : LINKS; renderChip(); renderConfig(); toast('✔ PDF sẽ lưu vào “' + f.name + '”', 5000);
     } catch(e){ toast('⚠ ' + String(e.message||e).replace(/\*\*/g,''), 7000); } return; }
+  if (a==='weekFolderSet'){ const link = ($('#weekLink').value||'').trim(); if (!link) { toast('Dán link thư mục Drive trước'); return; }
+    toast('Đang kiểm tra quyền ghi thư mục…', 6000);
+    try { const f = await Store.checkFolder(link); CFG.settings = CFG.settings || {}; CFG.settings.weekFolderId = f.id; CFG.settings.weekFolderName = f.name;
+      await Store.saveConfig(CFG); renderConfig(); toast('✔ Báo cáo tuần sẽ lưu vào “' + f.name + '”', 5000);
+    } catch(e){ toast('⚠ ' + String(e.message||e).replace(/\*\*/g,''), 7000); } return; }
+  if (a==='weekFolderReset'){ delete CFG.settings.weekFolderId; delete CFG.settings.weekFolderName; await Store.saveConfig(CFG); renderConfig(); toast('Báo cáo tuần lưu chung thư mục PDF'); return; }
   if (a==='pdfFolderReset'){ if (!(await ask('Về thư mục mặc định', 'PDF xuất từ giờ sẽ lưu vào thư mục mặc định của app. PDF đã lưu trong thư mục dự án giữ nguyên.'))) return;
     delete CFG.settings.pdfFolderId; delete CFG.settings.pdfFolderName; await Store.saveConfig(CFG); if (LINKS) LINKS.pdf = ''; renderChip(); renderConfig(); toast('Đã về thư mục mặc định'); return; }
   if (a==='geoHere'){ if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ định vị');
