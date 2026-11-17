@@ -36,6 +36,15 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6J: cột % dự kiến tuần, ngày trình đủ năm, ô cấu hình bị khóa
+- **Sửa:**
+  - Tuan_CongViec thêm cột cuối `du_kien_tuan` (% dự kiến thực hiện trong tuần của kế hoạch tuần sau).
+  - PDF B.3: ngày trình ghi đủ dd/mm/yyyy, cột rộng hơn (trước chỉ hiện "13/10/20").
+  - Cấu hình → Dự án: ô thông tin cố định chưa bấm "✎ Sửa thông tin" thì ở chế độ chỉ đọc nhưng trông như ô nhập được, nên gõ mã viết tắt nhà thầu không vào. Nay ô khóa có nền xám, con trỏ cấm, bấm vào thì nhắc bấm "✎ Sửa thông tin".
+- **Kiểm thử mới:** gastest – cột du_kien_tuan = 30, kh_pct = 50. ui – ngày trình 20/06/2026 trên PDF; ô khóa xám và có nhắc; sửa rồi lưu được mã "VC".
+- **Ảnh đã xem:** desk_settings.png.
+- **Rủi ro còn lại:** không.
+
 ### 17/11 – Đợt 6I: giờ lấy thời tiết buổi chiều
 - **Sửa:** buổi chiều có sau 17h (trước là 18h), mặc định tính 12–17h. Người chốt bấm "🌦 Lấy thời tiết" sau 17h của chính ngày đó → buổi chiều và nhiệt độ tính đến giờ hiện tại; ngày đã qua tính 12–17h. Bấm nút luôn tải số liệu mới, không dùng lại số đã tải trong phiên.
 - **Kiểm thử mới (ui):** dữ liệu giả có mưa lúc 18h – 16h20 chưa có buổi chiều; 17h20 chiều nắng (12–17h); 19h20 chiều mưa và nhiệt độ có giá trị lúc 18h; ngày đã qua tính 12–17h.
@@ -163,3 +172,5 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 07:50 | 3dc975a | đạt | 128 đạt / 0 lỗi | 148 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6H: ghi bản quyền (đăng nhập, Cấu hình, PDF, đầu file code) + LICENSE |
 | 2026-11-17 08:03 | cb98b50 | đạt | 128 đạt / 0 lỗi | 147 đạt / 2 lỗi | ❌ LỖI | Đợt 6I: thời tiết buổi chiều có sau 17h, bấm sau 17h tính đến giờ hiện tại |
 | 2026-11-17 08:08 | cb98b50 | đạt | 128 đạt / 0 lỗi | 149 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6I: thời tiết buổi chiều có sau 17h, bấm sau 17h tính đến giờ hiện tại |
+| 2026-11-17 09:05 | fa9cceb | đạt | 129 đạt / 0 lỗi | 150 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6J: Tuan_CongViec thêm cột du_kien_tuan; B.3 PDF ngày trình đủ năm |
+| 2026-11-17 09:07 | fa9cceb | đạt | 129 đạt / 0 lỗi | 152 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6J: cột du_kien_tuan, B.3 ngày đủ năm, ô cấu hình khóa hiện xám + nhắc Sửa thông tin |

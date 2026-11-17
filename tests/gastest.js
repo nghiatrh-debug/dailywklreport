@@ -189,7 +189,7 @@ console.log('Dung lượng: xong');
   ctx.apiSaveConfig(tk, JSON.stringify(c8)); const tv = c8.users.find(u => u.role === 'tvgs'); ctx.apiSetPin(tk, tv.id, '4646'); const tkT = J(ctx.apiLogin(tv.id, '4646')).token;
   const base = { v: 2, kind: 'week', key: 'W-2026-11-06', from: '2026-11-06', to: '2026-11-12', no: 34, status: 'draft', version: 1,
     overall: { plan: 10.47, actualPrev: 10.2, actual: 10.68, planNext: 10.92, rev: 'Rev02', note: '', eval: 'Đạt' }, ratings: { safety: 'mid', work: 'good', resource: 'good' },
-    tasks: [{ section: 'XD', zoneId: 'z1', desc: 'Cột vách B1', unit: 'm3', qty: 50, startPct: 60, planPct: 80, actual: 100, note: '' }], nextPlans: [{ section: 'XD', zoneId: 'z1', desc: 'Sàn GF', target: 50 }],
+    tasks: [{ section: 'XD', zoneId: 'z1', desc: 'Cột vách B1', unit: 'm3', qty: 50, startPct: 60, planPct: 80, actual: 100, note: '' }], nextPlans: [{ section: 'XD', zoneId: 'z1', desc: 'Sàn GF', add: 30, target: 50 }],
     manpower: [{ title: 'Thép', avg: 32, max: 34, total: 224 }], equipment: [{ name: 'Cẩu tháp', avg: 2, max: 2 }], materials: [{ name: 'Bê tông', spec: 'B50', unit: 'm3', prev: 693.5, now: 93 }],
     matPlans: [], inspections: [{ date: '2026-11-07', desc: 'NT thép sàn', loc: 'Z2', result: 'Đạt' }], tests: [], inspPlans: [], safety: { summary: 'Ổn', activities: [{ date: '2026-11-06', desc: 'Toolbox' }], issues: [] },
     layouts: [], photos: [], gantt: [{ img, fileId: '', caption: 'Gantt 1' }], msp: null };
@@ -203,6 +203,8 @@ console.log('Dung lượng: xong');
   r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
   A([r.review && r.review.status === 'pending', 'chốt tuần → chờ TVGS']);
   const td = sheets.Tuan_TienDo.data.find(x => x[0] === base.key), hd = sheets.Tuan_TienDo.data[0];
+  { const hc = sheets.Tuan_CongViec.data[0], r = sheets.Tuan_CongViec.data.find(x => x[0] === base.key && x[2] === 'KE_HOACH_TUAN_SAU');
+    A([hc[hc.length - 1] === 'du_kien_tuan' && r[hc.indexOf('du_kien_tuan')] === 30 && r[hc.indexOf('kh_pct')] === 50, 'Tuan_CongViec: cột cuối du_kien_tuan = % dự kiến trong tuần, kh_pct = lũy kế dự kiến']); }
   A([td && td[hd.indexOf('thuc_te')] === 10.68 && td[hd.indexOf('kh_tuan_sau')] === 10.92 && td[hd.indexOf('chenh_lech')] === 0.21 && td[hd.indexOf('an_toan')] === 'Trung bình', 'Tuan_TienDo: KH, thực tế, chênh lệch, xếp loại']);
   A([sheets.Tuan_CongViec.data.filter(x => x[0] === base.key).length === 2 && sheets.Tuan_VatTu.data.some(x => x[0] === base.key && x[8] === 786.5) && sheets.Tuan_NhanLuc.data.some(x => x[0] === base.key && x[3] === 'Thép') && sheets.Tuan_AnToan.data.some(x => x[0] === base.key && x[2] === 'HOAT_DONG'), 'Tuan_CongViec / VatTu (lũy kế) / NhanLuc / AnToan ghi khi chốt']);
   err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'w.pdf', base.key, 'week'); } catch (e) { err = e.message; } A([/TVGS/.test(err), 'chưa TVGS xác nhận → chặn xuất PDF tuần']);

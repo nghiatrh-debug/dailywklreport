@@ -192,6 +192,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .late{color:#b91c1c;font-weight:700;font-size:12px;margin-top:3px}
 .copy{margin:14px 0 0;text-align:center;font-size:11px;color:#94a3b8}
 .about{margin-top:18px;border-top:1px dashed var(--bd);padding-top:10px;font-size:12px;color:#64748b;line-height:1.6}.about b{color:#334155}
+.in[readonly]{background:#f1f5f9;color:#475569;cursor:not-allowed}
 .regsum{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.regsum span{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12.5px;background:#fff}.regsum .ok{border-color:#a7f3d0;color:#047857}.regsum .bad{border-color:#fecaca;color:#b91c1c}.regsum .wait{border-color:#fde68a;color:#92400e}
 .lkv{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:7px 6px;text-align:center;color:#334155;min-height:34px;font-size:13px}.lkv.tx{text-align:left}
 tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
@@ -1663,8 +1664,8 @@ const regSorted = L => L.slice().sort((a,b)=>(REG_ORD[a.st] ?? 1) - (REG_ORD[b.s
 function regTbl(w){
   if (!w.regAt) return `<div class="txt mut">${regOn() ? 'Chưa đọc file theo dõi hồ sơ cho tuần này' : '—'}</div>`;
   const L = w.submittals || []; if (!L.length) return '<div class="txt mut">Không có hồ sơ phát sinh trong tuần</div>';
-  return `<table class="grid"><tr><th class="c">Stt</th><th style="width:140px">Mã hồ sơ</th><th>Tên hồ sơ</th><th class="c" style="width:30px">Lần</th><th class="c" style="width:46px">Ngày trình</th><th class="c" style="width:84px">Tình trạng</th></tr>
-    ${regSorted(L).map((x,i)=>`<tr><td class="n">${i+1}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td><td class="c">${esc(x.count||'')}</td><td class="c">${vi(x.date).slice(0,8)}</td><td class="c ${(REG_ST[x.st]||[])[2]||''}${regLate(x, w) ? ' bad' : ''}">${esc(regTxt(x))}${regLate(x, w) ? `<div class="sm"><b>chờ ${regWait(x, w)} ngày</b></div>` : ''}${x.st!=='pending' && x.st!=='review' && x.resDate && x.resDate !== x.date ? `<div class="sm">${vi(x.resDate).slice(0,5)}</div>` : ''}</td></tr>`).join('')}</table>`;
+  return `<table class="grid"><tr><th class="c">Stt</th><th style="width:140px">Mã hồ sơ</th><th>Tên hồ sơ</th><th class="c" style="width:30px">Lần</th><th class="c" style="width:62px">Ngày trình</th><th class="c" style="width:84px">Tình trạng</th></tr>
+    ${regSorted(L).map((x,i)=>`<tr><td class="n">${i+1}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td><td class="c">${esc(x.count||'')}</td><td class="c" style="white-space:nowrap">${vi(x.date)}</td><td class="c ${(REG_ST[x.st]||[])[2]||''}${regLate(x, w) ? ' bad' : ''}">${esc(regTxt(x))}${regLate(x, w) ? `<div class="sm"><b>chờ ${regWait(x, w)} ngày</b></div>` : ''}${x.st!=='pending' && x.st!=='review' && x.resDate && x.resDate !== x.date ? `<div class="sm">${vi(x.resDate).slice(0,5)}</div>` : ''}</td></tr>`).join('')}</table>`;
 }
 async function readRegister(silent){
   if (!regOn() || !W) return; try { if (!silent) toast('⏳ Đang đọc file theo dõi hồ sơ…', 20000);
@@ -2324,6 +2325,7 @@ document.addEventListener('change', async e=>{
   }
 });
 document.addEventListener('click', async e=>{
+  if (e.target.matches && e.target.matches('input[data-cfg][readonly]')) { toast('🔒 Bấm “✎ Sửa thông tin” ở đầu trang để sửa các ô này', 4000); return; }
   const b = e.target.closest('[data-act],[data-tab],[data-view],[data-mytab],[data-cfgtab],[data-wtab]'); if (!b) return;
   if (b.dataset.tab){ TAB = b.dataset.tab; renderForm(); updFab(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
   if (b.dataset.mytab){ MYTAB = b.dataset.mytab; renderMy(); if (isMobile()) window.scrollTo(0,0); return; }

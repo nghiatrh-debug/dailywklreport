@@ -36,7 +36,7 @@ const SCHEMA = {
   TongHopKy: ['ky_key','loai','tu_ngay','den_ngay','danh_gia','pdf_url','cap_nhat_luc','json','tuan_so','trang_thai','phien_ban','tvgs_kiem_tra','ma_xac_thuc','json_2','json_3','json_4'],
   // Báo cáo tuần: ghi khi CHỐT tuần (khóa = ky_key 'W-<ngày đầu kỳ>')
   Tuan_TienDo:   ['ky_key','tuan_so','tu_ngay','den_ngay','kh_tuan','thuc_te_tuan_truoc','thuc_te','chenh_lech','danh_gia','kh_tuan_sau','ban_tien_do','an_toan','thi_cong','nguon_luc','nhan_luc_tb','ghi_chu'],
-  Tuan_CongViec: ['ky_key','tuan_so','loai','bo_mon','khu_vuc','stt','noi_dung','dvt','kl_tuan','dau_tuan','kh_pct','thuc_te','chenh_lech','ghi_chu'],
+  Tuan_CongViec: ['ky_key','tuan_so','loai','bo_mon','khu_vuc','stt','noi_dung','dvt','kl_tuan','dau_tuan','kh_pct','thuc_te','chenh_lech','ghi_chu','du_kien_tuan'],
   Tuan_VatTu:    ['ky_key','tuan_so','loai','chung_loai','quy_cach','dvt','ky_truoc','ky_nay','luy_ke','ngay_du_kien'],
   Tuan_NhanLuc:  ['ky_key','tuan_so','loai','ten','tb_ngay','cao_nhat','tong'],
   Tuan_NghiemThu:['ky_key','tuan_so','loai','ngay','noi_dung','vi_tri','ket_qua'],
@@ -524,8 +524,8 @@ function writeWeekTables_(w, c) {
     RT[rt.safety] || '', RT[rt.work] || '', RT[rt.resource] || '', Math.round(mpAvg * 10) / 10, o.note || '']]);
   const cv = [];
   (w.tasks || []).forEach((t, i) => cv.push([k, n, 'THUC_HIEN', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, t.unit || '', t.qty === '' ? '' : Number(t.qty) || 0,
-    pctW_(t.startPct), pctW_(t.planPct), pctW_(t.actual), t.actual !== '' && t.planPct !== '' && t.actual != null && t.planPct != null ? pctW_(t.actual - t.planPct) : '', t.note || '']));
-  (w.nextPlans || []).forEach((t, i) => cv.push([k, n, 'KE_HOACH_TUAN_SAU', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, '', '', '', pctW_(t.target), '', '', t.note || '']));
+    pctW_(t.startPct), pctW_(t.planPct), pctW_(t.actual), t.actual !== '' && t.planPct !== '' && t.actual != null && t.planPct != null ? pctW_(t.actual - t.planPct) : '', t.note || '', '']));
+  (w.nextPlans || []).forEach((t, i) => cv.push([k, n, 'KE_HOACH_TUAN_SAU', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, '', '', '', pctW_(t.target), '', '', t.note || '', pctW_(t.add)]));
   replaceDay_('Tuan_CongViec', k, cv);
   replaceDay_('Tuan_VatTu', k, (w.materials || []).map(m => [k, n, 'NHAP_VE', m.name, m.spec || '', m.unit || '', Number(m.prev) || 0, Number(m.now) || 0, (Number(m.prev) || 0) + (Number(m.now) || 0), ''])
     .concat((w.matPlans || []).map(m => [k, n, 'KE_HOACH', m.name, m.spec || '', m.unit || '', '', Number(m.qty) || 0, '', m.date || ''])));

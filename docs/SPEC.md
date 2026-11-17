@@ -252,3 +252,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Buổi sáng 6–12h, có sau 12h (giữ nguyên).
 - Buổi chiều: có sau **17h** (trước là 18h), mặc định tính 12–17h. Người chốt bấm "🌦 Lấy thời tiết" sau 17h của chính ngày đó → buổi chiều và nhiệt độ tính đến giờ hiện tại (VD bấm 19h20 → 12–19h). Ngày đã qua: 12–17h.
 - Bấm nút luôn tải số liệu mới (không dùng số đã tải trước đó trong phiên).
+
+## Đợt 6J (17/11/2026)
+- Tuan_CongViec thêm cột cuối `du_kien_tuan` = % dự kiến thực hiện trong tuần của dòng KE_HOACH_TUAN_SAU (kh_pct vẫn là lũy kế dự kiến).
+- PDF B.3: ngày trình ghi đủ dd/mm/yyyy (hồ sơ có thể trình từ tháng/năm trước).
+- Cấu hình → Dự án: ô thông tin cố định khi chưa bấm "✎ Sửa thông tin" hiện nền xám; bấm vào ô thì nhắc bấm "✎ Sửa thông tin" (trước đây trông như ô nhập được nhưng gõ không vào).
