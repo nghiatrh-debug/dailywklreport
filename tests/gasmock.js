@@ -1,7 +1,8 @@
 const crypto = require('crypto'); const fs = require('fs'); const vm = require('vm');
-const sheets = {}; let fileSeq = 0; const files = {}; const props = {}; const cacheStore = {}; const stats = {sheetReads:0, sheetWrites:0};
+const sheets = {}; const ext = {};   // file Google Sheet khác (VD sổ theo dõi hồ sơ)
+function mkSS(name, tabs){ const sh = {}; Object.keys(tabs).forEach(n=>{ sh[n] = mkSheet(n); tabs[n].forEach(r=>sh[n].data.push(r)); }); return { getName:()=>name, getSheets:()=>Object.values(sh), getSheetByName:n=>sh[n]||null }; } let fileSeq = 0; const files = {}; const props = {}; const cacheStore = {}; const stats = {sheetReads:0, sheetWrites:0};
 function mkSheet(name){ const data = []; const sh = {
-  name, data, getLastRow:()=>data.length, getLastColumn:()=>Math.max(0, ...data.map(r=>r.length)), setFrozenRows(){}, hideColumns(){},
+  name, data, getName:()=>name, getLastRow:()=>data.length, getLastColumn:()=>Math.max(0, ...data.map(r=>r.length)), setFrozenRows(){}, hideColumns(){},
   appendRow(r){ data.push(r.slice()); },
   deleteRows(start, n){ data.splice(start-1, n); stats.sheetWrites++; },
   getRange(a,b,c,d){ if (typeof a==='string') return {setNumberFormat(){return this;}};
@@ -23,7 +24,7 @@ const root = mkFolder('root'), shared = mkFolder('CN8-2 Shared');
 function blob(bytes, mime, name){ return { bytes, mime, name, getContentType:()=>mime, getBytes:()=>bytes, getAs(){ return blob(bytes,'application/pdf',name); }, setName(n){ this.name=n; return this; } }; }
 const ctx = {
   console, JSON, Date, Math, Object, Array, String, Number, Error,
-  SpreadsheetApp:{ getActive:()=>ss, openById:()=>ss },
+  SpreadsheetApp:{ getActive:()=>ss, openById:id=>{ if (ext[id]) return ext[id]; if (id === 'NOPE') throw new Error('no access'); return ss; } },
   ScriptApp:{ getService:()=>({ getUrl:()=>'https://script.google.com/macros/s/TEST/dev' }) },
   DriveApp:{ Access:{ANYONE_WITH_LINK:'ANYONE_WITH_LINK'}, Permission:{VIEW:'VIEW'}, getFoldersByName:n=>root.getFoldersByName(n), createFolder:n=>root.createFolder(n), getFolderById:id=>{ if (id==='SHAREDFOLDER01') return shared; if (id==='NOACCESSFOLDER') throw new Error('No item with the given ID could be found'); return root; },
     getFileById:id=>({ getBlob:()=>files[id].blob, setTrashed(){files[id].trashed=true;}, makeCopy:(n)=>({getUrl:()=>'https://drive/copy/'+n}) }) },
@@ -41,4 +42,4 @@ const ctx = {
 const CODE = process.env.GAS_CODE || require('path').join(__dirname, '..', 'apps-script', 'Code.gs');
 vm.createContext(ctx); vm.runInContext(fs.readFileSync(CODE,'utf8'), ctx);
 ctx.__resetMemo = () => { try { vm.runInContext('if (typeof MEMO!=="undefined") Object.keys(MEMO).forEach(k=>delete MEMO[k]);', ctx); } catch(e){} };
-module.exports = { shared, ctx, sheets, files, props, cacheStore, stats };
+module.exports = { shared, ctx, sheets, files, props, cacheStore, stats, ext, mkSS };

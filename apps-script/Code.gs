@@ -37,11 +37,12 @@ const SCHEMA = {
   Tuan_NhanLuc:  ['ky_key','tuan_so','loai','ten','tb_ngay','cao_nhat','tong'],
   Tuan_NghiemThu:['ky_key','tuan_so','loai','ngay','noi_dung','vi_tri','ket_qua'],
   Tuan_AnToan:   ['ky_key','tuan_so','loai','ngay','noi_dung','bien_phap'],
+  Tuan_HoSo:     ['ky_key','tuan_so','loai','trang_tinh','ma_ho_so','noi_dung','lan_trinh','ngay_trinh','ngay_ket_qua','tinh_trang','link'],
   NhatKy:    ['thoi_gian','nguoi','hanh_dong','ngay','chi_tiet'],
   CauHinh:   ['key','json']
 };
 const NORMALIZED = ['CongViec', 'NhanLuc', 'ThietBi', 'NghiemThu', 'ThiNghiem', 'VatTu', 'AnToan', 'HinhAnh'];
-const WEEK_SHEETS = ['Tuan_TienDo', 'Tuan_CongViec', 'Tuan_VatTu', 'Tuan_NhanLuc', 'Tuan_NghiemThu', 'Tuan_AnToan'];
+const WEEK_SHEETS = ['Tuan_TienDo', 'Tuan_CongViec', 'Tuan_VatTu', 'Tuan_NhanLuc', 'Tuan_NghiemThu', 'Tuan_AnToan', 'Tuan_HoSo'];
 
 /* ======================= WEB APP ======================= */
 function doGet(e) {
@@ -528,6 +529,75 @@ function writeWeekTables_(w, c) {
   replaceDay_('Tuan_AnToan', k, [[k, n, 'NHAN_XET', '', sf.summary || '', '']]
     .concat((sf.activities || []).map(x => [k, n, 'HOAT_DONG', x.date || '', x.desc, '']))
     .concat((sf.issues || []).map(x => [k, n, 'VI_PHAM', x.date || '', x.desc, x.action || ''])));
+  replaceDay_('Tuan_HoSo', k, (w.submittals || []).map(x => [k, n, 'HO_SO', x.tab || '', x.code || '', x.desc || '', x.count || '', x.date || '', x.resDate || '', REG_TXT_[x.st] || x.raw || '', x.link || ''])
+    .concat((w.docs || []).map(x => [k, n, 'VAN_BAN', x.tab || '', x.code || '', x.desc || '', '', x.date || '', '', '', ''])));
+}
+
+/* ======================= HỒ SƠ ĐỆ TRÌNH (đọc file theo dõi Google Sheet, chỉ đọc) ======================= */
+const REG_TXT_ = { approved: 'Đã duyệt', returned: 'Trả về chỉnh sửa', rejected: 'Từ chối', pending: 'Chờ duyệt', review: 'TVGS đang kiểm tra' };
+const nrm_ = v => String(v == null ? '' : v).toLowerCase().replace(/\s+/g, ' ').trim();
+function sheetIdOf_(s) { s = String(s || '').trim(); const m = s.match(/\/d\/([\w-]{20,})/) || s.match(/[?&]id=([\w-]{20,})/); return m ? m[1] : (/^[\w-]{20,}$/.test(s) ? s : ''); }
+/** Ngày trong sổ: ô kiểu ngày → giữ nguyên; chữ dd/mm/yy(yy) hoặc m/d/yyyy (khi số đầu ≤ 12 coi là ngày/tháng). */
+function regDate_(v) {
+  if (v instanceof Date && !isNaN(v)) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  const m = String(v || '').trim().match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/); if (!m) return '';
+  let d = +m[1], mo = +m[2], y = +m[3]; if (y < 100) y += 2000; if (mo > 12 && d <= 12) { const t = d; d = mo; mo = t; }
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+  return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+/** Tìm dòng tiêu đề (có cột Date… và Description / MC Code) + nhận cột theo tên. */
+function regScan_(vals, c) {
+  const cs = nrm_((c.project || {}).consultantShort), hi = vals.slice(0, 25).findIndex(r => r.some(x => /^date/.test(nrm_(x))) && r.some(x => /description|mc code|nội dung/.test(nrm_(x))));
+  if (hi < 0) return null;
+  const H = vals[hi].map(nrm_), f = re => H.findIndex(re);
+  const col = { date: f(h => /^date/.test(h)), code: f(h => /code|số hiệu/.test(h)), desc: f(h => /description|nội dung/.test(h)), count: f(h => /submission count|lần trình/.test(h)),
+    status: f(h => /^status/.test(h)), link: f(h => /link/.test(h)), ret: f(h => /returned/.test(h)),
+    tvgs: f(h => /date/.test(h) && (/tvgs|consultant/.test(h) || (cs && h.indexOf(cs) >= 0)) && !/to pmh|pmh/.test(h)), pmh: f(h => /approved/.test(h)) };
+  // không thấy tên TVGS trong tiêu đề → cột ngày đầu tiên sau "Description" không phải ngày trình/dự kiến/trả về/gửi đi/SPM
+  if (col.tvgs < 0) col.tvgs = H.findIndex((h, i) => i > col.desc && i !== col.date && /date/.test(h) && !/planned|returned|^to |spm|hard copy\)?$/.test(h) && i !== col.pmh);
+  return { hi: hi, col: col, H: H };
+}
+function regStatus_(raw, hasTvgs) {
+  const s = String(raw || '').trim(); if (!s) return hasTvgs ? 'review' : 'pending';
+  if (/hủy|huỷ|huy |cancel/i.test(s)) return 'cancel';
+  const fin = s.split('/').pop().trim().toUpperCase();
+  if (/^[AB]$/.test(fin)) return 'approved'; if (fin === 'C') return 'returned'; if (fin === 'D') return 'rejected';
+  return 'other';
+}
+/** Quản trị dán link file theo dõi → nhận các trang tính, đoán loại (đệ trình / văn bản / bỏ qua). */
+function apiCheckRegister(token, link) {
+  auth_(token, ['admin']); const c = cfg_();
+  const id = sheetIdOf_(link); if (!id) throw new Error('Link không hợp lệ – mở file Google Sheet, sao chép link trên thanh địa chỉ (dạng …/spreadsheets/d/…)');
+  let ss; try { ss = SpreadsheetApp.openById(id); ss.getName(); } catch (e) { throw new Error('Không mở được file. Tài khoản triển khai app cần có quyền **xem** file theo dõi hồ sơ này.'); }
+  const tabs = ss.getSheets().map(sh => { const name = sh.getName(), n = Math.min(sh.getLastRow(), 40), vals = n ? sh.getRange(1, 1, n, Math.max(1, sh.getLastColumn())).getValues() : [];
+    const sc = regScan_(vals, c); if (!sc) return { name: name, type: 'off', note: 'không thấy dòng tiêu đề' };
+    const isDoc = /^(si|warning|nrc|ncr|penalty|letter)|bc nl/i.test(name.trim()) || sc.col.status < 0;
+    return { name: name, type: isDoc ? 'doc' : 'sub', rows: Math.max(0, sh.getLastRow() - sc.hi - 1), cols: Object.keys(sc.col).filter(k => sc.col[k] >= 0).map(k => k + ': ' + vals[sc.hi][sc.col[k]]).join(' · ') }; });
+  return JSON.stringify({ id: id, name: ss.getName(), url: 'https://docs.google.com/spreadsheets/d/' + id, tabs: tabs });
+}
+/** Hồ sơ phát sinh trong tuần: trình trong tuần (mọi tình trạng) + trình trước nhưng có kết quả trong tuần; văn bản phát hành trong tuần. */
+function apiRegisterWeek(token, from, to) {
+  auth_(token); const c = cfg_(), reg = (c.settings || {}).register;
+  if (!reg || !reg.id) throw new Error('Chưa khai báo file theo dõi hồ sơ (Cấu hình → Cài đặt)');
+  let ss; try { ss = SpreadsheetApp.openById(reg.id); } catch (e) { throw new Error('Không mở được file theo dõi hồ sơ – kiểm tra quyền xem'); }
+  const inR = d => d && d >= from && d <= to, subs = [], docs = [];
+  (reg.tabs || []).filter(t => t.type === 'sub' || t.type === 'doc').forEach(t => {
+    const sh = ss.getSheetByName(t.name); if (!sh || sh.getLastRow() < 2) return;
+    const vals = sh.getRange(1, 1, Math.min(sh.getLastRow(), 3000), Math.max(1, sh.getLastColumn())).getValues(), sc = regScan_(vals, c); if (!sc) return;
+    const C = sc.col, g = (r, k) => C[k] >= 0 ? r[C[k]] : '';
+    vals.slice(sc.hi + 1).forEach(r => {
+      const code = String(g(r, 'code') || '').replace(/\s*\n\s*/g, ' ').trim(), desc = String(g(r, 'desc') || '').split('\n')[0].trim(); if (!code && !desc) return;
+      const d = regDate_(g(r, 'date'));
+      if (t.type === 'doc') { if (inR(d)) docs.push({ tab: t.name, code: code, desc: desc, date: d }); return; }
+      const tv = regDate_(g(r, 'tvgs')), pm = regDate_(g(r, 'pmh')), rt = regDate_(g(r, 'ret')), raw = String(g(r, 'status') || '').trim(), st = regStatus_(raw, !!tv);
+      if (st === 'cancel') return;
+      const res = [tv, pm, rt].filter(Boolean).sort().pop() || '';
+      if (inR(d) || (['approved', 'returned', 'rejected'].indexOf(st) >= 0 && inR(res)))
+        subs.push({ tab: t.name, group: /mep|pccc|hvac/i.test(t.name) ? 'MEP' : 'XD', code: code, desc: desc, count: g(r, 'count') === '' ? '' : String(g(r, 'count')), date: d, resDate: res, st: st, raw: raw, link: String(g(r, 'link') || '') });
+    });
+  });
+  subs.sort((a, b) => (a.date || a.resDate) < (b.date || b.resDate) ? -1 : 1); docs.sort((a, b) => a.date < b.date ? -1 : 1);
+  return JSON.stringify({ subs: subs, docs: docs, at: now_() });
 }
 /** TVGS kiểm tra báo cáo tuần: 'approve' | 'return' (bắt buộc ghi chú). */
 function apiReviewPeriod(token, key, action, note) {

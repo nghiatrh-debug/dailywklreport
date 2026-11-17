@@ -190,3 +190,12 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Tên file: `yyyymmdd(ngày cuối kỳ)-<mã dự án>-<mã viết tắt NT>-WR-<số tuần>-Weekly report and Tracking MSP(checked).pdf`. Ô mới **Cấu hình → Dự án → Mã viết tắt nhà thầu (tên file)**.
 - Lưu **thẳng vào thư mục PDF đã chọn** (không thư mục con). Chưa chọn thư mục → thư mục mặc định của app.
 - Khi chốt tuần ghi các bảng: `Tuan_TienDo` (1 dòng/tuần), `Tuan_CongViec`, `Tuan_VatTu`, `Tuan_NhanLuc`, `Tuan_NghiemThu`, `Tuan_AnToan`.
+
+## Bổ sung 17/11/2026 – Cấu trúc I–IV, khu vực 4 loại, Đợt 6B hồ sơ đệ trình
+- **Khu vực 4 loại**: Xây dựng / MEP / Hoàn thiện / Khác (Cấu hình → Khu vực). Báo cáo ngày & tuần nhóm theo loại; Hoàn thiện/Khác trống thì ẩn.
+- **PDF tuần**: đầu trang + Thông tin chung + OVERALL giữ nguyên; rồi **I – Các hoạt động thi công trong tuần**: A (A.1 XD, A.2 MEP, A.3 Hoàn thiện, A.4 Khác), B (B.1 Nghiệm thu, B.2 Thí nghiệm, B.3 Tình trạng hồ sơ, B.4 Văn bản), C (C.1 Vật tư, C.2 Thiết bị), D Nhân lực, E An toàn; **II – Kế hoạch tuần tiếp theo** (II.1 Thi công = XD+HT+Khác, II.2 Cơ điện, II.3 KH nghiệm thu, II.4 KH vật tư); **III – Mặt bằng & hình ảnh** + ký; **IV – Tiến độ MSP – Tracking**. Mục trống tự ẩn (A.3, A.4, B.4, II.3, II.4, IV).
+- **Hồ sơ đệ trình**: Cấu hình → Cài đặt → dán link sổ theo dõi (Google Sheet, chỉ đọc). App tự tìm dòng tiêu đề, nhận cột (Date, MC Code, Description, Submission Count, ngày TVGS, PMH approved, Returned, Status, link) và đoán loại trang tính (hồ sơ / văn bản / bỏ qua – sửa được).
+  - **B.3** = hồ sơ **trình trong tuần** (mọi tình trạng) + hồ sơ trình trước nhưng **có kết quả trong tuần**. Bỏ hồ sơ cũ không đổi và hồ sơ hủy.
+  - Tình trạng: “X/Y” lấy chữ sau – A/B Đã duyệt, C Trả về chỉnh sửa, D Từ chối; trống → Chờ duyệt (đã có ngày TVGS → TVGS đang kiểm tra).
+  - **B.4** = văn bản (SI, cảnh báo, NCR, phạt, thư) có ngày trong tuần.
+  - Đọc khi bấm “Tổng hợp” hoặc “⟳ Đọc file theo dõi hồ sơ”; chụp lại vào báo cáo; chốt tuần ghi bảng `Tuan_HoSo`.

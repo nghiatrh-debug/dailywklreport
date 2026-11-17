@@ -213,7 +213,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .c{text-align:center!important}.doc .r{text-align:right!important}
 .doc .n{color:#94a3b8;text-align:center!important;width:26px}
 .doc .grp{background:#eef2ff;color:#3730a3;font-weight:bold}
-.doc .grp2{background:#ecfdf5;color:#047857;font-weight:bold}
+.doc .grp2{background:#ecfdf5;color:#047857;font-weight:bold}.doc .grp3{background:#fdf4ff;color:#a21caf;font-weight:bold}.doc .grp4{background:#f8fafc;color:#475569;font-weight:bold}
 .doc .tot td{font-weight:bold}
 .doc .tot .v{color:#4338ca}
 .doc .mut{color:#94a3b8}
@@ -243,7 +243,9 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr td.ok{background:#dcfce7}.doc .wovr td.ok b{color:#166534}.doc .wovr td.warn{background:#fef3c7}.doc .wovr td.warn b{color:#92400e}
 .doc .wovr td.bad{background:#fee2e2}.doc .wovr td.bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
 .doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
-.doc .gpb{page-break-before:always}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
+.doc .gpb{page-break-before:always}.doc .wsec1{background:#1e3a8a;color:#fff;font-weight:bold;font-size:11.5px;padding:5px 8px;margin:12px 0 4px}
+.doc .wsec2{color:#1e3a8a;font-weight:bold;font-size:11px;border-bottom:1.5px solid #1e3a8a;padding:3px 0;margin:8px 0 4px}.doc .wsec2 span,.doc .wsec3 span{float:right;font-weight:normal;color:#475569}
+.doc .wsec3{font-weight:bold;font-size:10.5px;margin:6px 0 2px;padding-left:6px;border-left:3px solid #6366f1}.doc .wsec1,.doc .wsec2,.doc .wsec3{page-break-after:avoid}.doc .wchart{page-break-inside:avoid}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
 .doc table.wmsp{width:100%;margin:6px 0}.doc .wmsp td{vertical-align:middle;font-size:10.5px}.doc .wmsp img{width:80px;height:80px}
 @media print{@page{size:A4;margin:8mm}}
 </style>
@@ -465,7 +467,9 @@ async function sha(s){ try { const b = await crypto.subtle.digest('SHA-256', new
 const ROLES = {admin:'Quản trị (chốt + cấu hình)', chot:'Người tổng hợp / chốt (nhà thầu)', ks:'Kỹ sư hiện trường', tvgs:'TVGS – kiểm tra nội dung', xem:'Chỉ xem (CĐT…)'};
 const SECTIONS = [
   {k:'XD',  t:'A. XÂY DỰNG / CIVIL & STRUCTURAL WORKS', p:'A. XÂY DỰNG / CIVIL & STRUCTURAL PLANS', cls:'grp', label:'Xây dựng'},
-  {k:'MEP', t:'B. MEP (CƠ ĐIỆN) / MECHANICAL, ELECTRICAL & PLUMBING', p:'B. MEP (CƠ ĐIỆN) / M&E PLANS', cls:'grp2', label:'MEP'}
+  {k:'MEP', t:'B. MEP (CƠ ĐIỆN) / MECHANICAL, ELECTRICAL & PLUMBING', p:'B. MEP (CƠ ĐIỆN) / M&E PLANS', cls:'grp2', label:'MEP'},
+  {k:'HT',  t:'C. HOÀN THIỆN / FINISHING WORKS', p:'C. HOÀN THIỆN / FINISHING PLANS', cls:'grp3', label:'Hoàn thiện', opt:true},   // opt: trống thì ẩn
+  {k:'KHAC',t:'D. CÔNG VIỆC KHÁC / OTHER WORKS', p:'D. CÔNG VIỆC KHÁC / OTHER PLANS', cls:'grp4', label:'Khác', opt:true}
 ];
 const SUB_ST = {draft:['b-draft','✎ Đang nhập'], submitted:['b-sub','📨 Đã nộp'], returned:['b-ret','↩ Bị trả lại'], accepted:['b-acc','✔ Đã nhận'], none:['b-none','— Chưa có phiếu']};
 const subBadge = s => `<span class="badge ${SUB_ST[s||'none'][0]}">${SUB_ST[s||'none'][1]}</span>`;
@@ -661,6 +665,8 @@ const Store = IS_GAS ? {
   saveLogo: (kind, data, oldId) => gas('apiSaveLogo', TOKEN, kind, data, oldId||''),
   clearTestDays: () => gas('apiClearTestDays', TOKEN),
   checkFolder: async link => J(await gas('apiCheckFolder', TOKEN, link)),
+  checkRegister: async link => J(await gas('apiCheckRegister', TOKEN, link)),
+  register: async (a, b) => J(await gas('apiRegisterWeek', TOKEN, a, b)),
   resetAll: () => gas('apiResetAll', TOKEN)
 } : {
   boot: async () => ({ config: await IDB.get('kv','config'), index: await localIndex() }),
@@ -699,6 +705,8 @@ const Store = IS_GAS ? {
     const h = (await IDB.get('kv','vlog') || []).filter(x=>x.code===cd).pop(); return h ? {ok:'old', date:h.date, by:h.by, at:h.at} : {ok:false}; },
   saveLogo: async (kind, data, oldId) => { if (oldId) try { await IDB.del('imgs', oldId); } catch(e){} if (!data) return ''; const id = 'lg_' + uid(); await IDB.put('imgs', id, data); IMGMEM[id] = data; return id; },
   checkFolder: async () => { throw new Error('Chọn thư mục Drive chỉ dùng được ở bản Google Apps Script'); },
+  checkRegister: async () => { throw new Error('Đọc file theo dõi hồ sơ chỉ dùng được ở bản Google Apps Script'); },
+  register: async () => { throw new Error('Đọc file theo dõi hồ sơ chỉ dùng được ở bản Google Apps Script'); },
   clearTestDays: async () => { const L = await IDB.get('kv','testDays') || []; for (const d of L) await Store.deleteDay(d); await IDB.put('kv','testDays', []); return L.length; },
   period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
     const prevWeek = String(k).startsWith('W-') ? (await IDB.all('periods')).filter(p=>p && p.v===2 && p.from < a).sort((x,y)=>y.from.localeCompare(x.from))[0] || null : null;
@@ -1208,8 +1216,8 @@ function renderForm(){
   }
   if (M && TAB==='tasks'){
     h += `<div class="note">Gộp từ phiếu đã nộp. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa”.</div>${shortNote(planStats(R.tasks))}`;
-    SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k);
-      h += `<div class="zbar ${S2.k==='MEP'?'mep':''}"><span>${S2.k==='MEP'?'B. MEP':'A. Xây dựng'}</span><span class="hint">${T.length} việc</span></div>` +
+    SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k); if (S2.opt && !T.length) return;
+      h += `<div class="zbar ${S2.k==='MEP'?'mep':''}"><span>${S2.t.split(' / ')[0]}</span><span class="hint">${T.length} việc</span></div>` +
         (T.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p">${isMon(t)?esc(t.progress)||'—':esc(t.progress)||'—'}</span></div>
           ${isMon(t)?'':`<div class="m"><span>Hôm qua ${showPct(t.prevProgress)||'0%'} · KH ${khTxt(t)} · làm ${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</span><span>${judgeHtml(t)}</span></div>`}
           ${t.qtyDay!==''&&t.qtyDay!=null?`<div class="m"><span>KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</span></div>`:''}${warnHtml(t)}</div>`).join('') || '<p class="hint">Chưa có.</p>'); });
@@ -1238,7 +1246,7 @@ function renderForm(){
   }
   if (!M && TAB==='tasks'){
     h += `<div class="note">Danh sách gộp tự động từ phiếu đã nộp, sắp theo khu vực. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa” phiếu của kỹ sư đó.</div>${shortNote(planStats(R.tasks))}`;
-    SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k);
+    SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k); if (S2.opt && !T.length) return;
       h += `<div class="ph"><h4 class="${S2.k==='MEP'?'mep':''}">${S2.t}</h4><span class="hint">${T.length} việc</span></div>
       <div class="tw"><table class="ed" style="min-width:720px"><thead><tr><th>STT</th><th>Công việc</th><th style="width:72px">Lũy kế hôm qua</th><th style="width:58px">KH hôm nay</th><th style="width:62px">Thực hiện</th><th style="width:72px">Lũy kế hôm nay</th><th style="width:130px">So với KH</th></tr></thead><tbody>
       ${T.map((t,i)=>{ const c = 'style="padding:8px;text-align:center"'; return `<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}${t.qtyDay!==''&&t.qtyDay!=null?`<div class="hint">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''}<div class="hint" style="padding:2px 0">📍 ${esc(locText(t))} · ${esc(userName(t.by))}</div>${warnHtml(t)}</td>${isMon(t)
@@ -1289,7 +1297,7 @@ function imgObjs(){ const o = [], add = x => { if (x && x.fileId && !x.img) o.pu
 let imgTimer = null;
 function rerenderImgs(){ clearTimeout(imgTimer); imgTimer = setTimeout(()=>{ if (VIEW==='day'){ applyMerge(); renderDoc(); if (TAB==='photos'||TAB==='layout') renderForm(); }
   if (VIEW==='my'){ renderMyDoc(); if (MYTAB==='photos') renderMy(); }
-  if (VIEW==='period' && W){ renderWeekDoc(); if (WTAB==='photo' || WTAB==='prog') renderWeek(); } }, 120); }
+  if (VIEW==='period' && W){ renderWeekDoc(); if (WTAB==='photo' || WTAB==='msp') renderWeek(); } }, 120); }
 async function loadImages(){
   const objs = imgObjs(); if (!objs.length) return;
   const ids = [...new Set(objs.map(o=>o.fileId))], have = {};
@@ -1345,7 +1353,7 @@ function docHTML(r, o={}){
   h += `<div class="sec">${N[0]}. CÔNG VIỆC THỰC HIỆN TRONG NGÀY / WORKS CARRIED OUT TODAY${ps.n?`<span>ĐẠT KẾ HOẠCH: ${ps.ok}/${ps.n} VIỆC</span>`:''}</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th style="width:70px">Vị trí</th><th class="c" style="width:50px">Lũy kế hôm qua</th><th class="c" style="width:44px">KH hôm nay</th><th class="c" style="width:46px">Thực hiện</th><th class="c" style="width:50px">Lũy kế hôm nay</th><th class="c" style="width:52px">Chênh lệch</th></tr>`;
   SECTIONS.forEach(S2=>{ const T = r.tasks.filter(t=>sectionOf(t)===S2.k);
-    if (o.partial && !T.length) return;
+    if ((o.partial || S2.opt) && !T.length) return;
     h += `<tr><td colspan="8" class="${S2.cls}">${S2.t}</td></tr>`;
     if (!T.length) h += '<tr><td></td><td colspan="7" class="mut">Không có</td></tr>';
     T.forEach((t,i)=>{ const kl = t.qtyDay!==''&&t.qtyDay!=null ? `<div class="sm">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>` : '';
@@ -1356,7 +1364,7 @@ function docHTML(r, o={}){
   h += `</table><div class="sec">${N[1]}. KẾ HOẠCH NGÀY MAI / TOMORROW'S PLAN</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí</th><th class="c" style="width:70px">Dự kiến thực hiện</th><th class="c" style="width:70px">Lũy kế dự kiến</th></tr>`;
   SECTIONS.forEach(S2=>{ const PL = r.plans.filter(t=>sectionOf(t)===S2.k);
-    if (o.partial && !PL.length) return;
+    if ((o.partial || S2.opt) && !PL.length) return;
     h += `<tr><td colspan="5" class="${S2.cls}">${S2.p}</td></tr>`;
     if (!PL.length) h += '<tr><td></td><td colspan="4" class="mut">Không có</td></tr>';
     PL.forEach((pl,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(pl.desc)}</td><td>${esc(locText(pl))}</td>${pl.mon?`<td class="c" colspan="2"><b>${esc(pl.target)}</b></td>`:`<td class="c">${hasV(pl.add)?'+'+fp(num(pl.add)):'—'}</td><td class="c"><b>${showPct(pl.target)||'—'}</b></td>`}</tr>`; }); });
@@ -1592,7 +1600,7 @@ function renderPeriodDoc(A, pr, M){ const f = r1;
 
 /* ===================== BÁO CÁO TUẦN (soạn sửa được, TVGS xác nhận) ===================== */
 let W = null, PW = null, WTAB = 'gen';
-const WTABS = [['gen','Chung'],['prog','Tiến độ'],['task','Công việc'],['plan','KH tuần sau'],['mp','Nhân lực & TB'],['insp','Nghiệm thu & vật tư'],['safe','An toàn'],['photo','Hình ảnh']];
+const WTABS = [['gen','Chung'],['prog','Tiến độ tổng'],['task','I.A Thi công'],['qa','I.B Chất lượng & hồ sơ'],['mat','I.C Vật tư & TB'],['mp','I.D Nhân lực'],['safe','I.E An toàn'],['plan','II. KH tuần sau'],['photo','III. Mặt bằng & ảnh'],['msp','IV. MSP']];
 const RATE = [['good','Tốt'],['mid','Trung bình'],['bad','Kém']];
 const RATE_TXT = { safety:['An toàn & vệ sinh','Mọi công tác đạt vệ sinh an toàn','Một số lỗi nhỏ','Nhiều lỗi nhỏ hoặc vấn đề lớn'],
   work:['Công tác thi công','Mọi công tác kịp tiến độ','Một số hạng mục trễ','Nhiều hạng mục trễ'],
@@ -1607,6 +1615,24 @@ function wEval(o){ const p = wNum(o.plan), a = wNum(o.actual); if (p === null ||
   const d = Math.round((a - p) * 100) / 100; return d >= 0 ? {d, t:'Đạt', c:'ok'} : d >= -5 ? {d, t:'Chậm nhẹ', c:'warn'} : {d, t:'Chậm', c:'bad'}; }
 const weekMonthLabel = to => `Tuần ${String(Math.ceil(+to.slice(8,10) / 7)).padStart(2,'0')} – Tháng ${to.slice(5,7)}/${to.slice(0,4)}`;
 const weekFileName = w => { const p = CFG.project; return `${w.to.replace(/-/g,'')}-${p.code}-${p.contractorAbbr || p.contractorShort || 'NT'}-WR-${w.no}-Weekly report and Tracking MSP(checked).pdf`; };
+/* Hồ sơ đệ trình (B.3) / văn bản (B.4) – đọc từ file theo dõi */
+const regOn = () => !!(((CFG.settings||{}).register)||{}).id;
+const REG_ST = { approved:['✅','Đã duyệt','ok','b-acc'], returned:['↩','Trả về chỉnh sửa','bad','b-ret'], rejected:['⛔','Từ chối','bad','b-ret'], review:['🔎','TVGS đang kiểm tra','','b-sub'], pending:['⏳','Chờ duyệt','','b-draft'] };
+const regTxt = x => REG_ST[x.st] ? REG_ST[x.st][1] : (x.raw || '—');
+const regBadge = x => `<span class="badge ${(REG_ST[x.st]||[])[3]||'b-none'}">${(REG_ST[x.st]||['•'])[0]} ${esc(regTxt(x))}</span>`;
+function regStatLine(w){ const L = w.submittals || [], c = k => L.filter(x=>x.st===k).length, nw = L.filter(x=>x.date >= w.from && x.date <= w.to).length;
+  return `Trình mới ${nw} · Đã duyệt ${c('approved')} · Trả về ${c('returned')}${c('rejected') ? ' · Từ chối ' + c('rejected') : ''} · Chờ ${c('pending') + c('review')}`; }
+function regTbl(w){
+  if (!w.regAt) return `<div class="txt mut">${regOn() ? 'Chưa đọc file theo dõi hồ sơ cho tuần này' : '—'}</div>`;
+  const L = w.submittals || []; if (!L.length) return '<div class="txt mut">Không có hồ sơ phát sinh trong tuần</div>';
+  return `<table class="grid"><tr><th class="c">Stt</th><th style="width:140px">Mã hồ sơ</th><th>Tên hồ sơ</th><th class="c" style="width:30px">Lần</th><th class="c" style="width:46px">Ngày trình</th><th class="c" style="width:84px">Tình trạng</th></tr>
+    ${L.map((x,i)=>`<tr><td class="n">${i+1}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td><td class="c">${esc(x.count||'')}</td><td class="c">${vi(x.date).slice(0,8)}</td><td class="c ${(REG_ST[x.st]||[])[2]||''}">${esc(regTxt(x))}${x.st!=='pending' && x.st!=='review' && x.resDate && x.resDate !== x.date ? `<div class="sm">${vi(x.resDate).slice(0,5)}</div>` : ''}</td></tr>`).join('')}</table>`;
+}
+async function readRegister(silent){
+  if (!regOn() || !W) return; try { if (!silent) toast('⏳ Đang đọc file theo dõi hồ sơ…', 20000);
+    const r = await Store.register(W.from, W.to); W.submittals = r.subs || []; W.docs = r.docs || []; W.regAt = r.at || nowStr(); W.regStat = regStatLine(W);
+    markDirty('W'); renderWeek(); toast(`✔ Hồ sơ: ${W.regStat}${W.docs.length ? ' · ' + W.docs.length + ' văn bản' : ''}`, 5000);
+  } catch(e){ toast('⚠ Không đọc được file theo dõi hồ sơ: ' + (e.message||e), 6000); } }
 function blankWeek(pr, pw){
   const po = (pw && pw.overall) || {}, no = pw && pw.no ? +pw.no + Math.round((new Date(pr.from) - new Date(pw.from)) / (7*864e5)) : '';
   return normWeek({ key:pr.key, from:pr.from, to:pr.to, no,
@@ -1616,7 +1642,7 @@ function blankWeek(pr, pw){
 function normWeek(w){
   const o = Object.assign({ v:2, kind:'week', no:'', status:'draft', version:1, review:null, ratings:{safety:'good', work:'good', resource:'good'}, ratingsEdited:{},
     overall:{}, manpower:[], equipment:[], chart:{days:[], titles:[], data:[]}, weather:{sun:0, rain:0, days:0}, tasks:[], nextPlans:[], inspections:[], tests:[], inspPlans:[],
-    materials:[], matPlans:[], safety:{}, layouts:[], photos:[], gantt:[], msp:null, genAt:'' }, w);
+    materials:[], matPlans:[], safety:{}, layouts:[], photos:[], gantt:[], msp:null, genAt:'', submittals:[], docs:[], regAt:'', regStat:'' }, w);
   o.overall = Object.assign({plan:'', actualPrev:'', actual:'', planNext:'', rev:'', note:''}, o.overall);
   o.safety = Object.assign({summary:'', activities:[], issues:[]}, o.safety);
   return o;
@@ -1640,7 +1666,8 @@ function genWeek(w, reps, pw){
     if (p !== null) it.actual = p; if (hasV(t.qtyDay)) it.qty = r1(num(it.qty) + num(t.qtyDay)); if (t.unit) it.unit = t.unit; }));
   ((pw && pw.nextPlans) || []).forEach(pl=>{ if (!pl.desc) return; const k = tkKey(pl);
     if (tk[k]) tk[k].planPct = pl.target ?? ''; else tk[k] = {auto:'t:'+k, id:uid(), section:pl.section||sectionOf(pl), zoneId:pl.zoneId||'', desc:pl.desc, unit:'', qty:'', startPct:'', planPct:pl.target ?? '', actual:'', note:''}; });
-  const T = Object.values(tk).sort((a,b)=> (a.section===b.section ? 0 : a.section==='XD' ? -1 : 1) || zIdx(a.zoneId) - zIdx(b.zoneId));
+  const sIdx = k => { const i = SECTIONS.findIndex(x=>x.k===k); return i < 0 ? 9 : i; };
+  const T = Object.values(tk).sort((a,b)=> sIdx(a.section) - sIdx(b.section) || zIdx(a.zoneId) - zIdx(b.zoneId));
   w.tasks = mergeAuto(w.tasks, T);
   // F/G. nhân lực, thiết bị
   const n = reps.length, mp = {}, eq = {}, titles = [];
@@ -1732,49 +1759,59 @@ function renderWeek(){
       <div><label class="l">% KH tuần sau</label>${ninp('overall.planNext', o.planNext, 'VD 10.92')}</div>
       <div><label class="l">Bản tiến độ</label>${inp('overall.rev', o.rev, 'VD Rev02')}</div></div>
       <div class="note ${ev.c === 'ok' ? 'g' : 'w'}" id="wEval">${ev.t ? `Chênh lệch ${ev.d > 0 ? '+' : ''}${ev.d}% → <b>${ev.t}</b> (ngưỡng 5%)` : 'Nhập % KH tuần này và % thực tế để tự đánh giá'}</div>
-      <label class="l">Nhận xét tiến độ</label>${ta('overall.note', o.note, 'VD Chậm do mưa 2 ngày…')}
-      <div class="ph" style="margin-top:14px"><h3>File MS Project (PDF)</h3></div>
-      ${w.msp ? `<div class="note g">📄 <b>${esc(w.msp.name)}</b>${w.msp.url ? ` · <a href="${esc(w.msp.url)}" target="_blank" rel="noopener">mở file</a>` : ''} – QR in trong báo cáo ${RO ? '' : '<button class="btn sm" data-act="wMspDel">✕ Bỏ</button>'}</div>` : ''}
-      ${RO ? '' : `<label class="drop">📄 ${w.msp ? 'Thay' : 'Tải'} file PDF MS Project (≤ 20 MB) – lưu Drive, in QR + link vào báo cáo<input type="file" accept="application/pdf" data-wfile="msp"></label>`}
-      <div class="ph" style="margin-top:14px"><h3>Ảnh Gantt (tối đa ${GANTT_MAX})</h3><span class="hint">mỗi ảnh in nguyên 1 trang ngang</span></div>
-      ${w.gantt.map((g,i)=>`<div class="lyc"><div class="lyi">${g.img ? `<img src="${g.img}">` : '<div class="noimg">Đang tải ảnh…</div>'}</div><div class="lyf"><b>Gantt ${i+1}</b>${inp(`gantt.${i}.caption`, g.caption, 'Chú thích')}<div class="bar" style="margin:6px 0 0">${delBtn('gantt', i)}</div></div></div>`).join('')}
-      ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/*" data-img="wgantt"></label>`}`;
+      <label class="l">Nhận xét tiến độ</label>${ta('overall.note', o.note, 'VD Chậm do mưa 2 ngày…')}`;
   }
   if (WTAB === 'task'){
-    h += `<div class="hint">Tự gom từ báo cáo ngày. % KH MSP lấy từ “kế hoạch tuần sau” của tuần trước. Dòng đã sửa tay được giữ khi tổng hợp lại.</div>`;
+    h += `<div class="hint">I.A – Tự gom từ báo cáo ngày, nhóm A.1 Xây dựng · A.2 MEP · A.3 Hoàn thiện · A.4 Khác theo loại khu vực. % KH MSP lấy từ “kế hoạch tuần sau” của tuần trước. Dòng đã sửa tay được giữ khi tổng hợp lại.</div>`;
     w.tasks.forEach((t,i)=>{ h += wRow('tasks', i, w.tasks.length, `<div class="wg wg-t"><div class="w2">${inp(`tasks.${i}.desc`, t.desc, 'Nội dung công việc')}</div>${sel(`tasks.${i}.zoneId`, t.zoneId, zoneOpts())}
       <div><label class="l">KL tuần</label>${ninp(`tasks.${i}.qty`, t.qty)}</div><div><label class="l">ĐVT</label>${inp(`tasks.${i}.unit`, t.unit)}</div>
       <div><label class="l">% đầu tuần</label>${ninp(`tasks.${i}.startPct`, t.startPct)}</div><div><label class="l">% KH MSP</label>${ninp(`tasks.${i}.planPct`, t.planPct)}</div>
       <div><label class="l">% thực tế</label>${ninp(`tasks.${i}.actual`, t.actual)}</div><div class="w2">${inp(`tasks.${i}.note`, t.note, 'Ghi chú')}</div></div>`); });
     h += addBtn('tasks', 'Thêm công việc', JSON.stringify({desc:'', zoneId:'', unit:'', qty:'', startPct:'', planPct:'', actual:'', note:''}));
   }
-  if (WTAB === 'plan'){
-    h += `<div class="bar">${RO ? '' : '<button class="btn" data-act="wPlanFromTasks">＋ Tạo từ các việc chưa xong</button>'}</div>`;
-    w.nextPlans.forEach((t,i)=>{ h += wRow('nextPlans', i, w.nextPlans.length, `<div class="wg"><div class="w2">${inp(`nextPlans.${i}.desc`, t.desc, 'Công việc tuần sau')}</div>${sel(`nextPlans.${i}.zoneId`, t.zoneId, zoneOpts())}
-      <div><label class="l">% mục tiêu cuối tuần sau</label>${ninp(`nextPlans.${i}.target`, t.target)}</div></div>`); });
-    h += addBtn('nextPlans', 'Thêm kế hoạch', JSON.stringify({desc:'', zoneId:'', target:''}));
+  const dlist = (path, arr, label, res) => { let x = `<div class="ph" style="margin-top:10px"><h3>${label}</h3></div>`;
+    arr.forEach((it,i)=>{ x += wRow(path, i, arr.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`${path}.${i}.date`, it.date, 'yyyy-mm-dd', 'type="date"')}</div><div class="w2">${inp(`${path}.${i}.desc`, it.desc, 'Nội dung')}</div><div>${inp(`${path}.${i}.loc`, it.loc, 'Vị trí')}</div>${res ? `<div>${sel(`${path}.${i}.result`, it.result, ['','Đạt','Không đạt'])}</div>` : ''}</div>`); });
+    return x + addBtn(path, 'Thêm', JSON.stringify({date:'', desc:'', loc:'', result:''})); };
+  if (WTAB === 'qa'){
+    h += dlist('inspections', w.inspections, 'B.1 Nghiệm thu trong tuần', true) + dlist('tests', w.tests, 'B.2 Thí nghiệm trong tuần', true);
+    h += `<div class="ph" style="margin-top:12px"><h3>B.3 Tình trạng hồ sơ · B.4 Văn bản trong tuần</h3>${!RO && regOn() ? '<button class="btn sm" data-act="wReg">⟳ Đọc file theo dõi hồ sơ</button>' : ''}</div>`
+      + (regOn() ? `<div class="hint">${w.regAt ? `Đọc lúc ${esc(w.regAt)} · ${esc(w.regStat || '')}` : 'Chưa đọc file theo dõi hồ sơ cho tuần này.'} Chỉ liệt kê hồ sơ trình trong tuần hoặc có kết quả trong tuần.</div>`
+        : '<div class="note w">Chưa khai báo file theo dõi hồ sơ – Quản trị vào <b>Cấu hình → Cài đặt → Hồ sơ đệ trình</b>.</div>');
+    (w.submittals || []).forEach((x,i)=>{ h += `<div class="wrow"><div class="wg"><div class="w2"><b>${esc(x.code)}</b> · ${esc(x.desc)}<div class="hint">${esc(x.tab)} · trình ${vi(x.date)}${x.count ? ' · lần ' + esc(x.count) : ''}</div></div><div>${regBadge(x)}</div></div><div class="wact">${delBtn('submittals', i)}</div></div>`; });
+    (w.docs || []).forEach((x,i)=>{ h += `<div class="wrow"><div class="wg"><div class="w2"><b>${esc(x.tab)}</b> · ${esc(x.code)}<div>${esc(x.desc)}</div><div class="hint">${vi(x.date)}</div></div></div><div class="wact">${delBtn('docs', i)}</div></div>`; });
   }
-  if (WTAB === 'mp'){
-    h += `<div class="wchart">${mpChartSvg(w)}</div><div class="ph"><h3>Nhân lực</h3></div>`;
-    w.manpower.forEach((m,i)=>{ h += wRow('manpower', i, w.manpower.length, `<div class="wg"><div class="w2">${inp(`manpower.${i}.title`, m.title, 'Chức danh')}</div><div><label class="l">TB/ngày</label>${ninp(`manpower.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`manpower.${i}.max`, m.max)}</div><div><label class="l">Tổng công</label>${ninp(`manpower.${i}.total`, m.total)}</div></div>`); });
-    h += addBtn('manpower', 'Thêm chức danh', JSON.stringify({title:'', avg:'', max:'', total:''})) + `<div class="ph" style="margin-top:12px"><h3>Thiết bị</h3></div>`;
+  if (WTAB === 'mat'){
+    h += `<div class="ph"><h3>C.1 Vật tư đã về trong tuần</h3><span class="hint">kỳ trước = lũy kế tuần trước${first ? ' (tuần đầu: nhập tay)' : ''}</span></div>`;
+    w.materials.forEach((m,i)=>{ h += wRow('materials', i, w.materials.length, `<div class="wg"><div>${inp(`materials.${i}.name`, m.name, 'Chủng loại')}</div><div>${inp(`materials.${i}.spec`, m.spec, 'Quy cách')}</div><div>${inp(`materials.${i}.unit`, m.unit, 'ĐVT')}</div>
+      <div><label class="l">Kỳ trước</label>${ninp(`materials.${i}.prev`, m.prev)}</div><div><label class="l">Kỳ này</label>${ninp(`materials.${i}.now`, m.now)}</div><div><label class="l">Lũy kế</label><input class="in" value="${r1(num(m.prev) + num(m.now))}" disabled></div></div>`); });
+    h += addBtn('materials', 'Thêm vật tư', JSON.stringify({name:'', spec:'', unit:'', prev:0, now:0})) + `<div class="ph" style="margin-top:12px"><h3>C.2 Thiết bị máy móc</h3></div>`;
     w.equipment.forEach((m,i)=>{ h += wRow('equipment', i, w.equipment.length, `<div class="wg"><div class="w2">${inp(`equipment.${i}.name`, m.name, 'Thiết bị')}</div><div><label class="l">TB/ngày</label>${ninp(`equipment.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`equipment.${i}.max`, m.max)}</div></div>`); });
     h += addBtn('equipment', 'Thêm thiết bị', JSON.stringify({name:'', avg:'', max:''}));
   }
-  if (WTAB === 'insp'){
-    const lst = (path, arr, label, res) => { let x = `<div class="ph" style="margin-top:10px"><h3>${label}</h3></div>`;
-      arr.forEach((it,i)=>{ x += wRow(path, i, arr.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`${path}.${i}.date`, it.date, 'yyyy-mm-dd', 'type="date"')}</div><div class="w2">${inp(`${path}.${i}.desc`, it.desc, 'Nội dung')}</div><div>${inp(`${path}.${i}.loc`, it.loc, 'Vị trí')}</div>${res ? `<div>${sel(`${path}.${i}.result`, it.result, ['','Đạt','Không đạt'])}</div>` : ''}</div>`); });
-      return x + addBtn(path, 'Thêm', JSON.stringify({date:'', desc:'', loc:'', result:''})); };
-    h += lst('inspections', w.inspections, 'Nghiệm thu trong tuần', true) + lst('tests', w.tests, 'Thí nghiệm trong tuần', true) + lst('inspPlans', w.inspPlans, 'Kế hoạch nghiệm thu tuần sau', false);
-    h += `<div class="ph" style="margin-top:10px"><h3>Vật tư nhập về</h3><span class="hint">kỳ trước = lũy kế tuần trước${first ? ' (tuần đầu: nhập tay)' : ''}</span></div>`;
-    w.materials.forEach((m,i)=>{ h += wRow('materials', i, w.materials.length, `<div class="wg"><div>${inp(`materials.${i}.name`, m.name, 'Chủng loại')}</div><div>${inp(`materials.${i}.spec`, m.spec, 'Quy cách')}</div><div>${inp(`materials.${i}.unit`, m.unit, 'ĐVT')}</div>
-      <div><label class="l">Kỳ trước</label>${ninp(`materials.${i}.prev`, m.prev)}</div><div><label class="l">Kỳ này</label>${ninp(`materials.${i}.now`, m.now)}</div><div><label class="l">Lũy kế</label><input class="in" value="${r1(num(m.prev) + num(m.now))}" disabled></div></div>`); });
-    h += addBtn('materials', 'Thêm vật tư', JSON.stringify({name:'', spec:'', unit:'', prev:0, now:0})) + `<div class="ph" style="margin-top:10px"><h3>Kế hoạch vật tư tuần sau</h3></div>`;
+  if (WTAB === 'mp'){
+    h += `<div class="wchart">${mpChartSvg(w)}</div><div class="ph"><h3>D. Nhân lực nhà thầu</h3></div>`;
+    w.manpower.forEach((m,i)=>{ h += wRow('manpower', i, w.manpower.length, `<div class="wg"><div class="w2">${inp(`manpower.${i}.title`, m.title, 'Chức danh')}</div><div><label class="l">TB/ngày</label>${ninp(`manpower.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`manpower.${i}.max`, m.max)}</div><div><label class="l">Tổng công</label>${ninp(`manpower.${i}.total`, m.total)}</div></div>`); });
+    h += addBtn('manpower', 'Thêm chức danh', JSON.stringify({title:'', avg:'', max:'', total:''}));
+  }
+  if (WTAB === 'plan'){
+    h += `<div class="ph"><h3>II.1 Thi công · II.2 Cơ điện</h3>${RO ? '' : '<button class="btn sm" data-act="wPlanFromTasks">＋ Tạo từ các việc chưa xong</button>'}</div><div class="hint">Khu vực loại MEP vào II.2, các loại khác vào II.1.</div>`;
+    w.nextPlans.forEach((t,i)=>{ h += wRow('nextPlans', i, w.nextPlans.length, `<div class="wg"><div class="w2">${inp(`nextPlans.${i}.desc`, t.desc, 'Công việc tuần sau')}</div>${sel(`nextPlans.${i}.zoneId`, t.zoneId, zoneOpts())}
+      <div><label class="l">% mục tiêu cuối tuần sau</label>${ninp(`nextPlans.${i}.target`, t.target)}</div></div>`); });
+    h += addBtn('nextPlans', 'Thêm kế hoạch', JSON.stringify({desc:'', zoneId:'', target:''}));
+    h += dlist('inspPlans', w.inspPlans, 'II.3 Kế hoạch nghiệm thu', false) + `<div class="ph" style="margin-top:10px"><h3>II.4 Kế hoạch vật tư</h3></div>`;
     w.matPlans.forEach((m,i)=>{ h += wRow('matPlans', i, w.matPlans.length, `<div class="wg"><div>${inp(`matPlans.${i}.name`, m.name, 'Chủng loại')}</div><div>${inp(`matPlans.${i}.spec`, m.spec, 'Quy cách')}</div><div>${inp(`matPlans.${i}.unit`, m.unit, 'ĐVT')}</div><div><label class="l">Khối lượng</label>${ninp(`matPlans.${i}.qty`, m.qty)}</div><div><label class="l">Ngày dự kiến</label>${inp(`matPlans.${i}.date`, m.date, '', 'type="date"')}</div></div>`); });
     h += addBtn('matPlans', 'Thêm kế hoạch vật tư', JSON.stringify({name:'', spec:'', unit:'', qty:'', date:''}));
   }
+  if (WTAB === 'msp'){
+    h += `<div class="ph"><h3>IV. File MS Project (PDF)</h3></div>
+      ${w.msp ? `<div class="note g">📄 <b>${esc(w.msp.name)}</b>${w.msp.url ? ` · <a href="${esc(w.msp.url)}" target="_blank" rel="noopener">mở file</a>` : ''} – QR in trong báo cáo ${RO ? '' : '<button class="btn sm" data-act="wMspDel">✕ Bỏ</button>'}</div>` : ''}
+      ${RO ? '' : `<label class="drop">📄 ${w.msp ? 'Thay' : 'Tải'} file PDF MS Project (≤ 20 MB) – lưu Drive, in QR + link vào báo cáo<input type="file" accept="application/pdf" data-wfile="msp"></label>`}
+      <div class="ph" style="margin-top:14px"><h3>Ảnh Gantt (tối đa ${GANTT_MAX})</h3><span class="hint">mỗi ảnh in nguyên 1 trang ngang</span></div>
+      ${w.gantt.map((g,i)=>`<div class="lyc"><div class="lyi">${g.img ? `<img src="${g.img}">` : '<div class="noimg">Đang tải ảnh…</div>'}</div><div class="lyf"><b>Gantt ${i+1}</b>${inp(`gantt.${i}.caption`, g.caption, 'Chú thích')}<div class="bar" style="margin:6px 0 0">${delBtn('gantt', i)}</div></div></div>`).join('')}
+      ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/*" data-img="wgantt"></label>`}`;
+  }
   if (WTAB === 'safe'){
-    h += `<label class="l">Nhận xét chung về an toàn trong tuần</label>${ta('safety.summary', w.safety.summary, '', 3)}<div class="ph" style="margin-top:10px"><h3>Hoạt động an toàn trong tuần</h3><span class="hint">huấn luyện, toolbox, kiểm tra…</span></div>`;
+    h += `<div class="ph"><h3>E. An toàn lao động</h3></div><label class="l">Nhận xét chung về an toàn trong tuần</label>${ta('safety.summary', w.safety.summary, '', 3)}<div class="ph" style="margin-top:10px"><h3>Hoạt động an toàn trong tuần</h3><span class="hint">huấn luyện, toolbox, kiểm tra…</span></div>`;
     w.safety.activities.forEach((x,i)=>{ h += wRow('safety.activities', i, w.safety.activities.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`safety.activities.${i}.date`, x.date, '', 'type="date"')}</div><div class="w2">${inp(`safety.activities.${i}.desc`, x.desc, 'Nội dung hoạt động')}</div></div>`); });
     h += addBtn('safety.activities', 'Thêm hoạt động', JSON.stringify({date:'', desc:''})) + `<div class="ph" style="margin-top:10px"><h3>Nhắc nhở / vi phạm trong tuần</h3></div>`;
     w.safety.issues.forEach((x,i)=>{ h += wRow('safety.issues', i, w.safety.issues.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`safety.issues.${i}.date`, x.date, '', 'type="date"')}</div><div class="w2">${inp(`safety.issues.${i}.desc`, x.desc, 'Nội dung')}</div><div class="w2">${inp(`safety.issues.${i}.action`, x.action, 'Biện pháp xử lý')}</div></div>`); });
@@ -1846,62 +1883,70 @@ function weekDocHTML(w, o = {}){
   <tr><td><span>Kế hoạch tuần / Plan</span><b>${wPct(ov.plan)}</b></td><td><span>Thực tế tuần này / Actual</span><b>${wPct(ov.actual)}</b><i>${wNum(ov.actualPrev) !== null ? 'tuần trước ' + wPct(ov.actualPrev) + (wNum(ov.actual) !== null ? ' · ' + (ov.actual - ov.actualPrev >= 0 ? '+' : '') + Math.round((ov.actual - ov.actualPrev) * 100) / 100 + '%' : '') : ''}</i></td>
   <td class="ev ${ev.c}"><span>Đánh giá / Evaluation</span><b>${ev.t || '—'}</b><i>${ev.t ? (ev.d > 0 ? '+' : '') + ev.d + '%' : ''}</i></td><td><span>KH tuần sau / Next week</span><b>${wPct(ov.planNext)}</b></td></tr>
   ${ov.note ? `<tr><td colspan="4" class="nt">Nhận xét: ${esc(ov.note)}</td></tr>` : ''}</table>`;
-  // A. thi công
-  h += `<div class="sec">A. CÔNG TÁC THI CÔNG TUẦN NÀY / CONSTRUCTION WORKS (${vi(w.from)} → ${vi(w.to)})</div>
+  const W2 = (k, t) => `<div class="wsec2">${k} – ${t}</div>`, W3 = t => `<div class="wsec3">${t}</div>`, ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+  // I. HOẠT ĐỘNG THI CÔNG TRONG TUẦN
+  h += `<div class="wsec1">I – CÁC HOẠT ĐỘNG THI CÔNG TRONG TUẦN (${vi(w.from)} → ${vi(w.to)})</div>${W2('A', 'CÔNG TÁC THI CÔNG TẠI CÔNG TRƯỜNG / CONSTRUCTION WORKS')}
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc / Works description</th><th class="c" style="width:56px">KL tuần</th><th class="c" style="width:46px">Đầu tuần</th><th class="c" style="width:46px">KH MSP</th><th class="c" style="width:46px">Thực tế</th><th class="c" style="width:48px">Chênh lệch</th><th style="width:90px">Ghi chú</th></tr>`;
   h += wGroupRows(w.tasks, 8, (t,i)=>{ const d = wNum(t.actual) !== null && wNum(t.planPct) !== null ? Math.round((t.actual - t.planPct) * 10) / 10 : null;
-    return `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c">${hasV(t.qty) ? esc(t.qty) + ' ' + esc(t.unit||'') : ''}</td><td class="c">${wPct(t.startPct)}</td><td class="c">${wPct(t.planPct)}</td><td class="c"><b>${wPct(t.actual)}</b></td><td class="c ${d !== null && d < 0 ? 'bad' : ''}">${d !== null ? (d > 0 ? '+' : '') + d + '%' : ''}</td><td class="sm">${esc(t.note||'')}</td></tr>`; }, 'A');
-  h += `</table><div class="sec">B. KẾ HOẠCH THI CÔNG TUẦN SAU / NEXT WEEK PLAN (${vi(addDays(w.to,1))} → ${vi(addDays(w.to,7))})</div>
-  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th class="c" style="width:80px">% mục tiêu</th></tr>`;
-  h += wGroupRows(w.nextPlans, 3, (t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c"><b>${wPct(t.target)}</b></td></tr>`, 'B');
-  // C. vật tư
-  h += `</table><div class="sec">C. VẬT TƯ / MATERIALS</div><table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">KL kỳ trước</th><th class="c">KL kỳ này</th><th class="c">KL lũy kế</th></tr>`;
+    return `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c">${hasV(t.qty) ? esc(t.qty) + ' ' + esc(t.unit||'') : ''}</td><td class="c">${wPct(t.startPct)}</td><td class="c">${wPct(t.planPct)}</td><td class="c"><b>${wPct(t.actual)}</b></td><td class="c ${d !== null && d < 0 ? 'bad' : ''}">${d !== null ? (d > 0 ? '+' : '') + d + '%' : ''}</td><td class="sm">${esc(t.note||'')}</td></tr>`; },
+    [['XD','A.1 CÔNG VIỆC XÂY DỰNG / CIVIL WORKS'], ['MEP','A.2 CÔNG VIỆC MEP / M&E WORKS'], ['HT','A.3 CÔNG VIỆC HOÀN THIỆN / FINISHING WORKS'], ['KHAC','A.4 CÔNG VIỆC KHÁC / OTHER WORKS']]);
+  h += '</table>' + W2('B', 'CÔNG TÁC CHẤT LƯỢNG, NGHIỆM THU – THÍ NGHIỆM / QUALITY, INSPECTION & TESTING');
+  const qaTbl = (arr, none) => `<table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th>Nội dung</th><th style="width:100px">Vị trí</th><th class="c" style="width:62px">Kết quả</th></tr>
+    ${arr.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td><td class="c ${x.result==='Không đạt'?'bad':'ok'}">${esc(x.result)}</td></tr>`).join('') || `<tr><td></td><td colspan="4" class="mut">${none}</td></tr>`}</table>`;
+  h += W3(`B.1 CÁC CÔNG VIỆC ĐÃ THỰC HIỆN NGHIỆM THU <span>${w.inspections.filter(x=>x.result==='Đạt').length} đạt / ${w.inspections.length}</span>`) + qaTbl(w.inspections, 'Không có nghiệm thu trong tuần');
+  h += W3('B.2 CÁC HOẠT ĐỘNG THÍ NGHIỆM') + qaTbl(w.tests, 'Không có thí nghiệm trong tuần');
+  h += W3(`B.3 TÌNH TRẠNG HỒ SƠ GIẤY TỜ${w.regStat ? ` <span>${esc(w.regStat)}</span>` : ''}`) + regTbl(w);
+  if ((w.docs||[]).length) h += W3('B.4 VĂN BẢN – CHỈ THỊ – NCR TRONG TUẦN') + `<table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th style="width:90px">Loại</th><th style="width:150px">Số hiệu</th><th>Nội dung</th></tr>
+    ${w.docs.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.tab)}</td><td class="sm">${esc(x.code)}</td><td>${esc(x.desc)}</td></tr>`).join('')}</table>`;
+  // C. vật tư – thiết bị
+  h += W2('C', 'VẬT TƯ – THIẾT BỊ – MÁY MÓC / MATERIALS & EQUIPMENT') + W3('C.1 VẬT TƯ ĐÃ VỀ TRONG TUẦN') + `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">KL kỳ trước</th><th class="c">KL kỳ này</th><th class="c">KL lũy kế</th></tr>`;
   const groups = {}; w.materials.forEach(m=>(groups[m.name || '—'] = groups[m.name || '—'] || []).push(m));
-  Object.keys(groups).forEach((g,gi)=>{ h += `<tr><td colspan="6" class="grp">${['I','II','III','IV','V','VI','VII','VIII','IX','X'][gi] || gi+1}. ${esc(g)}</td></tr>`;
+  Object.keys(groups).forEach((g,gi)=>{ h += `<tr><td colspan="6" class="grp">${ROMAN[gi] || gi+1}. ${esc(g)}</td></tr>`;
     groups[g].forEach((m,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(m.spec || m.name)}</td><td class="c">${esc(m.unit)}</td><td class="c">${num(m.prev).toLocaleString('vi-VN')}</td><td class="c"><b>${num(m.now).toLocaleString('vi-VN')}</b></td><td class="c">${r1(num(m.prev)+num(m.now)).toLocaleString('vi-VN')}</td></tr>`; }); });
   if (!w.materials.length) h += '<tr><td></td><td colspan="5" class="mut">Không có vật tư nhập về trong tuần</td></tr>';
-  h += '</table>';
-  if (w.matPlans.length) h += `<div class="sm" style="margin:4px 0 2px"><b>Kế hoạch vật tư tuần sau:</b></div><table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">Khối lượng</th><th class="c">Ngày dự kiến</th></tr>${w.matPlans.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}${m.spec ? ' – ' + esc(m.spec) : ''}</td><td class="c">${esc(m.unit)}</td><td class="c">${esc(m.qty)}</td><td class="c">${vi(m.date)}</td></tr>`).join('')}</table>`;
-  // D. nghiệm thu & thí nghiệm
-  const NT = w.inspections.map(x=>({...x, k:'Nghiệm thu'})).concat(w.tests.map(x=>({...x, k:'Thí nghiệm'})));
-  h += `<div class="sec">D. NGHIỆM THU & THÍ NGHIỆM / INSPECTION & TESTING <span>NT: ${w.inspections.filter(x=>x.result==='Đạt').length} đạt / ${w.inspections.length}</span></div>
-  <table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th style="width:62px">Loại</th><th>Nội dung</th><th style="width:90px">Vị trí</th><th class="c" style="width:60px">Kết quả</th></tr>
-  ${NT.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${x.k}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td><td class="c ${x.result==='Không đạt'?'bad':'ok'}">${esc(x.result)}</td></tr>`).join('') || '<tr><td></td><td colspan="5" class="mut">Không có</td></tr>'}</table>
-  ${w.inspPlans.length ? `<div class="sm" style="margin:4px 0 2px"><b>Kế hoạch nghiệm thu tuần sau:</b></div><table class="grid"><tr><th class="c">Stt</th><th style="width:56px">Ngày</th><th>Nội dung</th><th style="width:110px">Vị trí</th></tr>${w.inspPlans.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td></tr>`).join('')}</table>` : ''}`;
+  h += '</table>' + W3('C.2 THIẾT BỊ MÁY MÓC') + `<table class="grid"><tr><th class="c">Stt</th><th>Thiết bị / Equipment</th><th class="c" style="width:70px">TB/ngày</th><th class="c" style="width:70px">Cao nhất</th></tr>
+  ${w.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td></tr>`).join('') || '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
+  // D. nhân lực
+  h += W2('D', `NHÂN LỰC NHÀ THẦU / CONTRACTOR'S MANPOWER <span>BÌNH QUÂN ${r1(mpT)} NGƯỜI/NGÀY</span>`) + `<div class="wchart">${o.chartPng ? `<img src="${o.chartPng}" style="width:100%">` : mpChartSvg(w)}</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Chức danh / Title</th><th class="c" style="width:70px">TB/ngày</th><th class="c" style="width:70px">Cao nhất</th><th class="c" style="width:70px">Tổng công</th></tr>
+  ${w.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td><td class="c">${esc(m.total)}</td></tr>`).join('')}
+  <tr class="tot"><td colspan="2" class="r">TỔNG:</td><td class="c v">${r1(mpT)}</td><td></td><td class="c">${w.manpower.reduce((s,m)=>s+num(m.total),0)}</td></tr></table>`;
   // E. an toàn
   const sf = w.safety;
-  h += `<div class="sec">E. AN TOÀN LAO ĐỘNG / SAFETY <span>${sf.issues.length} nhắc nhở / vi phạm</span></div><div class="txt">${esc(sf.summary) || '—'}</div>
+  h += W2('E', `AN TOÀN LAO ĐỘNG / SAFETY <span>${sf.issues.length} nhắc nhở / vi phạm</span>`) + `<div class="txt">${esc(sf.summary) || '—'}</div>
   ${sf.activities.length ? `<div class="sm" style="margin:4px 0 2px"><b>Hoạt động an toàn trong tuần:</b></div><table class="grid">${sf.activities.map((x,i)=>`<tr><td class="n">${i+1}</td><td style="width:44px">${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td></tr>`).join('')}</table>` : ''}
   ${sf.issues.length ? `<table class="grid" style="margin-top:4px"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th>Nhắc nhở / vi phạm</th><th>Biện pháp xử lý</th></tr>${sf.issues.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.action)}</td></tr>`).join('')}</table>` : ''}`;
-  // F/G. nhân lực, thiết bị
-  h += `<div class="sec">F. NHÂN LỰC NHÀ THẦU / CONTRACTOR'S MANPOWER <span>BÌNH QUÂN ${r1(mpT)} NGƯỜI/NGÀY</span></div>
-  <div class="wchart">${o.chartPng ? `<img src="${o.chartPng}" style="width:100%">` : mpChartSvg(w)}</div>
-  <table><tr><td style="width:55%;vertical-align:top;padding-right:8px"><table class="grid"><tr><th class="c">Stt</th><th>Chức danh</th><th class="c">TB/ngày</th><th class="c">Cao nhất</th><th class="c">Tổng công</th></tr>
-  ${w.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td><td class="c">${esc(m.total)}</td></tr>`).join('')}
-  <tr class="tot"><td colspan="2" class="r">TỔNG:</td><td class="c v">${r1(mpT)}</td><td></td><td class="c">${w.manpower.reduce((s,m)=>s+num(m.total),0)}</td></tr></table></td>
-  <td style="vertical-align:top;padding-left:8px"><div class="sm" style="font-weight:bold;margin-bottom:2px">G. MÁY MÓC THIẾT BỊ / EQUIPMENT</div><table class="grid"><tr><th class="c">Stt</th><th>Thiết bị</th><th class="c">TB/ngày</th><th class="c">Cao nhất</th></tr>
-  ${w.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c">${esc(m.avg)}</td><td class="c">${esc(m.max)}</td></tr>`).join('') || '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table></td></tr></table>`;
-  // H. hình ảnh
-  h += `<div class="sec ${w.layouts.some(l=>l.img||l.fileId)?'lysec':''}">H. MẶT BẰNG & HÌNH ẢNH THI CÔNG / SITE LAYOUT & PICTURES</div>${layoutsHtml(w, o)}`;
+  // II. KẾ HOẠCH TUẦN TIẾP THEO
+  h += `<div class="wsec1">II – KẾ HOẠCH CHO TUẦN TIẾP THEO (TỪ ${vi(addDays(w.to,1))} ĐẾN ${vi(addDays(w.to,7))})</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th class="c" style="width:80px">% mục tiêu</th></tr>`;
+  h += wGroupRows(w.nextPlans, 3, (t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c"><b>${wPct(t.target)}</b></td></tr>`,
+    [[['XD','HT','KHAC'],'II.1 CÔNG TÁC THI CÔNG / CONSTRUCTION'], ['MEP','II.2 CÔNG TÁC CƠ ĐIỆN / M&E']]) + '</table>';
+  if (w.inspPlans.length) h += W3('II.3 KẾ HOẠCH NGHIỆM THU') + `<table class="grid"><tr><th class="c">Stt</th><th style="width:56px">Ngày</th><th>Nội dung</th><th style="width:110px">Vị trí</th></tr>${w.inspPlans.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td></tr>`).join('')}</table>`;
+  if (w.matPlans.length) h += W3('II.4 KẾ HOẠCH VẬT TƯ') + `<table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">Khối lượng</th><th class="c">Ngày dự kiến</th></tr>${w.matPlans.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}${m.spec ? ' – ' + esc(m.spec) : ''}</td><td class="c">${esc(m.unit)}</td><td class="c">${esc(m.qty)}</td><td class="c">${vi(m.date)}</td></tr>`).join('')}</table>`;
+  // III. MẶT BẰNG – HÌNH ẢNH
+  h += `<div class="wsec1 ${w.layouts.some(l=>l.img||l.fileId)?'lysec':''}">III – MẶT BẰNG THI CÔNG TRONG TUẦN – HÌNH ẢNH / SITE LAYOUT & PICTURES</div>${layoutsHtml(w, o)}`;
   if (w.photos.length) { h += '<table class="phc wph3">'; for (let i = 0; i < w.photos.length; i += 3) { h += '<tr>' + w.photos.slice(i, i+3).map(p=>`<td>${(p.img || (o.pdf && p.fileId)) ? `<img src="${imgSrc(p, o)}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)} (${vi(p.date).slice(0,5)})</div></td>`).join('') + '</tr>'; } h += '</table>'; }
   h += docSign();
-  // Tracking MSP: mỗi ảnh Gantt 1 trang + QR file MS Project
+  // IV. TIẾN ĐỘ MSP – TRACKING: QR file MS Project + mỗi ảnh Gantt 1 trang
   if (w.gantt.length || w.msp) {
-    h += `<div class="sec gpb">TRACKING MSP – TIẾN ĐỘ CẬP NHẬT / UPDATED SCHEDULE${ov.rev ? ' ' + esc(ov.rev) : ''}</div>`;
+    h += `<div class="wsec1 gpb">IV – TIẾN ĐỘ MSP – TRACKING ĐÍNH KÈM${ov.rev ? ' (' + esc(ov.rev) + ')' : ''}</div>`;
     if (w.msp && w.msp.url) h += `<table class="wmsp"><tr><td style="width:90px">${qrImg(w.msp.url)}</td><td>File MS Project: <b>${esc(w.msp.name)}</b><br><span class="sm">Quét mã QR hoặc mở link: ${esc(w.msp.url)}</span></td></tr></table>`;
     w.gantt.forEach((g,i)=>{ const src = (o.gRot && o.gRot[i]) || ((g.img || (o.pdf && g.fileId)) ? imgSrc(g, o) : '');
       h += `<div class="gpage${i ? ' gpb' : ''}">${src ? `<img src="${src}"${i ? '' : ' style="max-height:225mm"'}>` : '<div class="noph">Đang tải ảnh Gantt…</div>'}<div class="sm">${esc(g.caption || 'Gantt ' + (i+1))}</div></div>`; });
   }
   return h + '</div>';
 }
-/** Nhóm dòng theo phần (A.1 XD / A.2 MEP) → khu vực. */
-function wGroupRows(list, cols, rowFn, pre){
-  let h = ''; SECTIONS.forEach((S2, si)=>{ const L = list.filter(t=>wSec(t) === S2.k);
-    h += `<tr><td colspan="${cols}" class="${S2.cls}">${pre}.${si+1} ${S2.k === 'XD' ? 'CÔNG VIỆC XÂY DỰNG / CIVIL WORKS' : 'CÔNG VIỆC MEP / M&E WORKS'}</td></tr>`;
+/** Nhóm dòng theo nhóm mục (ds [mã phần hoặc mảng mã, tiêu đề]) → khu vực. Phần Hoàn thiện/Khác trống thì ẩn. */
+function wGroupRows(list, cols, rowFn, groups){
+  const ROM = ['I','II','III','IV','V','VI','VII','VIII','IX','X']; let h = '';
+  groups.forEach(([ks, title])=>{ const keys = [].concat(ks), L = list.filter(t=>keys.includes(wSec(t)));
+    if (!L.length && keys.every(k=>(SECTIONS.find(x=>x.k===k)||{}).opt)) return;
+    h += `<tr><td colspan="${cols}" class="${keys[0]==='MEP' ? 'grp2' : 'grp'}">${title}</td></tr>`;
     if (!L.length) { h += `<tr><td></td><td colspan="${cols-1}" class="mut">Không có</td></tr>`; return; }
-    const zs = [...new Set(L.map(t=>t.zoneId || ''))];
-    zs.forEach((z, zi)=>{ h += `<tr><td colspan="${cols}" class="wz">${['I','II','III','IV','V','VI','VII','VIII','IX','X'][zi] || zi+1}. ${esc(zoneName(z) || 'Khác')}</td></tr>`;
-      L.filter(t=>(t.zoneId || '') === z).forEach((t,i)=>{ h += rowFn(t, i); }); }); });
+    const zs = [...new Set(L.map(t=>wSec(t) + '|' + (t.zoneId || '')))];
+    zs.forEach((zk, zi)=>{ const [sk, z] = zk.split('|'), lab = (keys.length > 1 ? (SECTIONS.find(x=>x.k===sk)||{}).label + ' – ' : '') + (zoneName(z) || 'Khác');
+      h += `<tr><td colspan="${cols}" class="wz">${ROM[zi] || zi+1}. ${esc(lab)}</td></tr>`;
+      L.filter(t=>wSec(t) + '|' + (t.zoneId || '') === zk).forEach((t,i)=>{ h += rowFn(t, i); }); }); });
   return h;
 }
 function renderWeekDoc(){ if (W) $('#pdoc').innerHTML = weekDocHTML(W); }
@@ -1954,8 +1999,16 @@ function renderConfig(){
     <label class="l">Dán link thư mục Google Drive của dự án (thư mục đã chia sẻ)</label>
     <input class="in" id="pdfLink" placeholder="https://drive.google.com/drive/folders/…">
     <div class="bar"><button class="btn pri" data-act="pdfFolderSet">✔ Kiểm tra & dùng thư mục này</button>${st.pdfFolderId?'<button class="btn" data-act="pdfFolderReset">↺ Về thư mục mặc định</button>':''}</div>
-    ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tuần · Báo cáo tháng. Đổi xong bấm “Lưu cài đặt”.')}
+    ${sw('settings.pdfMonthly', st.pdfMonthly!==false, 'Báo cáo ngày chia thư mục con theo tháng', 'Cấu trúc: &lt;thư mục đã chọn&gt; / Báo cáo ngày / 2026-11 · Báo cáo tháng; báo cáo tuần lưu thẳng trong thư mục đã chọn. Đổi xong bấm “Lưu cài đặt”.')}
     <div class="hint" style="padding:2px 0 6px">Tài khoản triển khai app phải có quyền <b>Người chỉnh sửa (Editor)</b> trên thư mục – app tự kiểm tra bằng cách ghi thử 1 file rồi xóa. PDF đã xuất trước đó vẫn giữ ở chỗ cũ.</div>
+    <div class="ph" style="margin-top:12px"><h3>📑 Hồ sơ đệ trình (file theo dõi)</h3></div>
+    ${st.register && st.register.id ? `<div class="note g">Đang đọc: <b><a href="${esc(st.register.url)}" target="_blank" rel="noopener">${esc(st.register.name)}</a></b> – dùng cho mục B.3/B.4 báo cáo tuần</div>
+      <div class="tw"><table class="ed"><thead><tr><th>Trang tính</th><th style="width:150px">Loại</th><th>Cột nhận được</th></tr></thead><tbody>${st.register.tabs.map((t,i)=>`<tr><td style="padding:6px"><b>${esc(t.name)}</b>${t.rows?`<div class="hint">${t.rows} dòng</div>`:''}</td>
+        <td><select class="in" data-cfg="settings.register.tabs.${i}.type">${[['sub','Hồ sơ đệ trình'],['doc','Văn bản'],['off','Bỏ qua']].map(([v,l])=>`<option value="${v}" ${t.type===v?'selected':''}>${l}</option>`).join('')}</select></td><td class="hint" style="padding:6px">${esc(t.note||'')}</td></tr>`).join('')}</tbody></table></div>
+      <div class="hint" style="padding:4px 0">Kết quả “X/Y” = TVGS/CĐT, lấy chữ sau: A, B → Đã duyệt · C → Trả về chỉnh sửa · D → Từ chối · trống → Chờ duyệt. Đổi loại xong bấm “Lưu cài đặt”.</div>` : '<div class="note">Chưa khai báo – báo cáo tuần mục B.3 (hồ sơ) và B.4 (văn bản) để trống.</div>'}
+    <label class="l">Dán link file Google Sheet theo dõi hồ sơ (sổ theo dõi trình duyệt)</label><input class="in" id="regLink" placeholder="https://docs.google.com/spreadsheets/d/…">
+    <div class="bar"><button class="btn pri" data-act="regSet">✔ Đọc & dùng file này</button>${st.register && st.register.id ? '<button class="btn" data-act="regOff">✕ Bỏ</button>' : ''}</div>
+    <div class="hint" style="padding:2px 0 6px">App chỉ <b>đọc</b>, không sửa file. Tài khoản triển khai app cần quyền <b>xem</b> file.</div>
     <div class="ph" style="margin-top:12px"><h3>✔ TVGS kiểm tra nội dung</h3></div>
     ${sw('settings.requireReview', st.requireReview!==false, 'Bắt buộc TVGS xác nhận nội dung trước khi xuất PDF chính thức', 'Nhà thầu chốt → TVGS xác nhận hoặc yêu cầu sửa → PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” và mã xác thực.')}
     <div class="note ${tv.length?'g':'w'}">${tv.length ? 'Tài khoản TVGS: <b>' + tv.map(u=>esc(u.name)).join(', ') + '</b>' : 'Chưa có tài khoản vai trò <b>TVGS – kiểm tra nội dung</b> → bước kiểm tra đang <b>tắt</b>. Thêm ở thẻ Người dùng & PIN.'}</div>
@@ -2222,7 +2275,14 @@ document.addEventListener('click', async e=>{
   if (a==='geoHere'){ if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ định vị');
     navigator.geolocation.getCurrentPosition(p=>{ CFG.project.lat = p.coords.latitude.toFixed(5); CFG.project.lon = p.coords.longitude.toFixed(5); renderConfig.edit = true; renderConfig(); toast('📍 Đã lấy tọa độ – bấm Lưu'); }, ()=>toast('Không lấy được vị trí – kiểm tra quyền định vị'), {enableHighAccuracy:true, timeout:15000}); return; }
   if (b.dataset.wtab){ WTAB = b.dataset.wtab; renderWeek(); return; }
-  if (a==='wGen'){ genWeek(W, P.reports, PW); markDirty('W'); renderWeek(); toast('✔ Đã tổng hợp lại – giữ các dòng đã sửa tay'); return; }
+  if (a==='wGen'){ genWeek(W, P.reports, PW); markDirty('W'); renderWeek(); toast('✔ Đã tổng hợp lại – giữ các dòng đã sửa tay'); if (regOn() && IS_GAS) readRegister(true); return; }
+  if (a==='wReg') return readRegister();
+  if (a==='regSet'){ const link = ($('#regLink').value||'').trim(); if (!link) { toast('Dán link file Google Sheet theo dõi hồ sơ trước'); return; }
+    toast('Đang đọc file…', 8000);
+    try { const r = await Store.checkRegister(link); CFG.settings = CFG.settings || {}; CFG.settings.register = {id:r.id, name:r.name, url:r.url, tabs:r.tabs.map(t=>({name:t.name, type:t.type, note:t.cols||t.note||'', rows:t.rows||0}))};
+      await Store.saveConfig(CFG); renderConfig(); toast(`✔ Đã nhận “${r.name}” – ${r.tabs.filter(t=>t.type!=='off').length} trang tính`, 5000);
+    } catch(e){ toast('⚠ ' + String(e.message||e).replace(/\*\*/g,''), 7000); } return; }
+  if (a==='regOff'){ delete CFG.settings.register; await Store.saveConfig(CFG); renderConfig(); toast('Đã bỏ file theo dõi hồ sơ'); return; }
   if (a==='wShuffle'){ W.photos = pickPhotos(P.reports); markDirty('W'); renderWeek(); return; }
   if (a==='wMspDel'){ W.msp = null; markDirty('W'); renderWeek(); return; }
   if (a==='wPlanFromTasks'){ const have = new Set(W.nextPlans.map(tkKey)); let n = 0;

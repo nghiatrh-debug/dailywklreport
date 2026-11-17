@@ -1,4 +1,4 @@
-const { ctx: C, sheets, files, props, cacheStore, shared, stats } = require('./gasmock.js');
+const { ctx: C, sheets, files, props, cacheStore, shared, stats, ext, mkSS } = require('./gasmock.js');
 const ctx = new Proxy(C, { get(o,k){ const f=o[k]; return typeof f==='function' && String(k).startsWith('api') ? (...a)=>{ o.__resetMemo(); return f(...a); } : f; } });
 const A = (c)=>{ if(!c[0]) { console.log('FAIL', c[1]); process.exitCode=1; } else console.log('ok', c[1]); };
 const J = s=>{ const o = JSON.parse(s); if (o && o.index && o.index.r) o.index = C.idxDec_(o.index); return o; };
@@ -217,6 +217,39 @@ console.log('Dung lượng: xong');
   A([up.fileId && files[up.fileId].sharing === 'ANYONE_WITH_LINK/VIEW', 'tải PDF MS Project lên Drive, ai có link xem được']);
 })();
 console.log('Báo cáo tuần: xong');
+// ===== Hồ sơ đệ trình (B.3) + văn bản (B.4) từ sổ theo dõi =====
+(() => {
+  const H1 = ['Date ', 'MC Code', 'Description', 'Submission Count', 'MC planned Date', 'Returned Date', 'DSPCONS Date', 'To PMH Date', 'PMH approved', 'SPM Date', 'Status', 'Checked by', 'Comment', 'Comment link '];
+  const top = [['', 'Total submission'], ['', 55], ['DỰ ÁN: CN8-2 SỔ THEO DÕI TRÌNH DUYỆT'], ['Người lập:'], ['Ghi chú: ...'], ['']];
+  ext.REGSHEET01234567890123 = mkSS('CN8-2_Follow-up', {
+    DS: top.concat([H1,
+      [new Date('2026-11-07T00:00:00'), 'CN8-2/VC/Civil/DS/40', 'HSNL thầu phụ hồ bơi\nPool contractor', 1, '', '', '', '', '', '', '', '', '', 'https://drive/x'],   // trình trong tuần, chờ
+      ['09/11/26', 'CN8-2/VC/Civil/DS/41', 'Biện pháp cốp pha bể', 2, '', '', '10/11/26', '10/11/26', '11/11/26', '', 'B/A', '', '', ''],                          // trình + duyệt trong tuần
+      ['20/10/26', 'CN8-2/VC/Civil/DS/30', 'Hồ sơ cũ có kết quả trong tuần', 1, '', '', '08/11/26', '', '', '', 'C', '', '', ''],                                  // cũ, trả về trong tuần
+      ['15/10/26', 'CN8-2/VC/Civil/DS/20', 'Hồ sơ cũ đã duyệt', 1, '', '', '18/10/26', '', '20/10/26', '', 'A/A', '', '', ''],                                     // cũ, không đổi → bỏ
+      ['10/11/26', 'CN8-2/VC/Civil/DS/42', 'Hồ sơ hủy', 1, '', '', '', '', '', '', 'hủy hồ sơ', '', '', '']]),                                                    // hủy → bỏ
+    'SDW-MEP': top.concat([['Date file', 'MC Code', 'Description', 'DSPCONS Date File', 'Vicons (Hard copy)', 'Returned Date', 'DSPCONS Date (Hard copy)', 'To PMH Date (Hard copy)', 'PMH approved (Hard copy)', 'SPM Date', 'Status'],
+      ['12/11/26', 'CN8-2/VC/MEP/SDW/50', 'Mặt bằng sleeve hầm B1', '12/11/26', '', '', '12/11/26', '', '', '', '']]),
+    SI: top.slice(2).concat([['Date ', 'MC Code', 'Description', 'Returned Date', 'DSPCONS Date', 'To PMH Date', 'PMH approved', 'SPM Date', 'Status'],
+      ['11/11/2026', 'CN8-2/DSPC/VC/SI.40', 'Chỉ thị an toàn điện'], ['01/10/2026', 'CN8-2/DSPC/VC/SI.30', 'Chỉ thị cũ']]),
+    Notes: [['ghi chú tự do']] });
+  let err = ''; try { ctx.apiCheckRegister(tk, 'https://docs.google.com/spreadsheets/d/NOPE'); } catch (e) { err = e.message; } A([/Link không hợp lệ|quyền/.test(err), 'link sổ sai / không có quyền → báo rõ']);
+  const r = J(ctx.apiCheckRegister(tk, 'https://docs.google.com/spreadsheets/d/REGSHEET01234567890123/edit?gid=336890647'));
+  const ty = {}; r.tabs.forEach(t => ty[t.name] = t.type);
+  A([r.name === 'CN8-2_Follow-up' && ty.DS === 'sub' && ty['SDW-MEP'] === 'sub' && ty.SI === 'doc' && ty.Notes === 'off', 'nhận trang tính: DS/SDW-MEP = hồ sơ, SI = văn bản, trang khác bỏ qua']);
+  const c9 = J(ctx.apiPublicConfig()); c9.settings.register = { id: r.id, name: r.name, url: r.url, tabs: r.tabs }; ctx.apiSaveConfig(tk, JSON.stringify(c9));
+  const w = J(ctx.apiRegisterWeek(tk, '2026-11-06', '2026-11-12')), by = {}; w.subs.forEach(x => by[x.code] = x);
+  A([w.subs.length === 4 && !by['CN8-2/VC/Civil/DS/20'] && !by['CN8-2/VC/Civil/DS/42'], 'B.3: chỉ hồ sơ phát sinh trong tuần (bỏ hồ sơ cũ không đổi, bỏ hồ sơ hủy): ' + w.subs.map(x => x.code).join(', ')]);
+  A([by['CN8-2/VC/Civil/DS/40'].st === 'pending' && by['CN8-2/VC/Civil/DS/40'].date === '2026-11-07' && by['CN8-2/VC/Civil/DS/40'].desc === 'HSNL thầu phụ hồ bơi', 'ô ngày kiểu Date + mô tả 2 dòng lấy dòng đầu → Chờ duyệt']);
+  A([by['CN8-2/VC/Civil/DS/41'].st === 'approved' && by['CN8-2/VC/Civil/DS/30'].st === 'returned' && by['CN8-2/VC/Civil/DS/30'].resDate === '2026-11-08', 'B/A → Đã duyệt; hồ sơ cũ C có kết quả trong tuần → Trả về chỉnh sửa']);
+  A([by['CN8-2/VC/MEP/SDW/50'].st === 'review' && by['CN8-2/VC/MEP/SDW/50'].group === 'MEP', 'MEP: TVGS đã nhận, chưa có kết quả → TVGS đang kiểm tra']);
+  A([w.docs.length === 1 && w.docs[0].code === 'CN8-2/DSPC/VC/SI.40', 'B.4: văn bản phát hành trong tuần']);
+  const wk = { v: 2, kind: 'week', key: 'W-2026-10-30', from: '2026-10-30', to: '2026-11-05', no: 33, status: 'locked', version: 1, overall: {}, tasks: [], submittals: w.subs, docs: w.docs };
+  const c10 = J(ctx.apiPublicConfig()); c10.settings.requireReview = false; ctx.apiSaveConfig(tk, JSON.stringify(c10));
+  ctx.apiSavePeriod(tk, JSON.stringify(wk));
+  A([sheets.Tuan_HoSo.data.filter(x => x[0] === wk.key).length === 5 && sheets.Tuan_HoSo.data.some(x => x[0] === wk.key && x[9] === 'Đã duyệt'), 'chốt tuần ghi bảng Tuan_HoSo (hồ sơ + văn bản)']);
+})();
+console.log('Hồ sơ đệ trình: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);

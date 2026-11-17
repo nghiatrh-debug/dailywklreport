@@ -12,7 +12,7 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Bộ kiểm thử đang bao phủ những gì
 
-**Máy chủ (111 kiểm thử, giả lập Google Apps Script)**
+**Máy chủ (119 kiểm thử, giả lập Google Apps Script)**
 - Đăng nhập & phân quyền: tạo mã PIN, sai PIN, token hết hạn; kỹ sư không sửa được cấu hình hay phiếu của người khác; chỉ Quản trị đổi logo và xem link Sheet/Drive.
 - Lưu phiếu & chốt ngày: ngày đã chốt chặn sửa phiếu; chốt lại không nhân đôi dòng; bảng chuẩn hóa (CongViec, BaoCao, HinhAnh) chỉ ghi khi chốt.
 - Ảnh: tải ảnh, không tải lại ảnh trùng, mặt bằng nhiều ảnh, dữ liệu gửi đi không kèm ảnh nặng.
@@ -23,6 +23,7 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - Tốc độ & bộ đệm: mở lại ngày lấy từ bộ đệm, lưu phiếu chỉ đọc Sheet 3 lần.
 - Dữ liệu lớn dần: chỉ mục ngày gọn, ghép đủ 300 việc, ô JSON lớn chia cột (vượt 180.000 ký tự → báo lỗi, không ghi hỏng), chốt lại tìm dòng bằng TextFinder.
 - Báo cáo tuần: lưu nháp + tải ảnh Gantt, chặn xuất PDF khi chưa chốt / chưa TVGS xác nhận, chốt ghi 6 bảng Tuan_*, TVGS trả lại phải ghi chú, xác nhận sinh mã tra được, tuần đã chốt không bị ghi đè, PDF lưu thẳng thư mục đã chọn và ai có link xem được, tuần sau nhận số liệu tuần trước, mở khóa làm mã cũ hết hiệu lực, tải PDF MS Project.
+- Hồ sơ đệ trình: link sổ sai/không quyền, nhận loại trang tính, chỉ lấy hồ sơ phát sinh trong tuần (bỏ cũ không đổi, bỏ hủy), ô ngày kiểu Date/chữ, mô tả 2 dòng, B/A → Đã duyệt, C cũ có kết quả trong tuần, MEP đang kiểm tra, văn bản trong tuần, ghi Tuan_HoSo.
 - Reset toàn bộ: lưu trữ, xóa dữ liệu, thu hồi token.
 
 **Giao diện (Playwright, điện thoại 375/390/412 px + máy tính, ảnh ở `tests/shots/`)**
@@ -55,3 +56,10 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 - **Kiểm thử mới:** máy chủ +14 (khối “Báo cáo tuần”), giao diện +15 (tuần ở máy tính). Kết quả: máy chủ 111/111, giao diện 113/113.
 - **Đã xem ảnh:** màn hình tuần đã chốt (thẻ Tiến độ), thẻ Hình ảnh, PDF tuần 4 trang in thử (đầu trang, thông tin chung, overall, A/B/C/D/E/F/G/H, trang Gantt + QR), giao diện điện thoại 390 px thẻ Công việc (không tràn ngang).
 - **Rủi ro còn lại:** PDF thật do Google dựng – cần xem lần xuất đầu tiên (biểu đồ chuyển thành ảnh PNG cho chắc; ảnh Gantt xoay 90° để in nguyên trang). Chưa có số liệu thật cho ảnh tiêu biểu/mặt bằng trong demo. Hồ sơ đệ trình + văn bản (Đợt 6B) chưa làm.
+| 2026-11-17 04:11 | ae869b9 | đạt | 119 đạt / 0 lỗi | 118 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6A+: cấu trúc I–IV, khu vực 4 loại, Đợt 6B hồ sơ đệ trình |
+
+### 2026-11-17 — Cấu trúc I–IV, khu vực 4 loại, Đợt 6B hồ sơ đệ trình
+- **Sửa gì:** PDF tuần xếp lại theo I (A–E) · II · III · IV, mục trống tự ẩn; thẻ nhập liệu đổi tên theo I.A…IV; khu vực thêm loại Hoàn thiện, Khác (báo cáo ngày cũng nhóm theo); đọc sổ theo dõi hồ sơ (Google Sheet) cho B.3/B.4, Cấu hình → Cài đặt có mục “Hồ sơ đệ trình”; bảng mới `Tuan_HoSo`.
+- **Kiểm thử mới:** máy chủ +8 (khối “Hồ sơ đệ trình” với sổ giả lập giống file CN8-2_Follow-up: DS, SDW-MEP, SI), giao diện +5 (cấu trúc I–III, mục trống ẩn, bảng B.3/B.4, thẻ I.B, khu vực Hoàn thiện ở báo cáo ngày). Kết quả: máy chủ 119/119, giao diện 118/118.
+- **Đã xem ảnh:** PDF tuần in thử 5 trang (I.A–E, B.3 có 3 hồ sơ Chờ/Đã duyệt/Trả về, B.4 văn bản SI, II nhóm theo khu vực, II.4).
+- **Rủi ro còn lại:** sổ thật có ô ngày ghi lẫn kiểu (m/d/yyyy ở trang Letter DSPcons) – ngày ≤ 12 sẽ hiểu là ngày/tháng; cần đối chiếu lần đọc đầu tiên. Đọc 23 trang tính mất khoảng 5–15 giây.
