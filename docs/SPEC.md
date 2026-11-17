@@ -247,3 +247,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - PDF ngày và tuần: dòng chữ nhỏ dưới phần ký "Lập bằng ứng dụng Lập báo cáo thi công · © 2026 Huỳnh Trọng Nghĩa".
 - Đầu file Code.gs, Index.html: dòng bản quyền + tác giả. File LICENSE (bảo lưu mọi quyền, kho công khai không phải giấy phép), README dẫn tới LICENSE.
 - Thông tin tác giả/phiên bản đặt 1 chỗ: hằng `APP` trong Index.html.
+
+## Đợt 6I (17/11/2026) – Giờ lấy thời tiết buổi chiều
+- Buổi sáng 6–12h, có sau 12h (giữ nguyên).
+- Buổi chiều: có sau **17h** (trước là 18h), mặc định tính 12–17h. Người chốt bấm "🌦 Lấy thời tiết" sau 17h của chính ngày đó → buổi chiều và nhiệt độ tính đến giờ hiện tại (VD bấm 19h20 → 12–19h). Ngày đã qua: 12–17h.
+- Bấm nút luôn tải số liệu mới (không dùng số đã tải trước đó trong phiên).

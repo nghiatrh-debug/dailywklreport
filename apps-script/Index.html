@@ -1458,24 +1458,25 @@ async function wxFetch(date){
   const url = `https:\/\/${old ? 'archive-api' : 'api'}.open-meteo.com/v1/${old ? 'archive' : 'forecast'}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,precipitation,cloud_cover&timezone=Asia%2FHo_Chi_Minh&start_date=${date}&end_date=${date}`;
   const res = await fetch(url); if (!res.ok) throw new Error('Open-Meteo ' + res.status); return res.json();
 }
-/* Gộp theo buổi: sáng 6–12h, chiều 12–18h. Mưa ≥10mm Mưa lớn · ≥2,5 Mưa · >0 Mưa rào · không mưa: mây <30% Nắng, <70% Nắng nhẹ, còn lại Nhiều mây */
-function wxSummary(j, date){
-  const H = (j && j.hourly) || {}, T = H.time || [], now = new Date(), td = today(), hr = now.getHours();
+/* Gộp theo buổi: sáng 6–12h (có sau 12h), chiều 12–17h (có sau 17h; lấy sau 17h trong ngày → chiều tính đến giờ hiện tại). Mưa ≥10mm Mưa lớn · ≥2,5 Mưa · >0 Mưa rào · không mưa: mây <30% Nắng, <70% Nắng nhẹ, còn lại Nhiều mây */
+function wxSummary(j, date, now){
+  now = now || new Date(); const H = (j && j.hourly) || {}, T = H.time || [], td = iso(now), hr = now.getHours();
   const pick = (a, b) => T.map((t,i)=>[+String(t).slice(11,13), i]).filter(([h])=>h>=a && h<b).map(([,i])=>i);
   const cls = idx => { if (!idx.length) return ''; const rain = idx.reduce((s,i)=>s+(+H.precipitation[i]||0),0), cl = idx.reduce((s,i)=>s+(+H.cloud_cover[i]||0),0)/idx.length;
     return rain >= 10 ? 'Mưa lớn / Heavy rain' : rain >= 2.5 ? 'Mưa / Rain' : rain >= 0.2 ? 'Mưa rào / Shower' : cl < 30 ? 'Nắng / Sunny' : cl < 70 ? 'Nắng nhẹ / Sunny' : 'Nhiều mây / Cloudy'; };
-  const future = date > td, amOk = future || date < td || hr >= 12, pmOk = future || date < td || hr >= 18;
-  const tt = pick(6, 19).map(i=>+H.temperature_2m[i]).filter(isFinite);
-  return { am: amOk ? cls(pick(6,12)) : '', pm: pmOk ? cls(pick(12,18)) : '', temp: pmOk && tt.length ? `${Math.round(Math.min(...tt))}oC- ${Math.round(Math.max(...tt))}oC` : '', forecast: future };
+  const future = date > td, amOk = future || date < td || hr >= 12, pmOk = future || date < td || hr >= 17;
+  const pmEnd = date === td && hr > 17 ? Math.min(hr, 24) : 17;     // hôm nay, lấy sau 17h → tính đến giờ hiện tại
+  const tt = pick(6, pmEnd + 1).map(i=>+H.temperature_2m[i]).filter(isFinite);
+  return { am: amOk ? cls(pick(6,12)) : '', pm: pmOk ? cls(pick(12, pmEnd)) : '', temp: pmOk && tt.length ? `${Math.round(Math.min(...tt))}oC- ${Math.round(Math.max(...tt))}oC` : '', forecast: future, pmEnd };
 }
 /* force: bấm nút → ghi đè; tự động khi mở ngày → chỉ điền ô trống */
 async function autoWeather(force){
   if (!R || !hasGeo() || repLocked() || !isChot()) return;
   const w = R.weather; if (!force && w.am && w.pm && w.temp) return;
-  try { const k = R.date + '|' + CFG.project.lat + ',' + CFG.project.lon; const j = WXMEM[k] || (WXMEM[k] = await wxFetch(R.date)); const x = wxSummary(j, R.date); let ch = 0;
+  try { const k = R.date + '|' + CFG.project.lat + ',' + CFG.project.lon; const j = (!force && WXMEM[k]) || (WXMEM[k] = await wxFetch(R.date)); const x = wxSummary(j, R.date); let ch = 0;   // bấm nút → luôn tải số mới
     ['am','pm','temp'].forEach(f=>{ if (x[f] && (force || !w[f])) { if (w[f] !== x[f]) ch++; w[f] = x[f]; } });
     if (ch || force) { R.weatherSrc = 'Open-Meteo' + (x.forecast ? ' (dự báo)' : ''); markDirty('R'); if (TAB==='general') renderForm(); renderDoc(); }
-    if (force) toast(x.am || x.pm ? '🌦 Đã lấy thời tiết' + (x.pm ? '' : ' buổi sáng (buổi chiều có sau 18h)') : 'Chưa có số liệu thời tiết cho buổi đã qua của ngày này');
+    if (force) toast(x.am || x.pm ? '🌦 Đã lấy thời tiết' + (x.pm ? (x.pmEnd > 17 ? ` (chiều tính đến ${x.pmEnd}h)` : '') : ' buổi sáng (buổi chiều có sau 17h)') : 'Chưa có số liệu thời tiết cho buổi đã qua của ngày này');
   } catch(e){ if (force) toast('⚠ Không lấy được thời tiết: ' + (e.message||e), 5000); }
 }
 /* Dấu TVGS: mã QR nhỏ góc phải, ngang tiêu đề báo cáo */

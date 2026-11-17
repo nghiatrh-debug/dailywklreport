@@ -192,6 +192,11 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(/Thư mục lưu báo cáo tuần/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#weekLink') && await pg.locator('[data-act=weekFolderSet]').count() === 1, 'Cài đặt: chọn thư mục riêng lưu báo cáo tuần');
     ok(/Tự dọn dữ liệu/.test(await pg.innerText('#configPane')) && /quá 3 tháng/.test(await pg.innerText('#configPane')) && /Thùng rác/i.test(await pg.innerText('#configPane')), 'Cài đặt: ghi chú tự dọn ảnh quá 3 tháng vào thùng rác Drive');
     ok(login.copyOk, 'Màn đăng nhập: dòng © 2026 Huỳnh Trọng Nghĩa');
+    ok(await pg.evaluate(() => { const d = '2026-11-17', T = [], P = [], C = [], K = []; for (let h = 0; h < 24; h++) { T.push(d + 'T' + String(h).padStart(2,'0') + ':00'); P.push(h === 18 ? 5 : 0); C.push(10); K.push(25 + (h === 18 ? 9 : 0)); }
+      const j = {hourly:{time:T, precipitation:P, cloud_cover:C, temperature_2m:K}}, at = h => wxSummary(j, d, new Date(2026, 10, 17, h, 20));
+      const a16 = at(16), a17 = at(17), a19 = at(19), past = wxSummary(j, d, new Date(2026, 10, 18, 9, 0));
+      return a16.am && !a16.pm && /Nắng/.test(a17.pm) && a17.pmEnd === 17 && /Mưa/.test(a19.pm) && a19.pmEnd === 19 && /34oC/.test(a19.temp) && /Nắng/.test(past.pm) && !/34/.test(past.temp); }),
+      'Thời tiết: chiều có sau 17h (12–17h); bấm lúc 19h tính đến 19h; ngày đã qua tính 12–17h');
     ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền');
     await shot(pg, 'desk_settings');
     await pg.check('[data-cfgchk="settings.testMode"]'); await pg.click('#configPane [data-act=saveCfg]'); await wait(500);
