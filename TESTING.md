@@ -63,3 +63,8 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 - **Kiểm thử mới:** máy chủ +8 (khối “Hồ sơ đệ trình” với sổ giả lập giống file CN8-2_Follow-up: DS, SDW-MEP, SI), giao diện +5 (cấu trúc I–III, mục trống ẩn, bảng B.3/B.4, thẻ I.B, khu vực Hoàn thiện ở báo cáo ngày). Kết quả: máy chủ 119/119, giao diện 118/118.
 - **Đã xem ảnh:** PDF tuần in thử 5 trang (I.A–E, B.3 có 3 hồ sơ Chờ/Đã duyệt/Trả về, B.4 văn bản SI, II nhóm theo khu vực, II.4).
 - **Rủi ro còn lại:** sổ thật có ô ngày ghi lẫn kiểu (m/d/yyyy ở trang Letter DSPcons) – ngày ≤ 12 sẽ hiểu là ngày/tháng; cần đối chiếu lần đọc đầu tiên. Đọc 23 trang tính mất khoảng 5–15 giây.
+| 2026-11-17 04:27 | 4927e8b | đạt | 119 đạt / 0 lỗi | 118 đạt / 0 lỗi | ✅ ĐẠT | Nhân lực tuần: chỉ bình quân |
+
+### 2026-11-17 — Nhân lực tuần chỉ lấy bình quân
+- **Sửa gì:** mục D (PDF) và thẻ I.D chỉ còn cột “Số lượng bình quân (người/ngày)”, dòng tổng = cộng các số bình quân; bỏ cột “Cao nhất” và “Tổng công” cho khỏi hiểu nhầm. Biểu đồ cột theo ngày giữ nguyên.
+- **Kiểm thử mới:** giao diện +1 (bảng nhân lực không còn “Tổng công/Cao nhất”).

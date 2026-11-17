@@ -229,6 +229,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.fill('[data-root=W][data-path="nextPlans.0.target"]', '50'); await wait(200);
     ok(await pg.evaluate(() => W.nextPlans.length > 0 && W.nextPlans[0].target === 50), 'KH tuần sau: tạo từ việc chưa xong, nhập % mục tiêu');
     await pg.click('[data-wtab=mp]'); ok(await pg.locator('.wpane .wchart svg').count() === 1 && await pg.locator('[data-root=W][data-path^="manpower."][data-path$=".avg"]').count() > 0, 'Nhân lực: biểu đồ + bảng TB/ngày');
+    ok(await pg.evaluate(() => { const t = $('#pdoc').innerText; return /TỔNG BÌNH QUÂN/.test(t) && !/Tổng công/.test(t) && !/Cao nhất/.test(t.split('C.2')[0]); }), 'Bảng nhân lực tuần chỉ có số bình quân, tổng = cộng bình quân');
     const wd2 = await pg.innerText('#pdoc');
     ok(/I – CÁC HOẠT ĐỘNG THI CÔNG TRONG TUẦN/.test(wd2) && /B – CÔNG TÁC CHẤT LƯỢNG/.test(wd2) && /C\.2 THIẾT BỊ MÁY MÓC/.test(wd2) && /D – NHÂN LỰC NHÀ THẦU/.test(wd2) && /II – KẾ HOẠCH CHO TUẦN TIẾP THEO/.test(wd2) && /III – MẶT BẰNG/.test(wd2), 'PDF tuần theo cấu trúc I – II – III (A–E, B.1–B.3, C.1–C.2)');
     ok(!/A\.3 CÔNG VIỆC HOÀN THIỆN/.test(wd2) && !/B\.4 VĂN BẢN/.test(wd2) && !/IV – TIẾN ĐỘ MSP/.test(wd2), 'Mục trống tự ẩn (A.3 hoàn thiện, B.4 văn bản, IV MSP)');

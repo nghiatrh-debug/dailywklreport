@@ -1790,8 +1790,8 @@ function renderWeek(){
   }
   if (WTAB === 'mp'){
     h += `<div class="wchart">${mpChartSvg(w)}</div><div class="ph"><h3>D. Nhân lực nhà thầu</h3></div>`;
-    w.manpower.forEach((m,i)=>{ h += wRow('manpower', i, w.manpower.length, `<div class="wg"><div class="w2">${inp(`manpower.${i}.title`, m.title, 'Chức danh')}</div><div><label class="l">TB/ngày</label>${ninp(`manpower.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`manpower.${i}.max`, m.max)}</div><div><label class="l">Tổng công</label>${ninp(`manpower.${i}.total`, m.total)}</div></div>`); });
-    h += addBtn('manpower', 'Thêm chức danh', JSON.stringify({title:'', avg:'', max:'', total:''}));
+    w.manpower.forEach((m,i)=>{ h += wRow('manpower', i, w.manpower.length, `<div class="wg"><div class="w2">${inp(`manpower.${i}.title`, m.title, 'Chức danh')}</div><div><label class="l">Bình quân (người/ngày)</label>${ninp(`manpower.${i}.avg`, m.avg)}</div></div>`); });
+    h += addBtn('manpower', 'Thêm chức danh', JSON.stringify({title:'', avg:''})) + `<div class="sumrow"><span>TỔNG BÌNH QUÂN</span><span>${r1(w.manpower.reduce((s,m)=>s+num(m.avg),0))} người/ngày</span></div>`;
   }
   if (WTAB === 'plan'){
     h += `<div class="ph"><h3>II.1 Thi công · II.2 Cơ điện</h3>${RO ? '' : '<button class="btn sm" data-act="wPlanFromTasks">＋ Tạo từ các việc chưa xong</button>'}</div><div class="hint">Khu vực loại MEP vào II.2, các loại khác vào II.1.</div>`;
@@ -1908,9 +1908,9 @@ function weekDocHTML(w, o = {}){
   ${w.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td></tr>`).join('') || '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table>`;
   // D. nhân lực
   h += W2('D', `NHÂN LỰC NHÀ THẦU / CONTRACTOR'S MANPOWER <span>BÌNH QUÂN ${r1(mpT)} NGƯỜI/NGÀY</span>`) + `<div class="wchart">${o.chartPng ? `<img src="${o.chartPng}" style="width:100%">` : mpChartSvg(w)}</div>
-  <table class="grid"><tr><th class="c">Stt</th><th>Chức danh / Title</th><th class="c" style="width:70px">TB/ngày</th><th class="c" style="width:70px">Cao nhất</th><th class="c" style="width:70px">Tổng công</th></tr>
-  ${w.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td><td class="c">${esc(m.total)}</td></tr>`).join('')}
-  <tr class="tot"><td colspan="2" class="r">TỔNG:</td><td class="c v">${r1(mpT)}</td><td></td><td class="c">${w.manpower.reduce((s,m)=>s+num(m.total),0)}</td></tr></table>`;
+  <table class="grid"><tr><th class="c">Stt</th><th>Chức danh / Title</th><th class="c" style="width:110px">Số lượng bình quân<br>(người/ngày)</th></tr>
+  ${w.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c"><b>${esc(m.avg)}</b></td></tr>`).join('')}
+  <tr class="tot"><td colspan="2" class="r">TỔNG BÌNH QUÂN / TOTAL:</td><td class="c v">${r1(mpT)}</td></tr></table>`;
   // E. an toàn
   const sf = w.safety;
   h += W2('E', `AN TOÀN LAO ĐỘNG / SAFETY <span>${sf.issues.length} nhắc nhở / vi phạm</span>`) + `<div class="txt">${esc(sf.summary) || '—'}</div>
