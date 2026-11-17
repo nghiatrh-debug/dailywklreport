@@ -36,6 +36,17 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dữ liệu tổng hợp
+- **Sửa:**
+  - Tên app thành "LẬP BÁO CÁO THI CÔNG" (tiêu đề, tab trình duyệt, tên icon).
+  - Mục "Tuần / Tháng" thành "Báo cáo tuần"; bỏ chọn "Theo tháng".
+  - Màn nhập tuần dùng khung phiếu ngày: thẻ có biểu tượng ở đầu; bảng theo khu vực trên máy tính, mỗi dòng một thẻ trên điện thoại; thanh nút Lưu nháp / Chốt tuần ở cuối (điện thoại: thanh dưới).
+  - Dòng tổng hợp từ báo cáo ngày khóa (ô xám 🔒, không xóa). Dòng thêm mới (nhãn "Mới") sửa và xóa được. Ghi chú luôn sửa được. % KH chỉ nhập tay khi tuần trước không có kế hoạch.
+  - 3 mục đánh giá (an toàn, thi công, nguồn lực) tự xếp loại, hiện căn cứ, không sửa tay.
+- **Kiểm thử mới (ui):** tên app và mục; không còn chọn tháng; đánh giá không có ô sửa; dòng tổng hợp không sửa/xóa được nhưng ghi chú sửa được; thêm việc mới trong khu vực sửa được, giữ lại khi tổng hợp lại; điện thoại (390 px) hiện dạng thẻ, nút Chốt tuần ở thanh dưới, không tràn ngang.
+- **Ảnh đã xem:** desk_week_gen.png, desk_week_task.png, m_ip_week_task.png.
+- **Rủi ro còn lại:** báo cáo tuần đã lưu trước đợt này có dòng tổng hợp từng sửa tay; bấm "Tổng hợp lại" sẽ lấy lại số từ báo cáo ngày (đúng theo nguyên tắc mới). Bảng công việc trên máy tính rộng 860 px, cuộn ngang trong khung như phiếu ngày.
+
 ### 17/11 – Thư mục riêng lưu báo cáo tuần
 - **Sửa:** Cấu hình → Cài đặt có thêm mục "📁 Thư mục lưu báo cáo tuần". Dán link thư mục Drive, bấm "Kiểm tra & dùng thư mục này" (app ghi thử để kiểm tra quyền). Đã chọn → PDF báo cáo tuần lưu thẳng vào đó; chưa chọn → lưu chung với thư mục PDF như cũ. Có nút bỏ chọn.
 - **Kiểm thử mới:** gastest – chọn thư mục riêng thì PDF tuần nằm trong thư mục đó, không nằm ở thư mục PDF chung; ui – màn Cài đặt có ô dán link và nút kiểm tra.
@@ -86,3 +97,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 04:50 | 9e03095 | đạt | 120 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Sửa /dev trắng (2): ghi https:\/\/ trong chuỗi JS để GAS không cắt nhầm |
 | 2026-11-17 05:01 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 119 đạt / 1 lỗi | ❌ LỖI | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
 | 2026-11-17 05:04 | 0111cd3 | đạt | 121 đạt / 0 lỗi | 120 đạt / 0 lỗi | ✅ ĐẠT | Thêm thư mục riêng lưu báo cáo tuần trong Cài đặt |
+| 2026-11-17 05:54 | 1bd5ba0 | đạt | 121 đạt / 0 lỗi | 124 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dòng tổng hợp, tự xếp loại, đổi tên app |

@@ -55,7 +55,7 @@ function doGet(e) {
   } catch (err) { boot = ''; }
   t.boot = boot;
   return t.evaluate()
-    .setTitle('Báo cáo ngày công trường')
+    .setTitle('Lập báo cáo thi công')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

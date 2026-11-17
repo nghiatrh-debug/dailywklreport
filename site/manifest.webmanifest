@@ -1,6 +1,6 @@
 {
-  "name": "Báo cáo ngày công trường",
-  "short_name": "Báo cáo ngày",
+  "name": "Lập báo cáo thi công",
+  "short_name": "Báo cáo thi công",
   "description": "Lập, chốt, kiểm tra và xuất PDF báo cáo ngày công trường",
   "start_url": "./",
   "scope": "./",

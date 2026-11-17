@@ -203,3 +203,11 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 ## Bổ sung 17/11/2026 – Thư mục lưu báo cáo tuần
 - Cấu hình → Cài đặt có thêm mục "📁 Thư mục lưu báo cáo tuần" (`settings.weekFolderId`, `weekFolderName`): dán link thư mục Drive, app kiểm tra quyền ghi như thư mục PDF.
 - Đã chọn → PDF báo cáo tuần lưu thẳng vào thư mục này. Chưa chọn → như cũ (thẳng trong thư mục PDF đã chọn, hoặc thư mục mặc định PDF/Tuan).
+
+## Đợt 6C (17/11/2026) – Báo cáo tuần nhập giống báo cáo ngày, khóa dữ liệu tổng hợp
+- Tên app: **LẬP BÁO CÁO THI CÔNG** (tiêu đề, tab trình duyệt, tên icon). Mục "Tuần / Tháng" → **Báo cáo tuần**; ẩn chọn "Theo tháng" (báo cáo tháng làm sau).
+- Màn nhập tuần dùng chung khung phiếu ngày: thẻ có biểu tượng ở đầu, thanh nút cố định cuối (⟳ Tổng hợp lại · 💾 Lưu nháp · 🔒 Chốt tuần / 🔓 Mở khóa / TVGS xác nhận). Máy tính: bảng theo khu vực (thẻ "📍 Zone · loại"); điện thoại: mỗi dòng 1 thẻ.
+- **Dòng tổng hợp từ báo cáo ngày khóa** (ô xám 🔒, không xóa): I.A công việc, B.1 nghiệm thu, B.2 thí nghiệm, II.3 KH nghiệm thu, C.1 vật tư, C.2 thiết bị, D nhân lực, E vi phạm an toàn, B.3/B.4 hồ sơ. Dòng thêm tay: sửa/xóa được. Số liệu sai → sửa ở báo cáo ngày rồi "Tổng hợp lại". Tổng hợp lại: dòng tổng hợp lấy số mới, giữ dòng thêm tay.
+- I.A: % KH lấy từ "KH tuần sau" của tuần trước (khóa); việc không có KH → ô KH nhập tay. Cột ghi chú luôn sửa được (giữ khi tổng hợp lại). Tuần đầu tiên: "kỳ trước" vật tư nhập tay.
+- **Đánh giá tuần tự xếp loại, không sửa:** An toàn: 0 vi phạm Tốt, 1–3 TB, >3 Kém. Thi công: chênh lệch tiến độ tổng ≥0 Tốt, ≥−5% TB, <−5% Kém (chưa nhập % → theo số việc trễ KH: 0 Tốt, ≤3 TB, >3 Kém). Nguồn lực: tổng nhân lực bình quân so tuần trước giảm <20% Tốt, 20–40% TB, >40% Kém (không có tuần trước → Tốt).
+- Vẫn nhập tay: tiến độ tổng (%), nhận xét, nhận xét an toàn, hoạt động an toàn, II.1/II.2 KH tuần sau, II.4 KH vật tư, ảnh, MSP.
