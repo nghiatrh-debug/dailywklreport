@@ -68,3 +68,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 ### 2026-11-17 — Nhân lực tuần chỉ lấy bình quân
 - **Sửa gì:** mục D (PDF) và thẻ I.D chỉ còn cột “Số lượng bình quân (người/ngày)”, dòng tổng = cộng các số bình quân; bỏ cột “Cao nhất” và “Tổng công” cho khỏi hiểu nhầm. Biểu đồ cột theo ngày giữ nguyên.
 - **Kiểm thử mới:** giao diện +1 (bảng nhân lực không còn “Tổng công/Cao nhất”).
+| 2026-11-17 04:39 | 07511c4 | đạt | 119 đạt / 0 lỗi | 119 đạt / 0 lỗi | ✅ ĐẠT | Hiện lỗi JS trên màn hình (chẩn đoán /dev trắng) |
