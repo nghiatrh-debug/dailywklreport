@@ -252,9 +252,19 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     const wd3 = await pg.innerText('#pdoc');
     ok(/DS\/40/.test(wd3) && /Chờ duyệt/.test(wd3) && /Đã duyệt/.test(wd3) && /B\.4 VĂN BẢN/.test(wd3) && /Trình mới 2 · Đã duyệt 1/.test(wd3), 'B.3 bảng hồ sơ phát sinh trong tuần + tình trạng; B.4 văn bản');
     await pg.click('[data-wtab=qa]'); ok(await pg.locator('.wpane .badge').count() === 2, 'Thẻ I.B: danh sách hồ sơ có nhãn tình trạng');
+    ok(await pg.evaluate(() => { const hs = [...document.querySelectorAll('#periodPane .ph h3')].map(e=>e.innerText); const i3 = hs.findIndex(t=>/B\.3/.test(t)), i4 = hs.findIndex(t=>/B\.4/.test(t));
+      return i3 >= 0 && i4 > i3 && !/B\.4/.test(hs[i3]) && document.querySelectorAll('#periodPane table').length >= 4 && /Trình mới/.test($('#periodPane .regsum').innerText); }), 'B.3 hồ sơ và B.4 văn bản là 2 mục riêng, mỗi mục 1 bảng, có dòng tổng hợp tình trạng');
+    ok(await pg.evaluate(() => { const r = [...document.querySelectorAll('#periodPane table')].find(t=>/Mã hồ sơ/i.test(t.innerText)); return r && /Chờ duyệt/.test(r.rows[1].innerText) && /Đã duyệt/.test(r.rows[2].innerText); }), 'B.3: hồ sơ chưa duyệt xếp trước hồ sơ đã duyệt');
+    await shot(pg, 'desk_week_qa');
     await pg.click('[data-wtab=photo]');
+    ok(await pg.evaluate(() => WPHOTO_N === 30 && WLAYOUT_MAX === 10 && !!document.querySelector('input[data-img=wphotos]')), 'Ảnh tiêu biểu tối đa 30, có ô thêm ảnh; mặt bằng tuần tối đa 10');
+    const nP0 = await pg.evaluate(() => W.photos.length);
+    await pg.setInputFiles('input[data-img=wphotos]', [{ name: 'Anh tu them.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAIAAAB/FOjAAAAAH0lEQVR42mNk+M+ABzAxEAEYGRgYGBkZGBj/MxDUMAMAqwgCCTL0vDMAAAAASUVORK5CYII=', 'base64') }]); await wait(800);
+    ok(await pg.evaluate(n => W.photos.length === n + 1 && W.photos[n].manual && W.photos[n].caption === 'Anh tu them', nP0), 'Ảnh tiêu biểu: người chốt thêm ảnh');
+    await pg.click('[data-act=wShuffle]'); await wait(300);
+    ok(await pg.evaluate(() => W.photos.some(p=>p.manual && p.caption === 'Anh tu them') && W.photos.length <= 30), 'Đổi bộ ảnh khác: giữ ảnh tự thêm');
     const PNGW = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAICAIAAAB/FOjAAAAAH0lEQVR42mNk+M+ABzAxEAEYGRgYGBkZGBj/MxDUMAMAqwgCCTL0vDMAAAAASUVORK5CYII=', 'base64');
-    if (await pg.evaluate(() => W.layouts.length >= LAYOUT_MAX)) { ok(/Đã đủ 6 ảnh/.test(await pg.innerText('#periodPane')), 'Mặt bằng tuần: đủ 6 ảnh thì báo, không cho thêm'); await pg.click('[data-act=del][data-root=W][data-path=layouts] >> nth=0'); await wait(300); }
+    if (await pg.evaluate(() => W.layouts.length >= WLAYOUT_MAX)) { ok(/Đã đủ 10 ảnh/.test(await pg.innerText('#periodPane')), 'Mặt bằng tuần: đủ 10 ảnh thì báo, không cho thêm'); await pg.click('[data-act=del][data-root=W][data-path=layouts] >> nth=0'); await wait(300); }
     const nL0 = await pg.evaluate(() => W.layouts.length);
     await pg.setInputFiles('input[data-img=wlayouts]', [{ name: 'MB tuan san GF.png', mimeType: 'image/png', buffer: PNGW }]); await wait(800);
     ok(await pg.evaluate(n => W.layouts.length === n + 1 && W.layouts[n].caption === 'MB tuan san GF', nL0), 'Mặt bằng tuần: thêm ảnh như báo cáo ngày');

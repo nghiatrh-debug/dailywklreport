@@ -230,3 +230,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
   - Không xóa: ảnh mặt bằng còn được ngày trong 3 tháng gần nhất dùng (kế thừa); file MSP (QR trỏ tới); logo; PDF báo cáo.
   - Ghi tiến độ dọn (`CLEAN_UPTO`, `WCLEAN_UPTO`) để không quét lại. Ngày quá hạn mà chưa chốt/chưa xuất PDF thì giữ nguyên.
 - Cấu hình → Cài đặt: chỉ ghi chú cho người dùng biết quy tắc tự dọn.
+
+## Đợt 6F (17/11/2026) – ảnh tuần, B.3/B.4 tách riêng
+1. Hình ảnh tiêu biểu tuần: tự lấy ngẫu nhiên **30 ảnh** từ các báo cáo ngày (rải đều các ngày). Người chốt **thêm ảnh** (tải lên, tối đa tổng 30) và **xóa** ảnh không cần. "Đổi bộ ảnh khác" giữ ảnh tự thêm, chỉ đổi phần ảnh lấy ngẫu nhiên. Ảnh thêm tay tải lên Drive khi lưu.
+2. Mặt bằng thi công tuần: tối đa **10 ảnh** (báo cáo ngày vẫn 6).
+3. B.3 Tình trạng hồ sơ đệ trình và B.4 Văn bản trong tuần: **2 mục riêng**, mỗi mục 1 bảng (điện thoại: thẻ). B.3 có dòng tổng hợp số lượng theo tình trạng, sắp xếp: Trả về / Từ chối → Chờ duyệt / TVGS đang kiểm tra → Đã duyệt.

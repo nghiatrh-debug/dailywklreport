@@ -189,6 +189,7 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 <style>
 .wrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--bd);border-radius:10px;padding:8px;margin:8px 0;background:#fff}.wrow .wg{flex:1;min-width:0}
 .wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.wg .w2{grid-column:span 2}.wact{display:flex;flex-direction:column;gap:4px;align-items:center}
+.regsum{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.regsum span{border:1px solid var(--bd);border-radius:99px;padding:3px 10px;font-size:12.5px;background:#fff}.regsum .ok{border-color:#a7f3d0;color:#047857}.regsum .bad{border-color:#fecaca;color:#b91c1c}.regsum .wait{border-color:#fde68a;color:#92400e}
 .lkv{background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:8px;padding:7px 6px;text-align:center;color:#334155;min-height:34px;font-size:13px}.lkv.tx{text-align:left}
 tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .wrategood,.wratemid,.wratebad{border:1px solid var(--bd);border-radius:10px;padding:8px 12px;margin:6px 0;background:#fff}.wratemid{border-color:#fde68a}.wratebad{border-color:#fecaca}
@@ -1626,7 +1627,7 @@ const RATE_TXT = { safety:['An toàn & vệ sinh','Mọi công tác đạt vệ 
   work:['Công tác thi công','Mọi công tác kịp tiến độ','Một số hạng mục trễ','Nhiều hạng mục trễ'],
   resource:['Nguồn lực','Mọi nguồn lực sẵn có','Một số nguồn lực bị thiếu','Chậm trễ do thiếu nguồn lực'] };
 const MP_COL = ['#4472c4','#e15759','#9bbb59','#8064a2','#4bacc6','#f79646','#1f3864','#7f1d1d','#a5a5a5','#ffc000','#5b9bd5','#70ad47'];
-const GANTT_MAX = 6, WPHOTO_N = 6;
+const GANTT_MAX = 6, WPHOTO_N = 30, WLAYOUT_MAX = 10;
 const wNum = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
 const wPct = v => wNum(v) === null ? '—' : (Math.round(+v * 100) / 100) + '%';
 const zoneName = id => (zoneById(id)||{}).name || '';
@@ -1721,8 +1722,8 @@ function genWeek(w, reps, pw){
 }
 function photoPool(reps){ return reps.map(r=>(r.photos||[]).concat(r.extraPhotos||[]).filter(p=>p.fileId || p.img).map(p=>({id:uid(), fileId:p.fileId||'', img:p.img||'', caption:p.caption||'', date:r.date}))); }
 /** Chọn ngẫu nhiên WPHOTO_N ảnh, lần lượt từng ngày để rải đều cả tuần. */
-function pickPhotos(reps){ const pools = photoPool(reps).map(a=>a.sort(()=>Math.random() - 0.5)).filter(a=>a.length), out = [];
-  while (out.length < WPHOTO_N && pools.some(a=>a.length)) pools.forEach(a=>{ if (a.length && out.length < WPHOTO_N) out.push(a.pop()); });
+function pickPhotos(reps, max = WPHOTO_N){ const pools = photoPool(reps).map(a=>a.sort(()=>Math.random() - 0.5)).filter(a=>a.length), out = [];
+  while (out.length < max && pools.some(a=>a.length)) pools.forEach(a=>{ if (a.length && out.length < max) out.push(a.pop()); });
   return out.sort((a,b)=>a.date.localeCompare(b.date)); }
 const mpTot = w => r1((w.manpower||[]).reduce((s,m)=>s+num(m.avg),0));
 /** Tự xếp loại đánh giá tuần (không sửa tay). */
@@ -1740,6 +1741,7 @@ async function saveW(silent){
     const res = await Store.savePeriod(p) || {}; delete W._unsaved; delete W._lockNow;
     if (res.gantt) res.gantt.forEach((f,i)=>{ if (W.gantt[i] && f) W.gantt[i].fileId = f; });
     if (res.layouts) res.layouts.forEach((f,i)=>{ if (W.layouts[i] && f) W.layouts[i].fileId = f; });
+    if (res.photos) res.photos.forEach((f,i)=>{ if (W.photos[i] && f) W.photos[i].fileId = f; });
     if ('review' in res) W.review = res.review; if (res.lockedAt) W.lockedAt = res.lockedAt;
     setSave('ok'); if (!silent) toast('✔ Đã lưu báo cáo tuần');
   } catch(e){ dirty.W = true; setSave('err'); toast('⚠ Lỗi lưu báo cáo tuần: ' + (e.message||e), 5000); }
@@ -1792,6 +1794,13 @@ function wPlanCalc(pl, tasks){ const t = (tasks||[]).find(x=>tkKey(x)===tkKey(pl
   pl.base = b; pl.target = hasV(pl.add) ? r1(Math.min(100, b + num(pl.add))) : ''; return pl; }
 const PLAN_COLS = [{l:'Nội dung kế hoạch', k:'desc', t:'ta', ph:'Công việc tuần sau', w:300}, {l:'Lũy kế hiện tại', calc:pl=>wPct(pl.base), w:90},
   {l:'% dự kiến thực hiện', k:'add', t:'n', w:110}, {l:'Lũy kế dự kiến', calc:pl=>`<b>${wPct(pl.target)}</b>`, id:'wpt', w:100}];
+/** Bảng chỉ xem (B.3 / B.4): máy tính = bảng, điện thoại = thẻ. cols = [[nhãn, hàm(x) → html, rộng]] */
+function regView(L, cols, empty){
+  if (!L.length) return `<p class="hint" style="padding:6px 2px">${empty}</p>`;
+  if (isMobile()) return L.map((x,i)=>`<div class="tcard wauto"><div class="tc-h"><span class="n">#${i+1}</span><span class="sp"></span></div>${cols.map(([l,f])=>mf(l, `<div>${f(x) || '—'}</div>`)).join('')}</div>`).join('');
+  return `<div class="tw"><table class="ed" style="min-width:760px"><thead><tr><th style="width:44px">STT</th>${cols.map(([l,,w])=>`<th ${w ? `style="width:${w}px"` : ''}>${l}</th>`).join('')}</tr></thead><tbody>
+    ${L.map((x,i)=>`<tr><td class="n">${i+1}</td>${cols.map(([,f])=>`<td style="padding:9px 8px">${f(x) || '—'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
 function renderWeek(){
   const pr = periodRange(); EDIT = 'W'; RO = weekRO(); const w = W, rv = w.review || {}, A = aggregate(P.reports), M = isMobile();
   if (w.status !== 'locked') autoRatings(w);
@@ -1846,11 +1855,19 @@ function renderWeek(){
   if (WTAB === 'qa'){
     h += lockHint + wHead('✅ B.1 Nghiệm thu trong tuần', addBtn('inspections', 'Thêm', JSON.stringify({date:'', desc:'', loc:'', result:''}))) + wList('inspections', w.inspections, DCOLS(true))
       + wHead('🧪 B.2 Thí nghiệm trong tuần', addBtn('tests', 'Thêm', JSON.stringify({date:'', desc:'', loc:'', result:''}))) + wList('tests', w.tests, DCOLS(true));
-    h += wHead('📑 B.3 Tình trạng hồ sơ · B.4 Văn bản trong tuần', !RO && regOn() ? '<button class="btn sm" data-act="wReg">⟳ Đọc file theo dõi hồ sơ</button>' : '')
-      + (regOn() ? `<div class="hint">${w.regAt ? `Đọc lúc ${esc(w.regAt)} · ${esc(w.regStat || '')}` : 'Chưa đọc file theo dõi hồ sơ cho tuần này.'} Chỉ liệt kê hồ sơ trình trong tuần hoặc có kết quả trong tuần.</div>`
-        : '<div class="note w">Chưa khai báo file theo dõi hồ sơ – Quản trị vào <b>Cấu hình → Cài đặt → Hồ sơ đệ trình</b>.</div>');
-    (w.submittals || []).forEach(x=>{ h += `<div class="wrow"><div class="wg"><div class="w2"><b>${esc(x.code)}</b> · ${esc(x.desc)}<div class="hint">${esc(x.tab)} · trình ${vi(x.date)}${x.count ? ' · lần ' + esc(x.count) : ''}</div></div><div>${regBadge(x)}</div></div></div>`; });
-    (w.docs || []).forEach(x=>{ h += `<div class="wrow"><div class="wg"><div class="w2"><b>${esc(x.tab)}</b> · ${esc(x.code)}<div>${esc(x.desc)}</div><div class="hint">${vi(x.date)}</div></div></div></div>`; });
+    const regBtn = !RO && regOn() ? '<button class="btn sm" data-act="wReg">⟳ Đọc file theo dõi hồ sơ</button>' : '';
+    h += wHead('📑 B.3 Tình trạng hồ sơ đệ trình', regBtn);
+    if (!w.regAt) h += regOn() ? '<div class="hint">Chưa đọc file theo dõi hồ sơ cho tuần này – bấm “Đọc file theo dõi hồ sơ”.</div>' : '<div class="note w">Chưa khai báo file theo dõi hồ sơ – Quản trị vào <b>Cấu hình → Cài đặt → Hồ sơ đệ trình</b>.</div>';
+    else {
+      const L = w.submittals || [], c = k => L.filter(x=>x.st===k).length, nw = L.filter(x=>x.date >= w.from && x.date <= w.to).length;
+      h += `<div class="regsum"><span>Trình mới <b>${nw}</b></span><span class="ok">Đã duyệt <b>${c('approved')}</b></span><span class="bad">Trả về <b>${c('returned')}</b></span>${c('rejected') ? `<span class="bad">Từ chối <b>${c('rejected')}</b></span>` : ''}<span class="wait">Chờ <b>${c('pending') + c('review')}</b></span></div>
+        <div class="hint">Đọc lúc ${esc(w.regAt)} · chỉ liệt kê hồ sơ trình trong tuần hoặc có kết quả trong tuần. Hồ sơ cần xử lý (trả về, từ chối) xếp trước.</div>`;
+      const ORD = {returned:0, rejected:0, pending:1, review:1, approved:2}, S2 = L.map((x,i)=>i).sort((i,j)=>(ORD[L[i].st] ?? 1) - (ORD[L[j].st] ?? 1) || String(L[i].date).localeCompare(String(L[j].date)));
+      h += regView(S2.map(i=>L[i]), [['Mã hồ sơ', x=>`<b>${esc(x.code)}</b>`, 190], ['Tên hồ sơ', x=>esc(x.desc)], ['Loại', x=>esc(x.tab), 90], ['Lần', x=>esc(x.count||''), 44], ['Ngày trình', x=>vi(x.date), 92], ['Tình trạng', x=>regBadge(x) + (x.resDate ? `<div class="hint">KQ ${vi(x.resDate)}</div>` : ''), 150]], 'Không có hồ sơ phát sinh trong tuần.');
+    }
+    h += wHead('📨 B.4 Văn bản trong tuần');
+    h += !w.regAt ? '<div class="hint">Lấy từ file theo dõi hồ sơ (trang tính loại “Văn bản”) khi bấm “Đọc file theo dõi hồ sơ”.</div>'
+      : regView(w.docs || [], [['Số / ký hiệu', x=>`<b>${esc(x.code)}</b>`, 190], ['Trích yếu', x=>esc(x.desc)], ['Loại', x=>esc(x.tab), 90], ['Ngày', x=>vi(x.date), 92]], 'Không có văn bản trong tuần.');
   }
   if (WTAB === 'mat'){
     h += lockHint + wHead('📦 C.1 Vật tư đã về trong tuần', addBtn('materials', 'Thêm vật tư', JSON.stringify({name:'', spec:'', unit:'', prev:0, now:0})))
@@ -1899,14 +1916,16 @@ function renderWeek(){
       ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/\*" data-img="wgantt"></label>`}`;
   }
   if (WTAB === 'photo'){
-    const L = w.layouts, full = L.length >= LAYOUT_MAX;
-    h += wHead('🗺 Mặt bằng thi công', `<span class="hint">${L.length}/${LAYOUT_MAX} ảnh</span>`) + '<div class="hint">Lần tổng hợp đầu tự lấy bộ mặt bằng của ngày cuối kỳ; sau đó thêm, bớt, đổi thứ tự tùy ý (“Tổng hợp lại” không ghi đè).</div>'
-      + (RO ? '' : full ? `<p class="note">Đã đủ ${LAYOUT_MAX} ảnh mặt bằng – xóa bớt để thêm ảnh khác.</p>` : `<label class="drop">📤 Thêm ảnh mặt bằng (chọn được nhiều ảnh, tối đa ${LAYOUT_MAX})<input type="file" accept="image/\*" multiple data-img="wlayouts"></label>`)
+    const L = w.layouts, full = L.length >= WLAYOUT_MAX;
+    h += wHead('🗺 Mặt bằng thi công', `<span class="hint">${L.length}/${WLAYOUT_MAX} ảnh</span>`) + '<div class="hint">Lần tổng hợp đầu tự lấy bộ mặt bằng của ngày cuối kỳ; sau đó thêm, bớt, đổi thứ tự tùy ý (“Tổng hợp lại” không ghi đè).</div>'
+      + (RO ? '' : full ? `<p class="note">Đã đủ ${WLAYOUT_MAX} ảnh mặt bằng – xóa bớt để thêm ảnh khác.</p>` : `<label class="drop">📤 Thêm ảnh mặt bằng (chọn được nhiều ảnh, tối đa ${WLAYOUT_MAX})<input type="file" accept="image/\*" multiple data-img="wlayouts"></label>`)
       + (L.length ? `<div class="lylist">${L.map((l,i)=>`<div class="lyc"><div class="lyi">${l.img ? `<img src="${l.img}">` : `<div class="noimg">${l.fileId ? 'Đang tải ảnh…' : '—'}</div>`}</div>
         <div class="lyf"><b>Mặt bằng ${i+1}</b>${inp(`layouts.${i}.caption`, l.caption, 'Chú thích, VD: Mặt bằng tầng hầm B1')}<div class="bar" style="margin:6px 0 0">${mvBtns('layouts', i, L.length)}${delBtn('layouts', i)}</div></div></div>`).join('')}</div>`
         : '<p class="hint" style="margin-top:10px">Chưa có ảnh mặt bằng.</p>');
-    h += wHead(`🖼 Hình ảnh tiêu biểu (${w.photos.length}/${WPHOTO_N})`, RO ? '' : '<button class="btn sm" data-act="wShuffle">⟳ Đổi bộ ảnh khác</button>') + '<div class="wph">';
-    w.photos.forEach((p,i)=>{ h += `<div class="wphi">${p.img ? `<img src="${p.img}">` : '<div class="noimg">Đang tải…</div>'}${inp(`photos.${i}.caption`, p.caption, 'Chú thích')}<div class="hint">${vi(p.date)}</div>${delBtn('photos', i)}</div>`; });
+    h += wHead(`🖼 Hình ảnh tiêu biểu (${w.photos.length}/${WPHOTO_N})`, RO ? '' : '<button class="btn sm" data-act="wShuffle">⟳ Đổi bộ ảnh khác</button>')
+      + `<div class="hint">Tự lấy ngẫu nhiên tối đa ${WPHOTO_N} ảnh từ các báo cáo ngày trong tuần. Xóa ảnh không cần, thêm ảnh của mình; “Đổi bộ ảnh khác” giữ ảnh tự thêm.</div>`
+      + (RO ? '' : w.photos.length >= WPHOTO_N ? `<p class="note">Đã đủ ${WPHOTO_N} ảnh – xóa bớt để thêm ảnh khác.</p>` : '<label class="drop">📸 Thêm ảnh (chọn được nhiều ảnh)<input type="file" accept="image/\*" multiple data-img="wphotos"></label>') + '<div class="wph">';
+    w.photos.forEach((p,i)=>{ h += `<div class="wphi">${p.img ? `<img src="${p.img}">` : '<div class="noimg">Đang tải…</div>'}${inp(`photos.${i}.caption`, p.caption, 'Chú thích')}<div class="hint">${vi(p.date)}${p.manual ? ' · <span class="tag d">Tự thêm</span>' : ''}</div>${delBtn('photos', i)}</div>`; });
     h += '</div>';
   }
   h += '</div>';
@@ -2248,8 +2267,11 @@ document.addEventListener('change', async e=>{
   if (t.dataset.img){
     const files = [...t.files]; if (!files.length) return; toast('Đang xử lý ảnh…');
     try {
-      if (t.dataset.img==='wlayouts'){ const room = LAYOUT_MAX - W.layouts.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${LAYOUT_MAX})`, 4000);
+      if (t.dataset.img==='wlayouts'){ const room = WLAYOUT_MAX - W.layouts.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${WLAYOUT_MAX})`, 4000);
         for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, false, null, {max:2000, q:0.85}); W.layouts.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
+        markDirty('W'); renderWeek(); return; }
+      if (t.dataset.img==='wphotos'){ const room = WPHOTO_N - W.photos.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${WPHOTO_N})`, 4000);
+        for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, true, null); W.photos.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,''), date:iso(new Date(p.takenAt)), manual:true}); }
         markDirty('W'); renderWeek(); return; }
       if (t.dataset.img==='wgantt'){ for (const f of files.slice(0, Math.max(0, GANTT_MAX - W.gantt.length))){ const p = await processImage(f, false, null, {max:2600, q:0.88}); W.gantt.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
         markDirty('W'); renderWeek(); return; }
@@ -2393,7 +2415,7 @@ document.addEventListener('click', async e=>{
       await Store.saveConfig(CFG); renderConfig(); toast(`✔ Đã nhận “${r.name}” – ${r.tabs.filter(t=>t.type!=='off').length} trang tính`, 5000);
     } catch(e){ toast('⚠ ' + String(e.message||e).replace(/\*\*/g,''), 7000); } return; }
   if (a==='regOff'){ delete CFG.settings.register; await Store.saveConfig(CFG); renderConfig(); toast('Đã bỏ file theo dõi hồ sơ'); return; }
-  if (a==='wShuffle'){ W.photos = pickPhotos(P.reports); markDirty('W'); renderWeek(); loadImages(); return; }
+  if (a==='wShuffle'){ const man = W.photos.filter(p=>p.manual); W.photos = man.concat(pickPhotos(P.reports, WPHOTO_N - man.length)); markDirty('W'); renderWeek(); loadImages(); return; }
   if (a==='wMspDel'){ W.msp = null; markDirty('W'); renderWeek(); return; }
   if (a==='wPlanFromTasks'){ const have = new Set(W.nextPlans.map(tkKey)); let n = 0;
     W.tasks.forEach(t=>{ if (wNum(t.actual) !== null && +t.actual >= 100) return; if (have.has(tkKey(t))) return; W.nextPlans.push({id:uid(), desc:t.desc, zoneId:t.zoneId, section:wSec(t), add:'', target:''}); n++; });

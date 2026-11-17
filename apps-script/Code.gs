@@ -504,9 +504,10 @@ function saveWeek_(me, w) {
     const imgs = (w.gantt || []).filter(g => g && g.img && !g.fileId);
     if (imgs.length) { const f = subFolder_(rootFolder_(), 'Tuan'); (w.gantt || []).forEach((g, i) => uploadImg_(g, f, w.key + '_gantt_' + (i + 1))); }
     if ((w.layouts || []).some(l => l && l.img && !l.fileId)) { const f = subFolder_(rootFolder_(), 'Tuan'); w.layouts.forEach((l, i) => uploadImg_(l, f, w.key + '_mb_' + (i + 1) + '_' + Date.now())); }
+    if ((w.photos || []).some(x => x && x.img && !x.fileId)) { const f = subFolder_(rootFolder_(), 'Tuan'); w.photos.forEach((x, i) => uploadImg_(x, f, w.key + '_anh_' + (i + 1) + '_' + Date.now())); }
     weekWrite_(w);
     if (w.status === 'locked') writeWeekTables_(w, c);
-    return JSON.stringify({ ok: true, review: w.review || null, gantt: (w.gantt || []).map(g => g.fileId || ''), layouts: (w.layouts || []).map(l => (l && l.fileId) || ''), lockedAt: w.lockedAt || '' });
+    return JSON.stringify({ ok: true, review: w.review || null, gantt: (w.gantt || []).map(g => g.fileId || ''), layouts: (w.layouts || []).map(l => (l && l.fileId) || ''), photos: (w.photos || []).map(x => (x && x.fileId) || ''), lockedAt: w.lockedAt || '' });
   } finally { lock.releaseLock(); }
 }
 const pctW_ = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Math.round(Number(v) * 100) / 100;
@@ -873,7 +874,7 @@ function cleanOld_(budgetMs, now) {
   const weeks = tk.map((k, i) => [k, i]).filter(([k, i]) => k.indexOf('W-') === 0 && tto[i] < cut && k > wup).sort((a, b) => a[0] < b[0] ? -1 : 1);
   for (const [k, i] of weeks) {
     if (Date.now() - t0 > budgetMs) break;
-    if (tst[i] === 'locked' && tpdf[i]) { const w = weekGet_(k) || {}; (w.gantt || []).concat(w.layouts || []).forEach(x => { if (x && x.fileId && !keep[x.fileId]) n += trash(x.fileId); }); }
+    if (tst[i] === 'locked' && tpdf[i]) { const w = weekGet_(k) || {}; (w.gantt || []).concat(w.layouts || [], (w.photos || []).filter(x => x && x.manual)).forEach(x => { if (x && x.fileId && !keep[x.fileId]) n += trash(x.fileId); }); }
     wup = k;
   }
   p.setProperty('WCLEAN_UPTO', wup);

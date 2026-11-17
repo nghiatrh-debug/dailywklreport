@@ -36,6 +36,16 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### 17/11 – Đợt 6F: 30 ảnh tiêu biểu, mặt bằng tuần 10 ảnh, B.3/B.4 tách riêng
+- **Sửa:**
+  - Ảnh tiêu biểu tuần: lấy ngẫu nhiên tối đa 30 ảnh, rải đều các ngày. Người chốt thêm ảnh (nhãn "Tự thêm", tải lên Drive khi lưu) và xóa ảnh. "Đổi bộ ảnh khác" giữ ảnh tự thêm.
+  - Mặt bằng tuần tối đa 10 ảnh.
+  - B.3 Tình trạng hồ sơ và B.4 Văn bản tách thành 2 mục, mỗi mục 1 bảng (điện thoại: thẻ). B.3 có dòng tổng hợp theo tình trạng và xếp hồ sơ cần xử lý lên trước.
+  - Tự dọn: thêm ảnh tự thêm của báo cáo tuần.
+- **Kiểm thử mới:** gastest – ảnh tự thêm tải lên Drive. ui – giới hạn 30/10; thêm ảnh; đổi bộ giữ ảnh tự thêm; B.3/B.4 là 2 mục, 2 bảng; thứ tự hồ sơ.
+- **Ảnh đã xem:** desk_week_qa.png.
+- **Rủi ro còn lại:** 30 ảnh + 10 mặt bằng + 6 Gantt làm file PDF tuần nặng và xuất lâu hơn (chưa đo trên Google thật).
+
 ### 17/11 – Đợt 6E: thư mục "Dữ liệu báo cáo", tự dọn ảnh quá 3 tháng
 - **Sửa:**
   - Thư mục dữ liệu đổi tên thành "Dữ liệu báo cáo <mã dự án>". Thư mục cũ "Báo cáo ngày – <mã>" được tự đổi tên, giữ nguyên ảnh và file.
@@ -127,3 +137,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 05:54 | 1bd5ba0 | đạt | 121 đạt / 0 lỗi | 124 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6C: báo cáo tuần nhập như phiếu ngày, khóa dòng tổng hợp, tự xếp loại, đổi tên app |
 | 2026-11-17 06:42 | a2c1848 | đạt | 122 đạt / 0 lỗi | 136 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6D: QR MSP, 6 Gantt, mặt bằng tuần, KH tuần sau theo khu vực, nút + nổi |
 | 2026-11-17 07:10 | 66c37b1 | đạt | 127 đạt / 0 lỗi | 137 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6E: thư mục Dữ liệu báo cáo, tự dọn ảnh quá 3 tháng |
+| 2026-11-17 07:28 | f882adb | đạt | 128 đạt / 0 lỗi | 141 đạt / 0 lỗi | ✅ ĐẠT | Đợt 6F: 30 ảnh tiêu biểu + thêm/xóa, mặt bằng tuần 10 ảnh, B.3/B.4 tách riêng |
