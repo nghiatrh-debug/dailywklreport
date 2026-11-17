@@ -181,6 +181,11 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 /* ===== DOCUMENT (dùng chung cho xem trước, in và xuất PDF) ===== */
 </style>
 <style>
+.wrow{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--bd);border-radius:10px;padding:8px;margin:8px 0;background:#fff}.wrow .wg{flex:1;min-width:0}
+.wg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}.wg .w2{grid-column:span 2}.wact{display:flex;flex-direction:column;gap:4px;align-items:center}
+.wtabs{display:flex;gap:4px;flex-wrap:wrap;margin:10px 0}.wpane{min-height:120px}.wchart{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:6px;margin:6px 0}
+.wph{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.wphi{border:1px solid var(--bd);border-radius:10px;padding:6px;background:#fff;position:relative}.wphi img{width:100%;border-radius:6px;display:block}
+@media(max-width:767px){.wg .w2{grid-column:1/-1}.wrow{flex-direction:column}.wact{flex-direction:row}.wtabs{flex-wrap:nowrap;overflow-x:auto}}
 .lylist{display:flex;flex-direction:column;gap:10px;margin-top:12px}.lyc{display:flex;gap:12px;border:1px solid var(--bd);border-radius:10px;padding:8px;background:#fff}
 .lyi{width:42%;min-width:120px}.lyi img{width:100%;border-radius:6px;display:block;border:1px solid var(--bd)}.lyf{flex:1;min-width:0}.lyf .bar{align-items:center}
 @media(max-width:767px){.lyc{flex-direction:column}.lyi{width:100%}}
@@ -231,6 +236,15 @@ details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6
 .doc .lyw{height:78mm;width:100%;border:1px solid #e2e8f0}.doc .lyw td{height:78mm;vertical-align:middle;text-align:center;padding:2px}
 .doc .lyw img{max-width:100%;max-height:76mm;display:block;margin:0 auto}
 .doc .lysec{page-break-before:always}
+.doc table.winfo{width:100%;border-collapse:collapse;margin:4px 0 6px;font-size:10px}.doc .winfo td{border:1px solid #cbd5e1;padding:3px 6px}.doc .winfo td.k{background:#f1f5f9;width:19%;font-weight:bold}
+.doc .wrate td.c{font-size:9.5px;color:#475569}.doc .wrate td.on{background:#fef9c3;color:#111}.doc .wrate .x{font-size:13px;color:#b91c1c}
+.doc table.wovr{width:100%;border-collapse:collapse;margin:8px 0;border:2px solid #1e3a8a}.doc .wovr td{border:1px solid #cbd5e1;text-align:center;padding:6px 4px;width:25%}
+.doc .wovr td.hd{background:#1e3a8a;color:#fff;font-weight:bold;text-align:left;padding:4px 8px}.doc .wovr span{display:block;font-size:9.5px;color:#475569}.doc .wovr b{display:block;font-size:20px;margin:2px 0}
+.doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr td.ok{background:#dcfce7}.doc .wovr td.ok b{color:#166534}.doc .wovr td.warn{background:#fef3c7}.doc .wovr td.warn b{color:#92400e}
+.doc .wovr td.bad{background:#fee2e2}.doc .wovr td.bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
+.doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
+.doc .gpb{page-break-before:always}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
+.doc table.wmsp{width:100%;margin:6px 0}.doc .wmsp td{vertical-align:middle;font-size:10.5px}.doc .wmsp img{width:80px;height:80px}
 @media print{@page{size:A4;margin:8mm}}
 </style>
 <style>
@@ -638,7 +652,9 @@ const Store = IS_GAS ? {
   deleteDay: d => gas('apiDeleteDay', TOKEN, d),
   period: async (a,b,k) => J(await gas('apiPeriod', TOKEN, a, b, k)),
   allReports: async () => (J(await gas('apiPeriod', TOKEN, '0000-01-01', '9999-12-31', '')) || {}).reports || [],
-  savePeriod: p => gas('apiSavePeriod', TOKEN, JSON.stringify(p)),
+  savePeriod: async p => { const r = await gas('apiSavePeriod', TOKEN, JSON.stringify(p)); try { return JSON.parse(r); } catch(e){ return r; } },
+  reviewPeriod: async (k, act, note) => J(await gas('apiReviewPeriod', TOKEN, k, act, note||'')),
+  uploadFile: async (data, name) => J(await gas('apiUploadFile', TOKEN, data, name)),
   exportPdf: (html, name, key, kind) => gas('apiExportPdf', TOKEN, html, name, key, kind),
   review: async (d, act, note) => J(await gas('apiReview', TOKEN, d, act, note||'')),
   verify: async code => J(await gas('apiVerify', TOKEN, code)),
@@ -678,14 +694,27 @@ const Store = IS_GAS ? {
   verify: async code => { const k = String(code||'').toUpperCase().replace(/[^0-9A-F]/g,''); if (k.length!==8) return {ok:false}; const cd = k.slice(0,4)+'-'+k.slice(4);
     const r = (await IDB.all('reports')).find(x=>x.review && x.review.status==='approved' && x.review.code===cd);
     if (r) return {ok:'current', date:r.date, version:r.review.version, by:userName(r.review.by), at:r.review.at, lockedAt:r.lockedAt||'', lockedBy:userName(r.lockedBy), pdf:''};
+    const w = (await IDB.all('periods')).find(x=>x && x.v===2 && x.review && x.review.status==='approved' && x.review.code===cd);
+    if (w) return {ok:'current', kind:'week', no:w.no, from:w.from, date:w.to, version:w.review.version, by:userName(w.review.by), at:w.review.at, lockedAt:w.lockedAt||'', lockedBy:userName(w.lockedBy), pdf:''};
     const h = (await IDB.get('kv','vlog') || []).filter(x=>x.code===cd).pop(); return h ? {ok:'old', date:h.date, by:h.by, at:h.at} : {ok:false}; },
   saveLogo: async (kind, data, oldId) => { if (oldId) try { await IDB.del('imgs', oldId); } catch(e){} if (!data) return ''; const id = 'lg_' + uid(); await IDB.put('imgs', id, data); IMGMEM[id] = data; return id; },
   checkFolder: async () => { throw new Error('Chọn thư mục Drive chỉ dùng được ở bản Google Apps Script'); },
   clearTestDays: async () => { const L = await IDB.get('kv','testDays') || []; for (const d of L) await Store.deleteDay(d); await IDB.put('kv','testDays', []); return L.length; },
   period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
-    return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)) }; },
+    const prevWeek = String(k).startsWith('W-') ? (await IDB.all('periods')).filter(p=>p && p.v===2 && p.from < a).sort((x,y)=>y.from.localeCompare(x.from))[0] || null : null;
+    return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)), prevWeek }; },
+  reviewPeriod: async (k, act, note) => { const w = await IDB.get('periods', k); if (!w || w.status!=='locked') throw new Error('Báo cáo tuần chưa được nhà thầu chốt');
+    if (act==='approve'){ const o = clone(w); delete o.review; const h = (await sha(JSON.stringify(o))).toUpperCase().replace(/[^0-9A-F]/g,'').padEnd(8,'0');
+      w.review = {status:'approved', by:ME.id, at:nowStr(), code:h.slice(0,4)+'-'+h.slice(4,8), version:w.version||1}; }
+    else { if (!String(note||'').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); w.review = {status:'returned', by:ME.id, at:nowStr(), note:String(note).trim(), version:w.version||1}; w.status = 'draft'; }
+    await IDB.put('periods', k, w); return w.review; },
+  uploadFile: async (data, name) => ({fileId:'', url:'', name}),
   allReports: async () => (await IDB.all('reports')).sort((x,y)=>x.date.localeCompare(y.date)),
-  savePeriod: p => IDB.put('periods', p.key, p),
+  savePeriod: async p => { if (p.v !== 2) return IDB.put('periods', p.key, p);
+    const old = await IDB.get('periods', p.key); if (old && old.status==='locked' && p.status==='locked') return {ok:true, review:old.review||null};
+    p.review = old ? old.review || null : null; if (old && old.status==='locked' && p.status!=='locked' && p.review) p.review = {lastNote:p.review.note||'', lastStatus:p.review.status};
+    if (p.status==='locked' && !(old && old.status==='locked')) { p.lockedAt = nowStr(); p.lockedBy = ME.id; if (reviewOn()) p.review = {status:'pending', version:p.version}; }
+    await IDB.put('periods', p.key, p); return {ok:true, review:p.review, lockedAt:p.lockedAt||''}; },
   exportPdf: async () => { throw new Error('LOCAL'); },
   resetAll: async () => { for (const st of ['reports','subs','periods','kv']) await IDB.clear(st); return ''; }
 };
@@ -698,7 +727,7 @@ async function markTestL(d){ if (!testMode()) return; const L = await IDB.get('k
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
 let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
 let TAB = 'status', MYTAB = 'work', MYSEG = 'today', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
-let dirty = {R:false, S:false}, saveTimer = {R:null, S:null}, prevTimer = null;
+let dirty = {R:false, S:false, W:false}, saveTimer = {R:null, S:null, W:null}, prevTimer = null;
 let EDIT = 'R', RO = false;                                       // gốc dữ liệu & chế độ chỉ đọc cho các ô nhập đang dựng
 
 const isChot = () => ME && (ME.role==='admin' || ME.role==='chot');
@@ -1255,10 +1284,12 @@ function renderForm(){
 /* ===================== ẢNH: TẢI SAU + BỘ ĐỆM ===================== */
 const IMGMEM = {};
 function imgObjs(){ const o = [], add = x => { if (x && x.fileId && !x.img) o.push(x); };
-  if (R) { (R.layouts||[]).forEach(add); (R.extraPhotos||[]).forEach(add); (R.photos||[]).forEach(add); } SUBS.forEach(s=>(s.photos||[]).forEach(add)); if (S) (S.photos||[]).forEach(add); return o; }
+  if (R) { (R.layouts||[]).forEach(add); (R.extraPhotos||[]).forEach(add); (R.photos||[]).forEach(add); } SUBS.forEach(s=>(s.photos||[]).forEach(add)); if (S) (S.photos||[]).forEach(add);
+  if (VIEW==='period' && W) (W.layouts||[]).concat(W.photos||[], W.gantt||[]).forEach(add); return o; }
 let imgTimer = null;
 function rerenderImgs(){ clearTimeout(imgTimer); imgTimer = setTimeout(()=>{ if (VIEW==='day'){ applyMerge(); renderDoc(); if (TAB==='photos'||TAB==='layout') renderForm(); }
-  if (VIEW==='my'){ renderMyDoc(); if (MYTAB==='photos') renderMy(); } }, 120); }
+  if (VIEW==='my'){ renderMyDoc(); if (MYTAB==='photos') renderMy(); }
+  if (VIEW==='period' && W){ renderWeekDoc(); if (WTAB==='photo' || WTAB==='prog') renderWeek(); } }, 120); }
 async function loadImages(){
   const objs = imgObjs(); if (!objs.length) return;
   const ids = [...new Set(objs.map(o=>o.fileId))], have = {};
@@ -1415,7 +1446,7 @@ function lockLine0(r){
   return '';   // bỏ dòng "Chốt bởi…" trên PDF – thời điểm chốt, trễ chốt vẫn xem trong app và nhật ký
 }
 function renderDoc(){ $('#doc').innerHTML = R ? docHTML(R) : ''; }
-function schedulePreview(){ clearTimeout(prevTimer); prevTimer = setTimeout(()=>{ if (VIEW==='my') renderMyDoc(); else { renderDoc(); const s=$('#sumMp'); if(s&&R) s.textContent=R.manpower.reduce((a,m)=>a+num(m.qty),0); } }, 150); }
+function schedulePreview(){ clearTimeout(prevTimer); prevTimer = setTimeout(()=>{ if (VIEW==='my') renderMyDoc(); else if (VIEW==='period') renderWeekDoc(); else { renderDoc(); const s=$('#sumMp'); if(s&&R) s.textContent=R.manpower.reduce((a,m)=>a+num(m.qty),0); } }, 150); }
 
 /* ===================== LƯU ===================== */
 /* Chống ghi đè: gửi kèm baseRev (rev lúc mở); máy chủ thấy đã có bản mới hơn → lỗi CONFLICT|giờ|người. */
@@ -1473,8 +1504,8 @@ async function saveR_(silent){
     idxSet('reports', {date:R.date, status:R.status, version:R.version, review:revOf(R)}); setSave('ok'); if (!silent) toast(IS_GAS ? '✔ Đã lưu vào Google Sheets' : '✔ Đã lưu');
   } catch(e){ delete R.wbsMem; delete R.force; dirty.R = true; if (isConflict(e)) return conflictModal('R', e); setSave('err'); toast('⚠ Lỗi lưu: ' + (e.message||e), 5000); }
 }
-function markDirty(root){ dirty[root] = true; if (CONFL[root]) return; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
-async function flush(){ if (dirty.S) await saveS(true); if (dirty.R) await saveR(true); }
+function markDirty(root){ dirty[root] = true; if (root==='W') { if (W) W._unsaved = true; setSave('saving'); clearTimeout(saveTimer.W); saveTimer.W = setTimeout(()=>saveW(true), IS_GAS ? 2500 : 600); return; } if (CONFL[root]) return; setSave('saving'); clearTimeout(saveTimer[root]); saveTimer[root] = setTimeout(()=> root==='S' ? saveS(true) : saveR(true), IS_GAS ? 3000 : 800); }
+async function flush(){ if (dirty.S) await saveS(true); if (dirty.R) await saveR(true); if (dirty.W) await saveW(true); }
 document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='hidden') flush(); });
 
 /* ===================== TUẦN / THÁNG ===================== */
@@ -1506,8 +1537,13 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
     const m = mergeSubs(L, L.some(x=>x.status==='submitted'||x.status==='accepted')); Object.assign(r, m); r.photos = m.photos.concat(r.extraPhotos||[]); r.status = 'draft'; by[d] = r; });
   P.reports = Object.values(by).sort((x,y)=>x.date.localeCompare(y.date));
   P.manual = b.manual || {key:pr.key, kind:P.kind, from:pr.from, to:pr.to, legal:'', evaluation:'', evalNote:'', nextPlan:''};
-  renderPeriod(); }
+  if (P.kind==='week'){ PW = b.prevWeek ? normWeek(b.prevWeek) : null;
+    W = b.manual && b.manual.v===2 ? normWeek(b.manual) : null;
+    if (!W) { W = blankWeek(pr, PW); genWeek(W, P.reports, PW); W._unsaved = true; }
+    renderWeek(); loadImages(); return; }
+  W = null; renderPeriod(); }
 function renderPeriod(){
+  if (P.kind==='week' && W) return renderWeek();
   const pr = periodRange(), A = aggregate(P.reports), M = P.manual, ro = !isChot() ? 'disabled' : '';
   const ok = A.insp.filter(x=>x.result==='Đạt').length;
   $('#perPrevBar').innerHTML = (isChot() ? '<button class="btn" data-act="savePeriod">💾 Lưu phần nhập tay</button><button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
@@ -1554,6 +1590,329 @@ function renderPeriodDoc(A, pr, M){ const f = r1;
   $('#pdoc').innerHTML = h;
 }
 
+/* ===================== BÁO CÁO TUẦN (soạn sửa được, TVGS xác nhận) ===================== */
+let W = null, PW = null, WTAB = 'gen';
+const WTABS = [['gen','Chung'],['prog','Tiến độ'],['task','Công việc'],['plan','KH tuần sau'],['mp','Nhân lực & TB'],['insp','Nghiệm thu & vật tư'],['safe','An toàn'],['photo','Hình ảnh']];
+const RATE = [['good','Tốt'],['mid','Trung bình'],['bad','Kém']];
+const RATE_TXT = { safety:['An toàn & vệ sinh','Mọi công tác đạt vệ sinh an toàn','Một số lỗi nhỏ','Nhiều lỗi nhỏ hoặc vấn đề lớn'],
+  work:['Công tác thi công','Mọi công tác kịp tiến độ','Một số hạng mục trễ','Nhiều hạng mục trễ'],
+  resource:['Nguồn lực','Mọi nguồn lực sẵn có','Một số nguồn lực bị thiếu','Chậm trễ do thiếu nguồn lực'] };
+const MP_COL = ['#4472c4','#e15759','#9bbb59','#8064a2','#4bacc6','#f79646','#1f3864','#7f1d1d','#a5a5a5','#ffc000','#5b9bd5','#70ad47'];
+const GANTT_MAX = 2, WPHOTO_N = 6;
+const wNum = v => (v === '' || v == null || isNaN(+v)) ? null : +v;
+const wPct = v => wNum(v) === null ? '—' : (Math.round(+v * 100) / 100) + '%';
+const zoneName = id => (zoneById(id)||{}).name || '';
+/** Đánh giá tiến độ tổng: TT − KH ≥ 0 Đạt; ≥ −5 Chậm nhẹ; < −5 Chậm */
+function wEval(o){ const p = wNum(o.plan), a = wNum(o.actual); if (p === null || a === null) return {d:null, t:'', c:''};
+  const d = Math.round((a - p) * 100) / 100; return d >= 0 ? {d, t:'Đạt', c:'ok'} : d >= -5 ? {d, t:'Chậm nhẹ', c:'warn'} : {d, t:'Chậm', c:'bad'}; }
+const weekMonthLabel = to => `Tuần ${String(Math.ceil(+to.slice(8,10) / 7)).padStart(2,'0')} – Tháng ${to.slice(5,7)}/${to.slice(0,4)}`;
+const weekFileName = w => { const p = CFG.project; return `${w.to.replace(/-/g,'')}-${p.code}-${p.contractorAbbr || p.contractorShort || 'NT'}-WR-${w.no}-Weekly report and Tracking MSP(checked).pdf`; };
+function blankWeek(pr, pw){
+  const po = (pw && pw.overall) || {}, no = pw && pw.no ? +pw.no + Math.round((new Date(pr.from) - new Date(pw.from)) / (7*864e5)) : '';
+  return normWeek({ key:pr.key, from:pr.from, to:pr.to, no,
+    overall:{ plan: pw ? (po.planNext ?? '') : '', actualPrev: pw ? (po.actual ?? '') : '', actual:'', planNext:'', rev: po.rev || '', note:'' },
+    safety:{ summary: CFG.safetyDefault || '', activities:[], issues:[] } });
+}
+function normWeek(w){
+  const o = Object.assign({ v:2, kind:'week', no:'', status:'draft', version:1, review:null, ratings:{safety:'good', work:'good', resource:'good'}, ratingsEdited:{},
+    overall:{}, manpower:[], equipment:[], chart:{days:[], titles:[], data:[]}, weather:{sun:0, rain:0, days:0}, tasks:[], nextPlans:[], inspections:[], tests:[], inspPlans:[],
+    materials:[], matPlans:[], safety:{}, layouts:[], photos:[], gantt:[], msp:null, genAt:'' }, w);
+  o.overall = Object.assign({plan:'', actualPrev:'', actual:'', planNext:'', rev:'', note:''}, o.overall);
+  o.safety = Object.assign({summary:'', activities:[], issues:[]}, o.safety);
+  return o;
+}
+/** Gộp danh sách tự động: dòng đã sửa tay giữ nguyên, dòng thêm tay giữ, dòng tự động chưa sửa thay bằng số liệu mới. */
+function mergeAuto(arr, fresh){
+  const byA = {}; arr.forEach(x=>{ if (x.auto) byA[x.auto] = x; });
+  const out = fresh.map(f=>{ const o = byA[f.auto]; delete byA[f.auto]; return o && o.edited ? o : f; });
+  return out.concat(arr.filter(x=>!x.auto), Object.values(byA).filter(x=>x.edited));
+}
+const tkKey = t => (t.zoneId||'') + '|' + (t.desc||'').trim().toLowerCase();
+/** Tổng hợp tuần từ các báo cáo ngày (+ tuần trước). */
+function genWeek(w, reps, pw){
+  const zIdx = id => { const i = CFG.zones.findIndex(z=>z.id===id); return i < 0 ? 999 : i; };
+  // A. công việc
+  const tk = {};
+  reps.forEach(r=> r.tasks.forEach(t=>{ if (isMon(t) || !t.desc) return; const k = tkKey(t);
+    const it = tk[k] = tk[k] || {auto:'t:'+k, id:uid(), section:sectionOf(t), zoneId:t.zoneId||'', desc:t.desc, unit:t.unit||'', qty:'', startPct:'', planPct:'', actual:'', note:''};
+    const p = cumOf(t), pp = pct(t.prevProgress) ?? (hasV(t.startPct) ? num(t.startPct) : null);
+    if (it.startPct === '') it.startPct = pp !== null ? pp : (p !== null ? p : '');
+    if (p !== null) it.actual = p; if (hasV(t.qtyDay)) it.qty = r1(num(it.qty) + num(t.qtyDay)); if (t.unit) it.unit = t.unit; }));
+  ((pw && pw.nextPlans) || []).forEach(pl=>{ if (!pl.desc) return; const k = tkKey(pl);
+    if (tk[k]) tk[k].planPct = pl.target ?? ''; else tk[k] = {auto:'t:'+k, id:uid(), section:pl.section||sectionOf(pl), zoneId:pl.zoneId||'', desc:pl.desc, unit:'', qty:'', startPct:'', planPct:pl.target ?? '', actual:'', note:''}; });
+  const T = Object.values(tk).sort((a,b)=> (a.section===b.section ? 0 : a.section==='XD' ? -1 : 1) || zIdx(a.zoneId) - zIdx(b.zoneId));
+  w.tasks = mergeAuto(w.tasks, T);
+  // F/G. nhân lực, thiết bị
+  const n = reps.length, mp = {}, eq = {}, titles = [];
+  reps.forEach((r, di)=>{ r.manpower.forEach(m=>{ const q = num(m.qty); if (!mp[m.title]) { mp[m.title] = Array(n).fill(0); titles.push(m.title); } mp[m.title][di] = q; });
+    r.equipment.forEach(m=>{ (eq[m.name] = eq[m.name] || Array(n).fill(0))[di] = num(m.qty); }); });
+  const stat = a => ({avg: n ? r1(a.reduce((s,x)=>s+x,0) / n) : 0, max: Math.max(0, ...a), total: a.reduce((s,x)=>s+x,0)});
+  const used = titles.filter(t=>mp[t].some(x=>x > 0));
+  w.manpower = mergeAuto(w.manpower, used.map(t=>Object.assign({auto:'mp:'+t, id:uid(), title:t}, stat(mp[t]))));
+  w.equipment = mergeAuto(w.equipment, Object.keys(eq).filter(k=>eq[k].some(x=>x > 0)).map(k=>{ const s = stat(eq[k]); return {auto:'eq:'+k, id:uid(), name:k, avg:s.avg, max:s.max}; }));
+  w.chart = { days: reps.map(r=>vi(r.date)), titles: used, data: reps.map((r,di)=>used.map(t=>mp[t][di])) };
+  const rain = reps.filter(r=>/mưa|rain|shower/i.test((r.weather.am||'') + ' ' + (r.weather.pm||''))).length;
+  w.weather = {days:n, rain, sun:n - rain};
+  // D. nghiệm thu, thí nghiệm; kế hoạch nghiệm thu = kế hoạch ngày mai của ngày cuối kỳ
+  w.inspections = mergeAuto(w.inspections, [].concat(...reps.map(r=>r.inspections.filter(x=>x.desc).map(x=>({auto:'i:'+r.date+'|'+x.desc, id:uid(), date:r.date, desc:x.desc, loc:locText(x), result:x.result||''})))));
+  w.tests = mergeAuto(w.tests, [].concat(...reps.map(r=>(r.tests||[]).filter(x=>x.desc).map(x=>({auto:'x:'+r.date+'|'+x.desc, id:uid(), date:r.date, desc:x.desc, loc:locText(x), result:x.result||''})))));
+  const last = reps[reps.length - 1];
+  if (last) w.inspPlans = mergeAuto(w.inspPlans, (last.inspectionPlans||[]).filter(x=>x.desc).map(x=>({auto:'ip:'+x.desc, id:uid(), date:'', desc:x.desc, loc:locText(x)})));
+  // C. vật tư: kỳ trước = lũy kế tuần trước
+  const pm = {}; ((pw && pw.materials) || []).forEach(m=>{ pm[[m.name,m.spec,m.unit].join('|')] = num(m.prev) + num(m.now); });
+  const mt = {}; reps.forEach(r=>r.materials.forEach(m=>{ if (!m.name) return; const k = [m.name,m.spec,m.unit].join('|');
+    (mt[k] = mt[k] || {auto:'m:'+k, id:uid(), name:m.name, spec:m.spec||'', unit:m.unit||'', prev:pm[k] || 0, now:0}).now = r1(mt[k].now + num(m.qty)); }));
+  Object.keys(pm).forEach(k=>{ if (!mt[k]) { const [name, spec, unit] = k.split('|'); mt[k] = {auto:'m:'+k, id:uid(), name, spec, unit, prev:pm[k], now:0}; } });
+  w.materials = mergeAuto(w.materials, Object.values(mt).sort((a,b)=>a.name.localeCompare(b.name)));
+  // E. an toàn
+  w.safety.issues = mergeAuto(w.safety.issues, [].concat(...reps.map(r=>(r.safety.issues||[]).filter(x=>x.desc).map(x=>({auto:'s:'+r.date+'|'+x.desc, id:uid(), date:r.date, desc:x.desc, action:x.action||''})))));
+  // H. mặt bằng ngày cuối có ảnh; 6 ảnh hiện trường ngẫu nhiên (chỉ khi chưa có)
+  const lr = [...reps].reverse().find(r=>(r.layouts||[]).some(l=>l.fileId || l.img));
+  if (lr) w.layouts = lr.layouts.filter(l=>l.fileId || l.img).map(l=>({id:uid(), fileId:l.fileId||'', img:l.img||'', caption:l.caption||''}));
+  if (!w.photos.length) w.photos = pickPhotos(reps);
+  autoRatings(w); w.genAt = nowStr(); return w;
+}
+function photoPool(reps){ return reps.map(r=>(r.photos||[]).concat(r.extraPhotos||[]).filter(p=>p.fileId || p.img).map(p=>({id:uid(), fileId:p.fileId||'', img:p.img||'', caption:p.caption||'', date:r.date}))); }
+/** Chọn ngẫu nhiên WPHOTO_N ảnh, lần lượt từng ngày để rải đều cả tuần. */
+function pickPhotos(reps){ const pools = photoPool(reps).map(a=>a.sort(()=>Math.random() - 0.5)).filter(a=>a.length), out = [];
+  while (out.length < WPHOTO_N && pools.some(a=>a.length)) pools.forEach(a=>{ if (a.length && out.length < WPHOTO_N) out.push(a.pop()); });
+  return out.sort((a,b)=>a.date.localeCompare(b.date)); }
+/** Gợi ý xếp loại (chỉ mục chưa sửa tay). */
+function autoRatings(w){ const e = w.ratingsEdited || {}, ni = w.safety.issues.length, ev = wEval(w.overall);
+  const late = w.tasks.filter(t=>wNum(t.planPct) !== null && wNum(t.actual) !== null && +t.actual < +t.planPct).length;
+  if (!e.safety) w.ratings.safety = ni === 0 ? 'good' : ni <= 3 ? 'mid' : 'bad';
+  if (!e.work) w.ratings.work = ev.t ? (ev.c === 'ok' ? 'good' : ev.c === 'warn' ? 'mid' : 'bad') : (late === 0 ? 'good' : late <= 3 ? 'mid' : 'bad');
+  if (!e.resource) w.ratings.resource = w.ratings.resource || 'good'; }
+
+/* ---- lưu ---- */
+async function saveW(silent){
+  if (!W || !isChot() || W.status === 'locked' && !W._lockNow) return; clearTimeout(saveTimer.W); dirty.W = false; setSave('saving');
+  try { const p = clone(W); delete p._unsaved; delete p._lockNow; (p.photos||[]).concat(p.layouts||[], p.gantt||[]).forEach(x=>{ if (x && x.fileId) x.img = ''; });
+    const res = await Store.savePeriod(p) || {}; delete W._unsaved; delete W._lockNow;
+    if (res.gantt) res.gantt.forEach((f,i)=>{ if (W.gantt[i] && f) W.gantt[i].fileId = f; });
+    if ('review' in res) W.review = res.review; if (res.lockedAt) W.lockedAt = res.lockedAt;
+    setSave('ok'); if (!silent) toast('✔ Đã lưu báo cáo tuần');
+  } catch(e){ dirty.W = true; setSave('err'); toast('⚠ Lỗi lưu báo cáo tuần: ' + (e.message||e), 5000); }
+}
+
+/* ---- màn hình nhập ---- */
+const weekRO = () => !isChot() || !W || W.status === 'locked';
+const wSec = t => (zoneById(t.zoneId)||{}).section || t.section || 'XD';
+function zoneOpts(){ return [{v:'', t:'— khu vực —'}, ...CFG.zones.map(z=>({v:z.id, t:z.name + ' (' + (z.section||'XD') + ')'}))]; }
+function wRow(path, i, n, cells){ return `<div class="wrow">${cells}<div class="wact">${mvBtns(path, i, n)}${delBtn(path, i)}</div></div>`; }
+function renderWeek(){
+  const pr = periodRange(); EDIT = 'W'; RO = weekRO(); const w = W, rv = w.review || {}, A = aggregate(P.reports);
+  const st = w.status === 'locked' ? (rv.status === 'approved' ? '<span class="badge b-acc">✔ TVGS đã xác nhận</span>' : rv.status === 'pending' ? '<span class="badge b-sub">⏳ Chờ TVGS kiểm tra</span>' : '<span class="badge b-acc">🔒 Đã chốt</span>')
+    : '<span class="badge b-draft">✎ Nháp</span>';
+  let acts = '';
+  if (isChot() && w.status !== 'locked') acts += `<button class="btn" data-act="wGen">⟳ Tổng hợp từ báo cáo ngày</button><button class="btn pri" data-act="wLock">🔒 Chốt tuần</button>`;
+  if (isChot() && w.status === 'locked') acts += `<button class="btn" data-act="wUnlock">🔓 Mở khóa để sửa</button>`;
+  if (canReview() && w.status === 'locked' && rv.status === 'pending') acts += `<button class="btn pri" data-act="wApprove">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="wReturn">↩ Yêu cầu nhà thầu sửa</button>`;
+  let h = `<div class="bar" style="margin:0 0 10px"><select class="btn" id="pKind"><option value="week" selected>Theo tuần (${DOW[(weekEnd()+1)%7]} → ${DOW[weekEnd()]})</option><option value="month">Theo tháng</option></select>
+    <button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button></div>
+  <div class="ph"><h3>Báo cáo tuần ${esc(w.no || '?')} · ${vi(pr.from)} → ${vi(pr.to)}</h3>${st}${w.version > 1 ? ` <span class="hint">bản v${w.version}</span>` : ''}</div>
+  <div class="note">${A.n} ngày có báo cáo${A.unl.length ? ` · <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – số liệu tạm` : ''}${w.genAt ? ` · tổng hợp lúc ${esc(w.genAt)}` : ''}${w._unsaved && isChot() ? ' · <b>chưa lưu</b>' : ''}</div>
+  ${rv.status === 'returned' ? `<div class="note w">↩ TVGS yêu cầu sửa: <b>${esc(rv.note)}</b></div>` : ''}${rv.lastNote ? `<div class="note w">Lần trước TVGS ghi: ${esc(rv.lastNote)}</div>` : ''}
+  ${acts ? `<div class="bar">${acts}</div>` : ''}
+  <div class="tabs wtabs">${WTABS.map(([k,t])=>`<button class="tab ${WTAB===k?'on':''}" data-wtab="${k}">${t}</button>`).join('')}</div><div class="wpane">`;
+  const o = w.overall, first = !PW;
+  if (WTAB === 'gen'){
+    h += `<div class="g2"><div><label class="l">Số tuần báo cáo ${first ? '(tuần đầu tiên – nhập tay)' : '(tự tăng)'}</label>${first ? ninp('no', w.no, 'VD 34') : `<input class="in" value="${esc(w.no)}" disabled>`}</div>
+      <div><label class="l">Nhãn tháng</label><input class="in" value="${esc(weekMonthLabel(w.to))}" disabled></div></div>
+      <div class="hint">Thời tiết tuần: ${w.weather.sun} ngày nắng · ${w.weather.rain} ngày mưa (theo báo cáo ngày)</div>
+      <div class="ph" style="margin-top:12px"><h3>Thông tin chung</h3><span class="hint">app gợi ý, sửa được</span></div>`;
+    Object.keys(RATE_TXT).forEach(k=>{ h += `<div class="g2"><div><label class="l">${RATE_TXT[k][0]}</label>${sel('ratings.'+k, w.ratings[k], RATE.map(([v,t],i)=>({v, t:t + ' – ' + RATE_TXT[k][i+1]})))}</div></div>`; });
+  }
+  if (WTAB === 'prog'){
+    const ev = wEval(o);
+    h += `<div class="ph"><h3>Tiến độ tổng (overall schedule)</h3></div>
+      <div class="g2"><div><label class="l">% KH tuần này ${first ? '(nhập lần đầu)' : '(tự lấy từ tuần trước)'}</label>${first ? ninp('overall.plan', o.plan) : `<input class="in" value="${esc(o.plan)}" disabled>`}</div>
+      <div><label class="l">% thực tế tuần trước ${first ? '(nhập lần đầu)' : '(tự lấy)'}</label>${first ? ninp('overall.actualPrev', o.actualPrev) : `<input class="in" value="${esc(o.actualPrev)}" disabled>`}</div>
+      <div><label class="l">% thực tế đạt tuần này</label>${ninp('overall.actual', o.actual, 'VD 10.68')}</div>
+      <div><label class="l">% KH tuần sau</label>${ninp('overall.planNext', o.planNext, 'VD 10.92')}</div>
+      <div><label class="l">Bản tiến độ</label>${inp('overall.rev', o.rev, 'VD Rev02')}</div></div>
+      <div class="note ${ev.c === 'ok' ? 'g' : 'w'}" id="wEval">${ev.t ? `Chênh lệch ${ev.d > 0 ? '+' : ''}${ev.d}% → <b>${ev.t}</b> (ngưỡng 5%)` : 'Nhập % KH tuần này và % thực tế để tự đánh giá'}</div>
+      <label class="l">Nhận xét tiến độ</label>${ta('overall.note', o.note, 'VD Chậm do mưa 2 ngày…')}
+      <div class="ph" style="margin-top:14px"><h3>File MS Project (PDF)</h3></div>
+      ${w.msp ? `<div class="note g">📄 <b>${esc(w.msp.name)}</b>${w.msp.url ? ` · <a href="${esc(w.msp.url)}" target="_blank" rel="noopener">mở file</a>` : ''} – QR in trong báo cáo ${RO ? '' : '<button class="btn sm" data-act="wMspDel">✕ Bỏ</button>'}</div>` : ''}
+      ${RO ? '' : `<label class="drop">📄 ${w.msp ? 'Thay' : 'Tải'} file PDF MS Project (≤ 20 MB) – lưu Drive, in QR + link vào báo cáo<input type="file" accept="application/pdf" data-wfile="msp"></label>`}
+      <div class="ph" style="margin-top:14px"><h3>Ảnh Gantt (tối đa ${GANTT_MAX})</h3><span class="hint">mỗi ảnh in nguyên 1 trang ngang</span></div>
+      ${w.gantt.map((g,i)=>`<div class="lyc"><div class="lyi">${g.img ? `<img src="${g.img}">` : '<div class="noimg">Đang tải ảnh…</div>'}</div><div class="lyf"><b>Gantt ${i+1}</b>${inp(`gantt.${i}.caption`, g.caption, 'Chú thích')}<div class="bar" style="margin:6px 0 0">${delBtn('gantt', i)}</div></div></div>`).join('')}
+      ${RO || w.gantt.length >= GANTT_MAX ? '' : `<label class="drop">🖼 Thêm ảnh chụp Gantt<input type="file" accept="image/*" data-img="wgantt"></label>`}`;
+  }
+  if (WTAB === 'task'){
+    h += `<div class="hint">Tự gom từ báo cáo ngày. % KH MSP lấy từ “kế hoạch tuần sau” của tuần trước. Dòng đã sửa tay được giữ khi tổng hợp lại.</div>`;
+    w.tasks.forEach((t,i)=>{ h += wRow('tasks', i, w.tasks.length, `<div class="wg wg-t"><div class="w2">${inp(`tasks.${i}.desc`, t.desc, 'Nội dung công việc')}</div>${sel(`tasks.${i}.zoneId`, t.zoneId, zoneOpts())}
+      <div><label class="l">KL tuần</label>${ninp(`tasks.${i}.qty`, t.qty)}</div><div><label class="l">ĐVT</label>${inp(`tasks.${i}.unit`, t.unit)}</div>
+      <div><label class="l">% đầu tuần</label>${ninp(`tasks.${i}.startPct`, t.startPct)}</div><div><label class="l">% KH MSP</label>${ninp(`tasks.${i}.planPct`, t.planPct)}</div>
+      <div><label class="l">% thực tế</label>${ninp(`tasks.${i}.actual`, t.actual)}</div><div class="w2">${inp(`tasks.${i}.note`, t.note, 'Ghi chú')}</div></div>`); });
+    h += addBtn('tasks', 'Thêm công việc', JSON.stringify({desc:'', zoneId:'', unit:'', qty:'', startPct:'', planPct:'', actual:'', note:''}));
+  }
+  if (WTAB === 'plan'){
+    h += `<div class="bar">${RO ? '' : '<button class="btn" data-act="wPlanFromTasks">＋ Tạo từ các việc chưa xong</button>'}</div>`;
+    w.nextPlans.forEach((t,i)=>{ h += wRow('nextPlans', i, w.nextPlans.length, `<div class="wg"><div class="w2">${inp(`nextPlans.${i}.desc`, t.desc, 'Công việc tuần sau')}</div>${sel(`nextPlans.${i}.zoneId`, t.zoneId, zoneOpts())}
+      <div><label class="l">% mục tiêu cuối tuần sau</label>${ninp(`nextPlans.${i}.target`, t.target)}</div></div>`); });
+    h += addBtn('nextPlans', 'Thêm kế hoạch', JSON.stringify({desc:'', zoneId:'', target:''}));
+  }
+  if (WTAB === 'mp'){
+    h += `<div class="wchart">${mpChartSvg(w)}</div><div class="ph"><h3>Nhân lực</h3></div>`;
+    w.manpower.forEach((m,i)=>{ h += wRow('manpower', i, w.manpower.length, `<div class="wg"><div class="w2">${inp(`manpower.${i}.title`, m.title, 'Chức danh')}</div><div><label class="l">TB/ngày</label>${ninp(`manpower.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`manpower.${i}.max`, m.max)}</div><div><label class="l">Tổng công</label>${ninp(`manpower.${i}.total`, m.total)}</div></div>`); });
+    h += addBtn('manpower', 'Thêm chức danh', JSON.stringify({title:'', avg:'', max:'', total:''})) + `<div class="ph" style="margin-top:12px"><h3>Thiết bị</h3></div>`;
+    w.equipment.forEach((m,i)=>{ h += wRow('equipment', i, w.equipment.length, `<div class="wg"><div class="w2">${inp(`equipment.${i}.name`, m.name, 'Thiết bị')}</div><div><label class="l">TB/ngày</label>${ninp(`equipment.${i}.avg`, m.avg)}</div><div><label class="l">Cao nhất</label>${ninp(`equipment.${i}.max`, m.max)}</div></div>`); });
+    h += addBtn('equipment', 'Thêm thiết bị', JSON.stringify({name:'', avg:'', max:''}));
+  }
+  if (WTAB === 'insp'){
+    const lst = (path, arr, label, res) => { let x = `<div class="ph" style="margin-top:10px"><h3>${label}</h3></div>`;
+      arr.forEach((it,i)=>{ x += wRow(path, i, arr.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`${path}.${i}.date`, it.date, 'yyyy-mm-dd', 'type="date"')}</div><div class="w2">${inp(`${path}.${i}.desc`, it.desc, 'Nội dung')}</div><div>${inp(`${path}.${i}.loc`, it.loc, 'Vị trí')}</div>${res ? `<div>${sel(`${path}.${i}.result`, it.result, ['','Đạt','Không đạt'])}</div>` : ''}</div>`); });
+      return x + addBtn(path, 'Thêm', JSON.stringify({date:'', desc:'', loc:'', result:''})); };
+    h += lst('inspections', w.inspections, 'Nghiệm thu trong tuần', true) + lst('tests', w.tests, 'Thí nghiệm trong tuần', true) + lst('inspPlans', w.inspPlans, 'Kế hoạch nghiệm thu tuần sau', false);
+    h += `<div class="ph" style="margin-top:10px"><h3>Vật tư nhập về</h3><span class="hint">kỳ trước = lũy kế tuần trước${first ? ' (tuần đầu: nhập tay)' : ''}</span></div>`;
+    w.materials.forEach((m,i)=>{ h += wRow('materials', i, w.materials.length, `<div class="wg"><div>${inp(`materials.${i}.name`, m.name, 'Chủng loại')}</div><div>${inp(`materials.${i}.spec`, m.spec, 'Quy cách')}</div><div>${inp(`materials.${i}.unit`, m.unit, 'ĐVT')}</div>
+      <div><label class="l">Kỳ trước</label>${ninp(`materials.${i}.prev`, m.prev)}</div><div><label class="l">Kỳ này</label>${ninp(`materials.${i}.now`, m.now)}</div><div><label class="l">Lũy kế</label><input class="in" value="${r1(num(m.prev) + num(m.now))}" disabled></div></div>`); });
+    h += addBtn('materials', 'Thêm vật tư', JSON.stringify({name:'', spec:'', unit:'', prev:0, now:0})) + `<div class="ph" style="margin-top:10px"><h3>Kế hoạch vật tư tuần sau</h3></div>`;
+    w.matPlans.forEach((m,i)=>{ h += wRow('matPlans', i, w.matPlans.length, `<div class="wg"><div>${inp(`matPlans.${i}.name`, m.name, 'Chủng loại')}</div><div>${inp(`matPlans.${i}.spec`, m.spec, 'Quy cách')}</div><div>${inp(`matPlans.${i}.unit`, m.unit, 'ĐVT')}</div><div><label class="l">Khối lượng</label>${ninp(`matPlans.${i}.qty`, m.qty)}</div><div><label class="l">Ngày dự kiến</label>${inp(`matPlans.${i}.date`, m.date, '', 'type="date"')}</div></div>`); });
+    h += addBtn('matPlans', 'Thêm kế hoạch vật tư', JSON.stringify({name:'', spec:'', unit:'', qty:'', date:''}));
+  }
+  if (WTAB === 'safe'){
+    h += `<label class="l">Nhận xét chung về an toàn trong tuần</label>${ta('safety.summary', w.safety.summary, '', 3)}<div class="ph" style="margin-top:10px"><h3>Hoạt động an toàn trong tuần</h3><span class="hint">huấn luyện, toolbox, kiểm tra…</span></div>`;
+    w.safety.activities.forEach((x,i)=>{ h += wRow('safety.activities', i, w.safety.activities.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`safety.activities.${i}.date`, x.date, '', 'type="date"')}</div><div class="w2">${inp(`safety.activities.${i}.desc`, x.desc, 'Nội dung hoạt động')}</div></div>`); });
+    h += addBtn('safety.activities', 'Thêm hoạt động', JSON.stringify({date:'', desc:''})) + `<div class="ph" style="margin-top:10px"><h3>Nhắc nhở / vi phạm trong tuần</h3></div>`;
+    w.safety.issues.forEach((x,i)=>{ h += wRow('safety.issues', i, w.safety.issues.length, `<div class="wg"><div><label class="l">Ngày</label>${inp(`safety.issues.${i}.date`, x.date, '', 'type="date"')}</div><div class="w2">${inp(`safety.issues.${i}.desc`, x.desc, 'Nội dung')}</div><div class="w2">${inp(`safety.issues.${i}.action`, x.action, 'Biện pháp xử lý')}</div></div>`); });
+    h += addBtn('safety.issues', 'Thêm ghi nhận', JSON.stringify({date:'', desc:'', action:''}));
+  }
+  if (WTAB === 'photo'){
+    h += `<div class="ph"><h3>Mặt bằng thi công</h3><span class="hint">tự lấy bộ mặt bằng của ngày cuối kỳ</span></div>`;
+    w.layouts.forEach((l,i)=>{ h += `<div class="lyc"><div class="lyi">${l.img ? `<img src="${l.img}">` : '<div class="noimg">Đang tải ảnh…</div>'}</div><div class="lyf">${inp(`layouts.${i}.caption`, l.caption, 'Chú thích')}<div class="bar" style="margin:6px 0 0">${delBtn('layouts', i)}</div></div></div>`; });
+    if (!w.layouts.length) h += '<p class="hint">Chưa có ảnh mặt bằng trong các báo cáo ngày của kỳ.</p>';
+    h += `<div class="ph" style="margin-top:12px"><h3>Hình ảnh tiêu biểu (${w.photos.length}/${WPHOTO_N})</h3>${RO ? '' : '<button class="btn sm" data-act="wShuffle">⟳ Đổi bộ ảnh khác</button>'}</div><div class="wph">`;
+    w.photos.forEach((p,i)=>{ h += `<div class="wphi">${p.img ? `<img src="${p.img}">` : '<div class="noimg">Đang tải…</div>'}${inp(`photos.${i}.caption`, p.caption, 'Chú thích')}<div class="hint">${vi(p.date)}</div>${delBtn('photos', i)}</div>`; });
+    h += '</div>';
+  }
+  h += '</div>';
+  $('#periodPane').innerHTML = h;
+  $('#perPrevBar').innerHTML = (isChot() && w.status === 'locked' && (rv.status === 'approved' || !reviewOn()) ? '<button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '')
+    + '<button class="btn" data-act="print">🖨 In</button>';
+  renderWeekDoc(); renderMobileBar();
+}
+
+/* ---- biểu đồ nhân sự: cột nhóm ngày × chức danh, số trên cột ---- */
+function mpChartSvg(w){
+  const c = w.chart || {}, D = c.days || [], T = c.titles || []; if (!D.length || !T.length) return '<div class="mut" style="font-size:11px">Chưa có số liệu nhân lực</div>';
+  const W0 = 720, H0 = 250, top = 22, bot = 205, left = 30, gw = (W0 - left - 10) / D.length, bw = Math.max(3, Math.min(14, (gw - 10) / T.length));
+  const mx = Math.max(10, ...c.data.flat()), step = Math.pow(10, Math.floor(Math.log10(mx))) / (mx / Math.pow(10, Math.floor(Math.log10(mx))) > 5 ? 0.5 : 1);
+  const top2 = Math.ceil(mx / step) * step, y = v => bot - (v / top2) * (bot - top);
+  // chú giải: xếp theo độ dài chữ, tự xuống dòng
+  const leg = []; let lx = 30, ly = bot + 30; T.forEach((t,j)=>{ const wd = 16 + Math.min(t.length, 34) * 5.2; if (lx + wd > W0 - 10) { lx = 30; ly += 14; } leg.push([lx, ly, t, j]); lx += wd + 10; });
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W0} ${ly + 10}" width="100%" style="display:block;font-family:Arial,sans-serif">
+    <text x="${W0/2}" y="13" font-size="12" font-weight="bold" text-anchor="middle" fill="#111">NHÂN SỰ ${esc(CFG.project.code)}</text>`;
+  for (let v = 0; v <= top2 + 1e-9; v += step) s += `<line x1="${left}" y1="${y(v)}" x2="${W0-6}" y2="${y(v)}" stroke="#e5e7eb" stroke-width="0.6"/><text x="${left-4}" y="${y(v)+3}" font-size="8" text-anchor="end" fill="#555">${Math.round(v)}</text>`;
+  D.forEach((d,i)=>{ const x0 = left + i * gw + (gw - bw * T.length) / 2;
+    T.forEach((t,j)=>{ const v = (c.data[i]||[])[j] || 0, x = x0 + j * bw; s += `<rect x="${x}" y="${y(v)}" width="${bw - 1}" height="${bot - y(v)}" fill="${MP_COL[j % MP_COL.length]}"/>`;
+      s += `<text x="${x + (bw-1)/2}" y="${y(v) - 2}" font-size="${bw < 7 ? 6 : 7.5}" text-anchor="middle" fill="#222">${v}</text>`; });
+    s += `<text x="${left + i * gw + gw/2}" y="${bot + 13}" font-size="9" text-anchor="middle" fill="#333">${esc(d)}</text>`; });
+  s += `<line x1="${left}" y1="${bot}" x2="${W0-6}" y2="${bot}" stroke="#999" stroke-width="0.8"/>`;
+  leg.forEach(([cx, cy, t, j])=>{ s += `<rect x="${cx}" y="${cy-8}" width="9" height="9" fill="${MP_COL[j % MP_COL.length]}"/><text x="${cx+13}" y="${cy}" font-size="9" fill="#333">${esc(t.length > 34 ? t.slice(0,33) + '…' : t)}</text>`; });
+  return s + '</svg>';
+}
+/** SVG → ảnh PNG (dùng khi xuất PDF: bộ chuyển PDF của Google hiển thị ảnh ổn định hơn SVG). */
+function svgToPng(svg, scale = 2){ return new Promise(res=>{ if (!/^<svg/.test(svg)) return res('');
+  const img = new Image(); img.onload = ()=>{ const c = document.createElement('canvas'); c.width = img.width * scale; c.height = img.height * scale;
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height); res(c.toDataURL('image/png')); };
+  img.onerror = ()=>res(''); const vb = svg.match(/viewBox="0 0 (\d+) (\d+)"/); img.width = vb ? +vb[1] : 720; img.height = vb ? +vb[2] : 260;
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace('width="100%"', `width="${img.width}" height="${img.height}"`)); }); }
+/** Xoay ảnh Gantt 90° (ảnh ngang → in nguyên 1 trang dọc, đọc khi xoay giấy). */
+function rotateImg(src){ return new Promise(res=>{ if (!src) return res(''); const img = new Image(); img.onload = ()=>{ if (img.width <= img.height) return res(src);
+  const c = document.createElement('canvas'); c.width = img.height; c.height = img.width; const x = c.getContext('2d'); x.translate(c.width, 0); x.rotate(Math.PI / 2); x.drawImage(img, 0, 0); res(c.toDataURL('image/jpeg', 0.9)); };
+  img.onerror = ()=>res(src); img.src = src; }); }
+
+/* ---- bản PDF báo cáo tuần ---- */
+function weekHeader(w, o){
+  const p = CFG.project, wt = w.weather || {};
+  return `<table class="logos2"><tr>${LOGO_KINDS.map(([k,lab,cls,ic,sh])=>{ const src = logoSrc(k, o); return `<td>${src ? `<img src="${src}">` : `<div class="${cls}">${ic}${esc(p[sh])}</div>`}${lab}</td>`; }).join('')}</tr></table>
+  <table class="ttl"><tr><td style="width:120px"></td><td><h1>BÁO CÁO TUẦN ${esc(w.no)} / WEEKLY REPORT No.${esc(w.no)}</h1>
+    <div class="proj">${esc(weekMonthLabel(w.to))} · KỲ BÁO CÁO / PERIOD: ${vi(w.from)} → ${vi(w.to)}${w.version > 1 ? ' (v' + w.version + ')' : ''}</div></td><td style="width:120px">${qrHead(w)}</td></tr></table>
+  <table class="winfo"><tr><td class="k">Dự án / Project</td><td colspan="3"><b>${esc(p.code)} – ${esc(p.name)}</b></td></tr>
+    <tr><td class="k">Địa điểm / Location</td><td colspan="3">${esc(p.location)}</td></tr>
+    <tr><td class="k">Chủ đầu tư / Client</td><td>${esc(p.client)}</td><td class="k">Tư vấn giám sát / Consultant</td><td>${esc(p.consultant)}</td></tr>
+    <tr><td class="k">Nhà thầu / Contractor</td><td>${esc(p.contractor)}</td><td class="k">Thời tiết tuần / Weather</td><td>${wt.sun || 0} ngày nắng · ${wt.rain || 0} ngày mưa</td></tr></table>
+  ${w.status !== 'locked' ? '<div class="sm" style="text-align:right;color:#b45309;font-weight:bold">BẢN NHÁP – CHƯA CHỐT / DRAFT</div>' : ''}`;
+}
+function weekDocHTML(w, o = {}){
+  const ov = w.overall, ev = wEval(ov), mpT = w.manpower.reduce((s,m)=>s+num(m.avg),0);
+  let h = `<div class="doc">${weekHeader(w, o)}
+  <div class="sec">THÔNG TIN CHUNG / GENERAL INFORMATION</div><table class="grid wrate"><tr><th style="width:24%">Hạng mục</th><th class="c">Tốt</th><th class="c">Trung bình</th><th class="c">Kém</th></tr>
+  ${Object.keys(RATE_TXT).map(k=>`<tr><td><b>${RATE_TXT[k][0]}</b></td>${RATE.map(([v],i)=>`<td class="c${w.ratings[k]===v?' on':''}">${w.ratings[k]===v?'<b class="x">X</b> ':''}${RATE_TXT[k][i+1]}</td>`).join('')}</tr>`).join('')}</table>
+  <table class="wovr"><tr><td colspan="4" class="hd">OVERALL SCHEDULE${ov.rev ? ' (theo tiến độ cập nhật ' + esc(ov.rev) + ')' : ''}</td></tr>
+  <tr><td><span>Kế hoạch tuần / Plan</span><b>${wPct(ov.plan)}</b></td><td><span>Thực tế tuần này / Actual</span><b>${wPct(ov.actual)}</b><i>${wNum(ov.actualPrev) !== null ? 'tuần trước ' + wPct(ov.actualPrev) + (wNum(ov.actual) !== null ? ' · ' + (ov.actual - ov.actualPrev >= 0 ? '+' : '') + Math.round((ov.actual - ov.actualPrev) * 100) / 100 + '%' : '') : ''}</i></td>
+  <td class="ev ${ev.c}"><span>Đánh giá / Evaluation</span><b>${ev.t || '—'}</b><i>${ev.t ? (ev.d > 0 ? '+' : '') + ev.d + '%' : ''}</i></td><td><span>KH tuần sau / Next week</span><b>${wPct(ov.planNext)}</b></td></tr>
+  ${ov.note ? `<tr><td colspan="4" class="nt">Nhận xét: ${esc(ov.note)}</td></tr>` : ''}</table>`;
+  // A. thi công
+  h += `<div class="sec">A. CÔNG TÁC THI CÔNG TUẦN NÀY / CONSTRUCTION WORKS (${vi(w.from)} → ${vi(w.to)})</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc / Works description</th><th class="c" style="width:56px">KL tuần</th><th class="c" style="width:46px">Đầu tuần</th><th class="c" style="width:46px">KH MSP</th><th class="c" style="width:46px">Thực tế</th><th class="c" style="width:48px">Chênh lệch</th><th style="width:90px">Ghi chú</th></tr>`;
+  h += wGroupRows(w.tasks, 8, (t,i)=>{ const d = wNum(t.actual) !== null && wNum(t.planPct) !== null ? Math.round((t.actual - t.planPct) * 10) / 10 : null;
+    return `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c">${hasV(t.qty) ? esc(t.qty) + ' ' + esc(t.unit||'') : ''}</td><td class="c">${wPct(t.startPct)}</td><td class="c">${wPct(t.planPct)}</td><td class="c"><b>${wPct(t.actual)}</b></td><td class="c ${d !== null && d < 0 ? 'bad' : ''}">${d !== null ? (d > 0 ? '+' : '') + d + '%' : ''}</td><td class="sm">${esc(t.note||'')}</td></tr>`; }, 'A');
+  h += `</table><div class="sec">B. KẾ HOẠCH THI CÔNG TUẦN SAU / NEXT WEEK PLAN (${vi(addDays(w.to,1))} → ${vi(addDays(w.to,7))})</div>
+  <table class="grid"><tr><th class="c">Stt</th><th>Nội dung công việc</th><th class="c" style="width:80px">% mục tiêu</th></tr>`;
+  h += wGroupRows(w.nextPlans, 3, (t,i)=>`<tr><td class="n">${i+1}</td><td>${esc(t.desc)}</td><td class="c"><b>${wPct(t.target)}</b></td></tr>`, 'B');
+  // C. vật tư
+  h += `</table><div class="sec">C. VẬT TƯ / MATERIALS</div><table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">KL kỳ trước</th><th class="c">KL kỳ này</th><th class="c">KL lũy kế</th></tr>`;
+  const groups = {}; w.materials.forEach(m=>(groups[m.name || '—'] = groups[m.name || '—'] || []).push(m));
+  Object.keys(groups).forEach((g,gi)=>{ h += `<tr><td colspan="6" class="grp">${['I','II','III','IV','V','VI','VII','VIII','IX','X'][gi] || gi+1}. ${esc(g)}</td></tr>`;
+    groups[g].forEach((m,i)=>{ h += `<tr><td class="n">${i+1}</td><td>${esc(m.spec || m.name)}</td><td class="c">${esc(m.unit)}</td><td class="c">${num(m.prev).toLocaleString('vi-VN')}</td><td class="c"><b>${num(m.now).toLocaleString('vi-VN')}</b></td><td class="c">${r1(num(m.prev)+num(m.now)).toLocaleString('vi-VN')}</td></tr>`; }); });
+  if (!w.materials.length) h += '<tr><td></td><td colspan="5" class="mut">Không có vật tư nhập về trong tuần</td></tr>';
+  h += '</table>';
+  if (w.matPlans.length) h += `<div class="sm" style="margin:4px 0 2px"><b>Kế hoạch vật tư tuần sau:</b></div><table class="grid"><tr><th class="c">Stt</th><th>Chủng loại / Quy cách</th><th class="c">ĐVT</th><th class="c">Khối lượng</th><th class="c">Ngày dự kiến</th></tr>${w.matPlans.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}${m.spec ? ' – ' + esc(m.spec) : ''}</td><td class="c">${esc(m.unit)}</td><td class="c">${esc(m.qty)}</td><td class="c">${vi(m.date)}</td></tr>`).join('')}</table>`;
+  // D. nghiệm thu & thí nghiệm
+  const NT = w.inspections.map(x=>({...x, k:'Nghiệm thu'})).concat(w.tests.map(x=>({...x, k:'Thí nghiệm'})));
+  h += `<div class="sec">D. NGHIỆM THU & THÍ NGHIỆM / INSPECTION & TESTING <span>NT: ${w.inspections.filter(x=>x.result==='Đạt').length} đạt / ${w.inspections.length}</span></div>
+  <table class="grid"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th style="width:62px">Loại</th><th>Nội dung</th><th style="width:90px">Vị trí</th><th class="c" style="width:60px">Kết quả</th></tr>
+  ${NT.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${x.k}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td><td class="c ${x.result==='Không đạt'?'bad':'ok'}">${esc(x.result)}</td></tr>`).join('') || '<tr><td></td><td colspan="5" class="mut">Không có</td></tr>'}</table>
+  ${w.inspPlans.length ? `<div class="sm" style="margin:4px 0 2px"><b>Kế hoạch nghiệm thu tuần sau:</b></div><table class="grid"><tr><th class="c">Stt</th><th style="width:56px">Ngày</th><th>Nội dung</th><th style="width:110px">Vị trí</th></tr>${w.inspPlans.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.loc)}</td></tr>`).join('')}</table>` : ''}`;
+  // E. an toàn
+  const sf = w.safety;
+  h += `<div class="sec">E. AN TOÀN LAO ĐỘNG / SAFETY <span>${sf.issues.length} nhắc nhở / vi phạm</span></div><div class="txt">${esc(sf.summary) || '—'}</div>
+  ${sf.activities.length ? `<div class="sm" style="margin:4px 0 2px"><b>Hoạt động an toàn trong tuần:</b></div><table class="grid">${sf.activities.map((x,i)=>`<tr><td class="n">${i+1}</td><td style="width:44px">${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td></tr>`).join('')}</table>` : ''}
+  ${sf.issues.length ? `<table class="grid" style="margin-top:4px"><tr><th class="c">Stt</th><th style="width:44px">Ngày</th><th>Nhắc nhở / vi phạm</th><th>Biện pháp xử lý</th></tr>${sf.issues.map((x,i)=>`<tr><td class="n">${i+1}</td><td>${vi(x.date).slice(0,5)}</td><td>${esc(x.desc)}</td><td>${esc(x.action)}</td></tr>`).join('')}</table>` : ''}`;
+  // F/G. nhân lực, thiết bị
+  h += `<div class="sec">F. NHÂN LỰC NHÀ THẦU / CONTRACTOR'S MANPOWER <span>BÌNH QUÂN ${r1(mpT)} NGƯỜI/NGÀY</span></div>
+  <div class="wchart">${o.chartPng ? `<img src="${o.chartPng}" style="width:100%">` : mpChartSvg(w)}</div>
+  <table><tr><td style="width:55%;vertical-align:top;padding-right:8px"><table class="grid"><tr><th class="c">Stt</th><th>Chức danh</th><th class="c">TB/ngày</th><th class="c">Cao nhất</th><th class="c">Tổng công</th></tr>
+  ${w.manpower.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.title)}</td><td class="c"><b>${esc(m.avg)}</b></td><td class="c">${esc(m.max)}</td><td class="c">${esc(m.total)}</td></tr>`).join('')}
+  <tr class="tot"><td colspan="2" class="r">TỔNG:</td><td class="c v">${r1(mpT)}</td><td></td><td class="c">${w.manpower.reduce((s,m)=>s+num(m.total),0)}</td></tr></table></td>
+  <td style="vertical-align:top;padding-left:8px"><div class="sm" style="font-weight:bold;margin-bottom:2px">G. MÁY MÓC THIẾT BỊ / EQUIPMENT</div><table class="grid"><tr><th class="c">Stt</th><th>Thiết bị</th><th class="c">TB/ngày</th><th class="c">Cao nhất</th></tr>
+  ${w.equipment.map((m,i)=>`<tr><td class="n">${i+1}</td><td>${esc(m.name)}</td><td class="c">${esc(m.avg)}</td><td class="c">${esc(m.max)}</td></tr>`).join('') || '<tr><td></td><td colspan="3" class="mut">Không có</td></tr>'}</table></td></tr></table>`;
+  // H. hình ảnh
+  h += `<div class="sec ${w.layouts.some(l=>l.img||l.fileId)?'lysec':''}">H. MẶT BẰNG & HÌNH ẢNH THI CÔNG / SITE LAYOUT & PICTURES</div>${layoutsHtml(w, o)}`;
+  if (w.photos.length) { h += '<table class="phc wph3">'; for (let i = 0; i < w.photos.length; i += 3) { h += '<tr>' + w.photos.slice(i, i+3).map(p=>`<td>${(p.img || (o.pdf && p.fileId)) ? `<img src="${imgSrc(p, o)}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)} (${vi(p.date).slice(0,5)})</div></td>`).join('') + '</tr>'; } h += '</table>'; }
+  h += docSign();
+  // Tracking MSP: mỗi ảnh Gantt 1 trang + QR file MS Project
+  if (w.gantt.length || w.msp) {
+    h += `<div class="sec gpb">TRACKING MSP – TIẾN ĐỘ CẬP NHẬT / UPDATED SCHEDULE${ov.rev ? ' ' + esc(ov.rev) : ''}</div>`;
+    if (w.msp && w.msp.url) h += `<table class="wmsp"><tr><td style="width:90px">${qrImg(w.msp.url)}</td><td>File MS Project: <b>${esc(w.msp.name)}</b><br><span class="sm">Quét mã QR hoặc mở link: ${esc(w.msp.url)}</span></td></tr></table>`;
+    w.gantt.forEach((g,i)=>{ const src = (o.gRot && o.gRot[i]) || ((g.img || (o.pdf && g.fileId)) ? imgSrc(g, o) : '');
+      h += `<div class="gpage${i ? ' gpb' : ''}">${src ? `<img src="${src}"${i ? '' : ' style="max-height:225mm"'}>` : '<div class="noph">Đang tải ảnh Gantt…</div>'}<div class="sm">${esc(g.caption || 'Gantt ' + (i+1))}</div></div>`; });
+  }
+  return h + '</div>';
+}
+/** Nhóm dòng theo phần (A.1 XD / A.2 MEP) → khu vực. */
+function wGroupRows(list, cols, rowFn, pre){
+  let h = ''; SECTIONS.forEach((S2, si)=>{ const L = list.filter(t=>wSec(t) === S2.k);
+    h += `<tr><td colspan="${cols}" class="${S2.cls}">${pre}.${si+1} ${S2.k === 'XD' ? 'CÔNG VIỆC XÂY DỰNG / CIVIL WORKS' : 'CÔNG VIỆC MEP / M&E WORKS'}</td></tr>`;
+    if (!L.length) { h += `<tr><td></td><td colspan="${cols-1}" class="mut">Không có</td></tr>`; return; }
+    const zs = [...new Set(L.map(t=>t.zoneId || ''))];
+    zs.forEach((z, zi)=>{ h += `<tr><td colspan="${cols}" class="wz">${['I','II','III','IV','V','VI','VII','VIII','IX','X'][zi] || zi+1}. ${esc(zoneName(z) || 'Khác')}</td></tr>`;
+      L.filter(t=>(t.zoneId || '') === z).forEach((t,i)=>{ h += rowFn(t, i); }); }); });
+  return h;
+}
+function renderWeekDoc(){ if (W) $('#pdoc').innerHTML = weekDocHTML(W); }
+async function exportWeek(){
+  if (!W || W.status !== 'locked') throw new Error('Chốt báo cáo tuần trước khi xuất PDF');
+  if (!W.no) throw new Error('Chưa có số tuần');
+  const o = {pdf:true, chartPng: await svgToPng(mpChartSvg(W)), gRot: await Promise.all(W.gantt.map(g=>rotateImg(g.img)))};
+  const box = document.createElement('div'); box.innerHTML = weekDocHTML(W, o);
+  return Store.exportPdf(docHtml(box), weekFileName(W), W.key, 'week');
+}
+
 /* ===================== CẤU HÌNH ===================== */
 const CFG_TABS = [['project','Dự án'],['users','Người dùng & PIN'],['zones','Khu vực & phân công'],['lists','Danh mục'],['settings','Cài đặt'],['backup','Sao lưu / Chuyển dự án']];
 /* Ô tải logo (dùng ở khai báo lần đầu và Cấu hình) */
@@ -1578,7 +1937,7 @@ function renderConfig(){
     <div class="hint" style="padding:0 0 6px">Khai báo lần đầu${CFG.setupAt ? ' ngày ' + esc(CFG.setupAt) : ''}. Tự điền vào mọi báo cáo.</div>
     <div class="g2">${f('code','Mã dự án')}${f('name','Tên công trình')}</div>${f('location','Địa điểm')}
     <div class="g2">${f('lat','Vĩ độ (tự điền thời tiết)')}${f('lon','Kinh độ')}</div>${ro ? '' : '<div class="bar" style="margin:4px 0 0"><button class="btn sm" data-act="geoHere">📍 Dùng vị trí hiện tại (đứng tại công trường)</button><span class="hint">VD Quận 7: 10.729 / 106.718</span></div>'}
-    <div class="g2">${f('client','Chủ đầu tư')}${f('clientShort','Tên ngắn CĐT')}${f('consultant','Tư vấn giám sát')}${f('consultantShort','Tên ngắn TVGS')}${f('contractor','Nhà thầu')}${f('contractorShort','Tên ngắn NT')}</div>
+    <div class="g2">${f('client','Chủ đầu tư')}${f('clientShort','Tên ngắn CĐT')}${f('consultant','Tư vấn giám sát')}${f('consultantShort','Tên ngắn TVGS')}${f('contractor','Nhà thầu')}${f('contractorShort','Tên ngắn NT')}${f('contractorAbbr','Mã viết tắt nhà thầu (tên file, VD VC)')}</div>
     <div class="g2"><div><label class="l">Đại diện nhà thầu (ký)</label><input class="in" data-cfg="signers.contractor" value="${esc(CFG.signers.contractor)}"></div><div><label class="l">Giám sát TVGS (ký)</label><input class="in" data-cfg="signers.supervisor" value="${esc(CFG.signers.supervisor)}"></div></div>
     <div class="bar"><button class="btn pri" data-act="saveCfg">💾 Lưu</button></div>
     <div class="ph" style="margin-top:14px"><h3>Logo các đơn vị</h3></div>${logoBoxes()}`;
@@ -1654,25 +2013,26 @@ async function toDrive(kind){
   try { toast('⏳ Đang tạo PDF… thường mất 10–20 giây, vui lòng chờ', 30000);
     if (kind==='day'){ if (!repLocked()) await saveR(true); const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
       showLink(await Store.exportPdf(docHtml(box), `${R.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report.pdf`, R.date, 'day')); }
+    else if (P.kind==='week' && W) showLink(await exportWeek());
     else { await Store.savePeriod(P.manual); const pr = periodRange(); showLink(await Store.exportPdf(docHtml($('#pdoc')), (P.kind==='week' ? `${pr.to.replace(/-/g,'')}-${CFG.project.code}-Weekly Report.pdf` : `${pr.from.slice(0,7).replace(/-/g,'')}-${CFG.project.code}-Monthly Report.pdf`), pr.key, P.kind)); }
   } catch(e){ toast('⚠ Lỗi xuất PDF: '+(e.message||e), 6000); }
 }
 function showLink(url){ modal(`<h3>✔ Đã lưu PDF vào Google Drive</h3><p style="word-break:break-all"><a href="${esc(url)}" target="_blank">${esc(url)}</a></p><p class="hint">Gửi link này qua Zalo/email cho các bên.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đóng</button></div>`); }
 
 /* ===================== SỰ KIỆN ===================== */
-const rootObj = n => n==='S' ? S : R;
+const rootObj = n => n==='S' ? S : n==='W' ? W : R;
 /* Nút ▲ ▼ đổi thứ tự dòng (nhân lực, thiết bị) – thứ tự trên PDF đúng như trên màn hình */
-const mvBtns = (path, i, n) => RO ? '' : `<div class="mv"><button data-act="mv" data-path="${path}" data-i="${i}" data-d="-1" ${i===0?'disabled':''} title="Lên">▲</button><button data-act="mv" data-path="${path}" data-i="${i}" data-d="1" ${i>=n-1?'disabled':''} title="Xuống">▼</button></div>`;
+const mvBtns = (path, i, n) => RO ? '' : `<div class="mv"><button data-act="mv" data-root="${EDIT}" data-path="${path}" data-i="${i}" data-d="-1" ${i===0?'disabled':''} title="Lên">▲</button><button data-act="mv" data-root="${EDIT}" data-path="${path}" data-i="${i}" data-d="1" ${i>=n-1?'disabled':''} title="Xuống">▼</button></div>`;
 /* Danh sách có thứ tự cố định trên PDF (nhân lực, thiết bị): thêm mới vào CUỐI */
 const ADD_END = new Set(['manpower','equipment']);
 /* Thêm mới (đầu hoặc cuối danh sách), tô viền, đưa con trỏ vào ô đầu tiên */
 function addItem(root, path, it){
   const o = rootObj(root); if (!o) return; const arr = getPath(o, path); it.id = uid(); it._fresh = true;
-  const end = root==='R' && ADD_END.has(path); end ? arr.push(it) : arr.unshift(it); const at = end ? arr.length - 1 : 0;
+  const end = (root==='R' && ADD_END.has(path)) || root==='W'; end ? arr.push(it) : arr.unshift(it); const at = end ? arr.length - 1 : 0;
   if (root==='S' && path==='plans') { MYSEG = 'tomorrow'; planCalc(it, S.tasks); }
   if (root==='S' && path==='tasks') MYSEG = 'today';
   markDirty(root);
-  if (root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); renderMobileBar(); }
+  if (root==='W') renderWeek(); else if (root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); renderMobileBar(); }
   delete it._fresh;
   const el = document.querySelector(`[data-root="${root}"][data-path^="${path}.${at}."]:not([disabled])`);
   if (el) { try { el.focus({preventScroll:true}); } catch(x){} el.scrollIntoView({block:'center'}); }
@@ -1703,6 +2063,10 @@ document.addEventListener('input', e=>{
     const mp = t.dataset.path.match(/^plans\.(\d+)\.(add|desc|loc|zoneId)$/); if (mp && t.dataset.root==='S'){ const pl = S.plans[+mp[1]];
       if (mp[2]==='add' && v!=='' && v < 0) { pl.add = 0; t.value = 0; } planCalc(pl, S.tasks); const e = $('#pt-'+mp[1]); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; }
     if (/^(plans|inspections|inspectionPlans|tests|testPlans)\.\d+\.zoneId$/.test(t.dataset.path)){ const it = getPath(o, t.dataset.path.replace(/\.zoneId$/,'')); it.section = (zoneById(v)||{}).section; }
+    if (t.dataset.root==='W' && W){ const mw = t.dataset.path.match(/^(tasks|nextPlans|manpower|equipment|inspections|tests|inspPlans|materials|matPlans|safety\.issues|safety\.activities|photos|layouts|gantt)\.(\d+)\./);
+      if (mw) { const it = getPath(W, mw[1])[+mw[2]]; if (it) it.edited = true; }
+      if (/^ratings\./.test(t.dataset.path)) W.ratingsEdited[t.dataset.path.slice(8)] = true;
+      if (/^overall\.(plan|actual)$/.test(t.dataset.path)) { autoRatings(W); const ev = wEval(W.overall), el = $('#wEval'); if (el) { el.className = 'note ' + (ev.c==='ok'?'g':'w'); el.innerHTML = ev.t ? `Chênh lệch ${ev.d > 0 ? '+' : ''}${ev.d}% → <b>${ev.t}</b> (ngưỡng 5%)` : 'Nhập % KH tuần này và % thực tế để tự đánh giá'; } } }
     markDirty(t.dataset.root); schedulePreview(); return; }
   if (t.dataset.pm && P.manual){ P.manual[t.dataset.pm] = t.value; renderPeriodDoc(aggregate(P.reports), periodRange(), P.manual); clearTimeout(saveTimer.P); saveTimer.P = setTimeout(()=>Store.savePeriod(P.manual), 1500); return; }
   if (t.dataset.cfg){ setPath(CFG, t.dataset.cfg, t.value); }
@@ -1728,9 +2092,15 @@ document.addEventListener('change', async e=>{
     } catch(e){ toast('⚠ Lỗi logo: ' + (e.message||e), 5000); }
     return;
   }
+  if (t.dataset.wfile==='msp'){ const f = t.files[0]; if (!f) return; if (f.size > 20e6) return toast('File quá 20 MB – xuất PDF MS Project nhẹ hơn', 5000);
+    try { toast('⏳ Đang tải file lên Drive…', 20000); const data = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>res(fr.result); fr.onerror = rej; fr.readAsDataURL(f); });
+      W.msp = IS_GAS ? await Store.uploadFile(data, f.name) : {fileId:'', url:'', name:f.name}; markDirty('W'); renderWeek(); toast('✔ Đã tải file MS Project'); }
+    catch(err){ toast('⚠ Lỗi tải file: ' + (err.message||err), 5000); } return; }
   if (t.dataset.img){
     const files = [...t.files]; if (!files.length) return; toast('Đang xử lý ảnh…');
     try {
+      if (t.dataset.img==='wgantt'){ for (const f of files.slice(0, Math.max(0, GANTT_MAX - W.gantt.length))){ const p = await processImage(f, false, null, {max:2600, q:0.88}); W.gantt.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
+        markDirty('W'); renderWeek(); return; }
       if (t.dataset.img==='layouts'){ const room = LAYOUT_MAX - R.layouts.length; if (files.length > room) toast(`Chỉ thêm được ${room} ảnh nữa (tối đa ${LAYOUT_MAX})`, 4000);
         for (const f of files.slice(0, Math.max(0, room))){ const p = await processImage(f, false, null, {max:2000, q:0.85}); R.layouts.push({id:uid(), img:p.img, fileId:'', caption:f.name.replace(/\.[^.]+$/,'')}); }
         markDirty('R'); renderForm(); renderDoc(); }
@@ -1744,7 +2114,7 @@ document.addEventListener('change', async e=>{
   }
 });
 document.addEventListener('click', async e=>{
-  const b = e.target.closest('[data-act],[data-tab],[data-view],[data-mytab],[data-cfgtab]'); if (!b) return;
+  const b = e.target.closest('[data-act],[data-tab],[data-view],[data-mytab],[data-cfgtab],[data-wtab]'); if (!b) return;
   if (b.dataset.tab){ TAB = b.dataset.tab; renderForm(); updFab(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
   if (b.dataset.mytab){ MYTAB = b.dataset.mytab; renderMy(); if (isMobile()) window.scrollTo(0,0); return; }
   if (b.dataset.cfgtab){ CFGTAB = b.dataset.cfgtab; renderConfig(); return; }
@@ -1766,7 +2136,7 @@ document.addEventListener('click', async e=>{
   if (a==='gotoDate'){ await flush(); DATE = b.dataset.d; TAB = 'status'; return openDay(DATE); }
   if (a==='bumpPlan'){ const i = +b.dataset.i, pl = S.plans[i]; const room = Math.max(0, 100 - (pl.base||0)); pl.add = r1(Math.min(room, num(pl.add) + (+b.dataset.v))); planCalc(pl, S.tasks);
     const el = $('#pa-'+i); if (el) el.value = pl.add; const e = $('#pt-'+i); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; markDirty('S'); schedulePreview(); }
-  if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
+  if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='W') renderWeek(); else if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
   if (a==='logout'){ document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; showLogin(); }
   if (a==='goToday'){ await flush(); DATE = today(); return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
   if (a==='prevDay' || a==='nextDay'){ await flush(); const opts = [...$('#dateSel').options].map(o=>o.value).sort(); const i = opts.indexOf(DATE), j = a==='prevDay' ? i-1 : i+1;
@@ -1851,8 +2221,23 @@ document.addEventListener('click', async e=>{
     delete CFG.settings.pdfFolderId; delete CFG.settings.pdfFolderName; await Store.saveConfig(CFG); if (LINKS) LINKS.pdf = ''; renderChip(); renderConfig(); toast('Đã về thư mục mặc định'); return; }
   if (a==='geoHere'){ if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ định vị');
     navigator.geolocation.getCurrentPosition(p=>{ CFG.project.lat = p.coords.latitude.toFixed(5); CFG.project.lon = p.coords.longitude.toFixed(5); renderConfig.edit = true; renderConfig(); toast('📍 Đã lấy tọa độ – bấm Lưu'); }, ()=>toast('Không lấy được vị trí – kiểm tra quyền định vị'), {enableHighAccuracy:true, timeout:15000}); return; }
-  if (a==='mv'){ const arr = getPath(R, b.dataset.path), i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= arr.length) return;
-    [arr[i], arr[j]] = [arr[j], arr[i]]; markDirty('R'); renderForm(); renderDoc();
+  if (b.dataset.wtab){ WTAB = b.dataset.wtab; renderWeek(); return; }
+  if (a==='wGen'){ genWeek(W, P.reports, PW); markDirty('W'); renderWeek(); toast('✔ Đã tổng hợp lại – giữ các dòng đã sửa tay'); return; }
+  if (a==='wShuffle'){ W.photos = pickPhotos(P.reports); markDirty('W'); renderWeek(); return; }
+  if (a==='wMspDel'){ W.msp = null; markDirty('W'); renderWeek(); return; }
+  if (a==='wPlanFromTasks'){ const have = new Set(W.nextPlans.map(tkKey)); let n = 0;
+    W.tasks.forEach(t=>{ if (wNum(t.actual) !== null && +t.actual >= 100) return; if (have.has(tkKey(t))) return; W.nextPlans.push({id:uid(), desc:t.desc, zoneId:t.zoneId, section:wSec(t), target:''}); n++; });
+    markDirty('W'); renderWeek(); toast(n ? `Đã thêm ${n} việc – nhập % mục tiêu` : 'Không còn việc nào chưa xong'); return; }
+  if (a==='wLock'){ const o = W.overall, miss = [];
+    if (!W.no) miss.push('số tuần (thẻ Chung)'); if (wNum(o.actual) === null) miss.push('% thực tế tuần này'); if (wNum(o.planNext) === null) miss.push('% KH tuần sau'); if (wNum(o.plan) === null) miss.push('% KH tuần này');
+    if (miss.length) return toast('Chưa nhập: ' + miss.join(', '), 6000);
+    W.status = 'locked'; W._lockNow = true; await saveW(true); renderWeek(); toast(reviewOn() ? '🔒 Đã chốt tuần – chờ TVGS kiểm tra' : '🔒 Đã chốt tuần'); return; }
+  if (a==='wUnlock'){ W.status = 'draft'; W.version = (W.version||1) + 1; W._lockNow = true; await saveW(true); renderWeek(); toast('🔓 Đã mở khóa – bản v' + W.version + ', chốt lại cần TVGS xác nhận lại'); return; }
+  if (a==='wApprove'){ try { W.review = await Store.reviewPeriod(W.key, 'approve'); renderWeek(); toast('✔ Đã xác nhận báo cáo tuần · mã ' + W.review.code); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
+  if (a==='wReturn'){ modal(`<h3>↩ Yêu cầu nhà thầu sửa báo cáo tuần</h3><textarea class="in" id="wRetNote" rows="4" placeholder="Ghi rõ nội dung cần sửa"></textarea><div class="acts"><button class="btn" onclick="closeModal()">Hủy</button><button class="btn pri" data-act="wReturnGo">Gửi yêu cầu sửa</button></div>`); return; }
+  if (a==='wReturnGo'){ try { W.review = await Store.reviewPeriod(W.key, 'return', $('#wRetNote').value); W.status = 'draft'; closeModal(); renderWeek(); toast('↩ Đã yêu cầu nhà thầu sửa'); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
+  if (a==='mv'){ const rt = b.dataset.root || 'R', arr = getPath(rootObj(rt), b.dataset.path), i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]]; markDirty(rt); if (rt==='W') renderWeek(); else { renderForm(); renderDoc(); }
     const btn = document.querySelector(`[data-act="mv"][data-path="${b.dataset.path}"][data-i="${j}"][data-d="${b.dataset.d}"]`) || document.querySelector(`[data-act="mv"][data-path="${b.dataset.path}"][data-i="${j}"]`); if (btn && !btn.disabled) btn.focus({preventScroll:true}); return; }
   if (a==='delLogo'){ const k = b.dataset.k;
     if (!ME) { delete (showSetup.logos||{})[k]; $('#suLogos').innerHTML = logoBoxes(showSetup.logos||{}); return; }
@@ -1863,7 +2248,7 @@ document.addEventListener('click', async e=>{
     try { const n = await Store.clearTestDays(); IDX.reports = IDX.reports.filter(x=>!L.includes(x.date)); IDX.subs = IDX.subs.filter(x=>!L.includes(x.date)); IDX.testDays = [];
       if (L.includes(DATE)) { DATE = today(); R = null; S = null; } renderConfig(); renderDateSel(); toast(`✔ Đã xóa ${n} ngày thử`); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
   if (a==='drivePeriod') toDrive('period');
-  if (a==='savePeriod'){ await Store.savePeriod(P.manual); toast('✔ Đã lưu phần nhập tay'); }
+  if (a==='savePeriod'){ if (P.kind==='week' && W) { await saveW(); renderWeek(); } else { await Store.savePeriod(P.manual); toast('✔ Đã lưu phần nhập tay'); } }
   if (a==='refresh'){ await flush(); R = null; S = null; VIEW==='my' ? openMy(DATE, ME.id) : openDay(DATE); }
   if (a==='print') doPrint();
   if (a==='pPrev' || a==='pNext'){ const pr = periodRange(); P.anchor = a==='pPrev' ? addDays(pr.from, -1) : addDays(pr.to, 1); loadPeriod(); }
@@ -2057,7 +2442,7 @@ function showVerify(v){
   document.body.innerHTML = `<div class="vfy"><div class="vfy-c ${ok==='current'?'ok':ok==='old'?'old':'bad'}">
     <div class="vfy-h">${ok==='current' ? '✔ BÁO CÁO ĐÃ ĐƯỢC TVGS XÁC NHẬN' : ok==='old' ? '⚠ MÃ CỦA BẢN CŨ' : '✖ KHÔNG TÌM THẤY MÃ XÁC THỰC'}</div>
     <div class="vfy-code">${esc(v && v.code || '')}</div>
-    ${ok ? row('Dự án', P) + row('Báo cáo ngày', vi(v.date) + (v.version ? ' · bản v' + v.version : '')) + row('Nhà thầu chốt', esc(v.lockedAt||'') + (v.lockedBy ? ' · ' + esc(v.lockedBy) : ''))
+    ${ok ? row('Dự án', P) + (v.kind==='week' ? row('Báo cáo tuần', 'Tuần ' + esc(v.no) + ' · ' + vi(v.from) + ' → ' + vi(v.date) + (v.version ? ' · bản v' + v.version : '')) : row('Báo cáo ngày', vi(v.date) + (v.version ? ' · bản v' + v.version : ''))) + row('Nhà thầu chốt', esc(v.lockedAt||'') + (v.lockedBy ? ' · ' + esc(v.lockedBy) : ''))
       + row('Đã kiểm tra bởi', 'TVGS ' + esc(v.consultant||'') + (v.by ? ' · ' + esc(v.by) : '') + (v.at ? ' · ' + esc(v.at) : '')) : ''}
     ${ok==='old' ? '<p class="note w">Báo cáo này <b>đã được sửa sau khi TVGS xác nhận</b>. Bản in đang cầm không còn là bản hiện hành – đề nghị dùng PDF bản mới nhất.</p>' : ''}
     ${!ok ? '<p class="note w" style="background:#fef2f2;border-color:#fecaca">Mã không khớp báo cáo nào đã được TVGS xác nhận. Tài liệu có thể không phải bản chính thức.</p>' : ''}

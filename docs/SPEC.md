@@ -160,3 +160,33 @@ Trạng thái: **ĐÃ CHỐT** (16/11/2026).
 - **Ô JSON > 45.000 ký tự** chia sang cột ẩn `json_2..json_4` (BaoCao, PhieuKS) – tối đa ~180.000 ký tự; vượt → báo lỗi rõ. Giao diện cảnh báo khi báo cáo > 150.000.
 - **Chốt ngày** tìm dòng các bảng chuẩn hóa bằng `TextFinder` (không đọc cả cột).
 - **Ảnh đệm trên máy** (IndexedDB v3, mốc `t`): giữ tối đa 800 ảnh / 60 ngày, logo giữ nguyên; ảnh đệm cũ không có mốc xóa 1 lần khi nâng cấp.
+
+---
+
+# ĐẶC TẢ – Đợt 6A: Báo cáo tuần (soạn sửa được, TVGS xác nhận)
+
+Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. Hồ sơ đệ trình + văn bản trong tuần: Đợt 6B.
+
+## Nguyên tắc
+- Kỳ tuần theo ngày chốt tuần (Cài đặt, mặc định Thứ 5). Người chốt mở tuần → **⟳ Tổng hợp từ báo cáo ngày** → app gom thành các danh sách **sửa/thêm/xóa/▲▼ được**. Tổng hợp lại: giữ dòng đã sửa tay và dòng thêm tay, thay dòng tự động chưa sửa, thêm dòng mới.
+- Dữ liệu tuần `W` lưu trong `TongHopKy` (key `W-<ngày đầu kỳ>`, cột json + json_2..4). Báo cáo tuần trước = bản tuần gần nhất trước kỳ này.
+- Quy trình: Nháp → **Chốt tuần** → TVGS **Xác nhận / Yêu cầu sửa** (giống báo cáo ngày, mã xác thực + QR) → **Xuất PDF**. Quản trị/Người chốt mở khóa → bản v+1, phải TVGS xác nhận lại.
+
+## Nội dung
+- **Đầu trang**: 3 logo + tên đơn vị; “BÁO CÁO TUẦN <số> / WEEKLY REPORT No.<số>”, “Tuần k – Tháng MM/YYYY” (k = thứ tự tuần có ngày cuối kỳ trong tháng), kỳ báo cáo; bảng thông tin: dự án, địa điểm, CĐT, TVGS, nhà thầu, thời tiết tuần (số ngày nắng/mưa); QR TVGS.
+- **Số tuần**: tuần đầu tiên nhập tay; các tuần sau = số tuần trước + số tuần chênh lệch.
+- **Thông tin chung**: An toàn & vệ sinh / Công tác thi công / Nguồn lực × Tốt – Trung bình – Kém. App gợi ý (vi phạm an toàn 0 → Tốt, 1–3 → TB, >3 → Kém; thi công theo đánh giá tiến độ tổng; nguồn lực mặc định Tốt), người chốt sửa được.
+- **OVERALL SCHEDULE**: % KH tuần này (= % KH tuần sau của tuần trước), % thực tế tuần trước (tự lấy), **% thực tế tuần này** (nhập), **% KH tuần sau** (nhập), nhãn bản tiến độ (VD Rev02), nhận xét. Tuần đầu nhập cả 4. Chênh lệch = TT − KH: ≥ 0 Đạt; ≥ −5 Chậm nhẹ; < −5 Chậm.
+- **A. Công tác thi công**: A.1 Xây dựng / A.2 MEP → khu vực → việc: KL tuần, % đầu tuần, % KH MSP (= mục tiêu kế hoạch tuần trước, sửa được), % thực tế cuối tuần, chênh lệch, ghi chú.
+- **B. Kế hoạch tuần sau**: cùng nhóm, % mục tiêu; nút tạo nhanh từ các việc chưa 100%.
+- **C. Vật tư**: theo chủng loại + quy cách: KL kỳ trước (lũy kế tuần trước; tuần đầu nhập), KL kỳ này (cộng báo cáo ngày), lũy kế. Kế hoạch vật tư tuần sau.
+- **D. Nghiệm thu & thí nghiệm** trong tuần (từ báo cáo ngày) + kế hoạch nghiệm thu tuần sau.
+- **E. An toàn**: nhận xét chung, hoạt động an toàn trong tuần, nhắc nhở/vi phạm từng ngày.
+- **F. Nhân lực**: biểu đồ cột nhóm ngày × chức danh (có số trên cột) + bảng TB/ngày, cao nhất, tổng công. **G. Thiết bị**: TB/ngày, cao nhất.
+- **H. Hình ảnh**: bộ mặt bằng của ngày cuối kỳ + 6 ảnh hiện trường chọn ngẫu nhiên rải đều các ngày (đổi bộ khác, bỏ từng ảnh).
+- **Ký**: đại diện nhà thầu. **Tracking MSP**: tối đa 2 ảnh Gantt, mỗi ảnh nguyên 1 trang (xoay ngang) + QR/link file PDF MS Project (upload, lưu Drive, ai có link xem được).
+
+## PDF & dữ liệu Google
+- Tên file: `yyyymmdd(ngày cuối kỳ)-<mã dự án>-<mã viết tắt NT>-WR-<số tuần>-Weekly report and Tracking MSP(checked).pdf`. Ô mới **Cấu hình → Dự án → Mã viết tắt nhà thầu (tên file)**.
+- Lưu **thẳng vào thư mục PDF đã chọn** (không thư mục con). Chưa chọn thư mục → thư mục mặc định của app.
+- Khi chốt tuần ghi các bảng: `Tuan_TienDo` (1 dòng/tuần), `Tuan_CongViec`, `Tuan_VatTu`, `Tuan_NhanLuc`, `Tuan_NghiemThu`, `Tuan_AnToan`.

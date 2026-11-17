@@ -29,11 +29,19 @@ const SCHEMA = {
   VatTu:     ['ngay','chung_loai','quy_cach','dvt','so_luong'],
   AnToan:    ['ngay','noi_dung','bien_phap'],
   HinhAnh:   ['ngay','nguon','khu_vuc','chu_thich','chup_luc','canh_bao','file_id','url'],
-  TongHopKy: ['ky_key','loai','tu_ngay','den_ngay','danh_gia','pdf_url','cap_nhat_luc','json'],
+  TongHopKy: ['ky_key','loai','tu_ngay','den_ngay','danh_gia','pdf_url','cap_nhat_luc','json','tuan_so','trang_thai','phien_ban','tvgs_kiem_tra','ma_xac_thuc','json_2','json_3','json_4'],
+  // Báo cáo tuần: ghi khi CHỐT tuần (khóa = ky_key 'W-<ngày đầu kỳ>')
+  Tuan_TienDo:   ['ky_key','tuan_so','tu_ngay','den_ngay','kh_tuan','thuc_te_tuan_truoc','thuc_te','chenh_lech','danh_gia','kh_tuan_sau','ban_tien_do','an_toan','thi_cong','nguon_luc','nhan_luc_tb','ghi_chu'],
+  Tuan_CongViec: ['ky_key','tuan_so','loai','bo_mon','khu_vuc','stt','noi_dung','dvt','kl_tuan','dau_tuan','kh_pct','thuc_te','chenh_lech','ghi_chu'],
+  Tuan_VatTu:    ['ky_key','tuan_so','loai','chung_loai','quy_cach','dvt','ky_truoc','ky_nay','luy_ke','ngay_du_kien'],
+  Tuan_NhanLuc:  ['ky_key','tuan_so','loai','ten','tb_ngay','cao_nhat','tong'],
+  Tuan_NghiemThu:['ky_key','tuan_so','loai','ngay','noi_dung','vi_tri','ket_qua'],
+  Tuan_AnToan:   ['ky_key','tuan_so','loai','ngay','noi_dung','bien_phap'],
   NhatKy:    ['thoi_gian','nguoi','hanh_dong','ngay','chi_tiet'],
   CauHinh:   ['key','json']
 };
 const NORMALIZED = ['CongViec', 'NhanLuc', 'ThietBi', 'NghiemThu', 'ThiNghiem', 'VatTu', 'AnToan', 'HinhAnh'];
+const WEEK_SHEETS = ['Tuan_TienDo', 'Tuan_CongViec', 'Tuan_VatTu', 'Tuan_NhanLuc', 'Tuan_NghiemThu', 'Tuan_AnToan'];
 
 /* ======================= WEB APP ======================= */
 function doGet(e) {
@@ -331,8 +339,12 @@ function verify_(code) {
   if (i >= 0) { const d = col_('BaoCao', 0)[i], r = dayData_(d).report, row = rowOf_('BaoCao', 0, d) || [];
     return Object.assign(base, { ok: 'current', date: r.date, version: r.review.version, by: userName_(c, r.review.by), at: r.review.at,
       lockedAt: r.lockedAt || '', lockedBy: userName_(c, r.lockedBy), pdf: row[SCHEMA.BaoCao.indexOf('pdf_url')] || '' }); }
+  const wi = col_('TongHopKy', SCHEMA.TongHopKy.indexOf('ma_xac_thuc')).indexOf(cd);
+  if (wi >= 0) { const wk = col_('TongHopKy', 0)[wi], w = weekGet_(wk), row = rowOf_('TongHopKy', 0, wk) || [];
+    return Object.assign(base, { ok: 'current', kind: 'week', no: w.no, from: w.from, date: w.to, version: w.review.version, by: userName_(c, w.review.by), at: w.review.at,
+      lockedAt: w.lockedAt || '', lockedBy: userName_(c, w.lockedBy), pdf: row[SCHEMA.TongHopKy.indexOf('pdf_url')] || '' }); }
   const sh = sheet_('NhatKy'), n = sh.getLastRow() - 1, rows = n > 0 ? sh.getRange(2, 1, n, 5).getValues() : [];
-  const h = rows.filter(x => x[2] === 'TVGS_XAC_NHAN' && String(x[4]).indexOf(cd) === 0).pop();
+  const h = rows.filter(x => /^TVGS_XAC_NHAN(_TUAN)?$/.test(x[2]) && String(x[4]).indexOf(cd) === 0).pop();
   return Object.assign(base, h ? { ok: 'old', date: String(h[3]), by: h[1], at: h[0] } : { ok: false });
 }
 /** Cấu hình rút gọn cho trang công khai: không có người dùng, khu vực… */
@@ -346,7 +358,8 @@ function pdfFolder_(c, kind, key) {
   const st = (c && c.settings) || {}, mon = String(key).slice(0, 7);
   if (!st.pdfFolderId) return subFolder_(rootFolder_(), 'PDF', kind === 'day' ? mon : (kind === 'week' ? 'Tuan' : 'Thang'));
   let base; try { base = DriveApp.getFolderById(st.pdfFolderId); } catch (e) { throw new Error('Không mở được thư mục lưu PDF đã chọn (“' + (st.pdfFolderName || st.pdfFolderId) + '”). Quản trị kiểm tra quyền truy cập trong Cấu hình → Cài đặt.'); }
-  const sub = kind === 'day' ? 'Báo cáo ngày' : kind === 'week' ? 'Báo cáo tuần' : 'Báo cáo tháng';
+  if (kind === 'week') return base;     // báo cáo tuần: lưu thẳng vào thư mục đã chọn
+  const sub = kind === 'day' ? 'Báo cáo ngày' : 'Báo cáo tháng';
   return kind === 'day' && st.pdfMonthly !== false ? subFolder_(base, sub, mon) : subFolder_(base, sub);
 }
 /** Lấy mã thư mục từ link Drive (…/folders/<id>, ?id=<id>) hoặc mã dán trực tiếp. */
@@ -438,8 +451,9 @@ function apiPeriod(token, from, to, key) {
     const vals = sh.getRange(a + 2, 1, b - a + 1, Math.min(W, sh.getLastColumn())).getValues();
     reports = rowsIdx.map(i => ({ d: keys[i], r: jsonOf_('BaoCao', vals[i - a]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
   }
-  let manual = null;
-  if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? JSON.parse(row[SCHEMA.TongHopKy.indexOf('json')]) : null; }
+  let manual = null, prevWeek = null;
+  if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? jsonOf_('TongHopKy', row) : null; }
+  if (String(key).indexOf('W-') === 0) prevWeek = prevWeek_(from);
   // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
   const locked = {}; reports.forEach(r => { if (r && r.status === 'locked') locked[r.date] = 1; });
   const pk = col_('PhieuKS', 1), PW = SCHEMA.PhieuKS.length, pi = [];
@@ -447,13 +461,103 @@ function apiPeriod(token, from, to, key) {
   let subs = [];
   if (pi.length) { const a = Math.min.apply(null, pi), b = Math.max.apply(null, pi);
     const ps = sheet_('PhieuKS'), vals = ps.getRange(a + 2, 1, b - a + 1, Math.min(PW, ps.getLastColumn())).getValues(); subs = pi.map(i => jsonOf_('PhieuKS', vals[i - a])); }
-  return JSON.stringify({ reports: reports, manual: manual, subs: subs });
+  return JSON.stringify({ reports: reports, manual: manual, subs: subs, prevWeek: prevWeek });
+}
+/** Báo cáo tuần gần nhất TRƯỚC kỳ bắt đầu từ ngày `from` (đã lưu, bản mới - v2). */
+function prevWeek_(from) {
+  const ks = col_('TongHopKy', 0).filter(k => k.indexOf('W-') === 0 && k.slice(2) < from).sort().reverse().slice(0, 6);
+  for (const k of ks) { const w = jsonOf_('TongHopKy', rowOf_('TongHopKy', 0, k)); if (w && w.v === 2) return w; }   // bỏ qua bản tuần kiểu cũ
+  return null;
+}
+function weekGet_(key) { const row = rowOf_('TongHopKy', 0, key); return row ? jsonOf_('TongHopKy', row) : null; }
+function weekWrite_(w) {
+  const old = rowOf_('TongHopKy', 0, w.key), rv = w.review || {}, jc = jsonCells_(strip_(w), 'Báo cáo tuần ' + (w.no || ''));
+  ensureHeader_('TongHopKy');
+  upsertRow_('TongHopKy', 0, w.key, [w.key, 'week', w.from, w.to, (w.overall || {}).eval || '', old ? old[5] : '', now_(), jc[0], w.no || '', w.status || 'draft', w.version || 0,
+    REVIEW_TXT[rv.status] || '', rv.status === 'approved' ? rv.code : '', jc[1], jc[2], jc[3]]);
 }
 function apiSavePeriod(token, json) {
-  auth_(token, ['admin', 'chot']);
-  const p = JSON.parse(json), old = rowOf_('TongHopKy', 0, p.key);
+  const me = auth_(token, ['admin', 'chot']);
+  const p = JSON.parse(json);
+  if (p.v === 2) return saveWeek_(me, p);
+  const old = rowOf_('TongHopKy', 0, p.key);
   upsertRow_('TongHopKy', 0, p.key, [p.key, p.kind, p.from, p.to, p.evaluation || '', old ? old[5] : '', now_(), json]);
   return true;
+}
+
+/** Lưu báo cáo tuần. Chốt → ghi bảng Tuan_*. Giữ trạng thái TVGS do máy chủ quản lý; tuần đã chốt không sửa được (mở khóa trước). */
+function saveWeek_(me, w) {
+  const c = cfg_(), lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const old = weekGet_(w.key);
+    if (old && old.status === 'locked' && w.status === 'locked') return JSON.stringify({ ok: true, review: old.review || null, noop: true });
+    w.review = old ? old.review || null : null;
+    if (old && old.status === 'locked' && w.status !== 'locked') {           // mở khóa
+      if (w.review) w.review = { lastNote: w.review.note || '', lastStatus: w.review.status }; log_(me.id, 'MO_KHOA_TUAN', w.to, w.key + ' → v' + w.version); }
+    if (w.status === 'locked' && !(old && old.status === 'locked')) { w.lockedAt = now_(); w.lockedBy = me.id; if (reviewOn_(c)) w.review = { status: 'pending', version: w.version };
+      log_(me.id, 'CHOT_TUAN', w.to, 'Tuần ' + w.no + ' v' + w.version); }
+    const imgs = (w.gantt || []).filter(g => g && g.img && !g.fileId);
+    if (imgs.length) { const f = subFolder_(rootFolder_(), 'Tuan'); (w.gantt || []).forEach((g, i) => uploadImg_(g, f, w.key + '_gantt_' + (i + 1))); }
+    weekWrite_(w);
+    if (w.status === 'locked') writeWeekTables_(w, c);
+    return JSON.stringify({ ok: true, review: w.review || null, gantt: (w.gantt || []).map(g => g.fileId || ''), lockedAt: w.lockedAt || '' });
+  } finally { lock.releaseLock(); }
+}
+const pctW_ = v => (v === '' || v == null || isNaN(Number(v))) ? '' : Math.round(Number(v) * 100) / 100;
+function writeWeekTables_(w, c) {
+  const k = w.key, n = w.no || '', o = w.overall || {}, zn = id => { const z = c.zones.find(x => x.id === id); return z ? z.name : ''; };
+  const diff = o.actual !== '' && o.plan !== '' && o.actual != null && o.plan != null ? pctW_(Number(o.actual) - Number(o.plan)) : '';
+  const mpAvg = (w.manpower || []).reduce((a, m) => a + (Number(m.avg) || 0), 0);
+  const RT = { good: 'Tốt', mid: 'Trung bình', bad: 'Kém' }, rt = w.ratings || {};
+  WEEK_SHEETS.forEach(ensureHeader_);
+  replaceDay_('Tuan_TienDo', k, [[k, n, w.from, w.to, pctW_(o.plan), pctW_(o.actualPrev), pctW_(o.actual), diff, o.eval || '', pctW_(o.planNext), o.rev || '',
+    RT[rt.safety] || '', RT[rt.work] || '', RT[rt.resource] || '', Math.round(mpAvg * 10) / 10, o.note || '']]);
+  const cv = [];
+  (w.tasks || []).forEach((t, i) => cv.push([k, n, 'THUC_HIEN', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, t.unit || '', t.qty === '' ? '' : Number(t.qty) || 0,
+    pctW_(t.startPct), pctW_(t.planPct), pctW_(t.actual), t.actual !== '' && t.planPct !== '' && t.actual != null && t.planPct != null ? pctW_(t.actual - t.planPct) : '', t.note || '']));
+  (w.nextPlans || []).forEach((t, i) => cv.push([k, n, 'KE_HOACH_TUAN_SAU', t.section || '', zn(t.zoneId) || t.zone || '', i + 1, t.desc, '', '', '', pctW_(t.target), '', '', t.note || '']));
+  replaceDay_('Tuan_CongViec', k, cv);
+  replaceDay_('Tuan_VatTu', k, (w.materials || []).map(m => [k, n, 'NHAP_VE', m.name, m.spec || '', m.unit || '', Number(m.prev) || 0, Number(m.now) || 0, (Number(m.prev) || 0) + (Number(m.now) || 0), ''])
+    .concat((w.matPlans || []).map(m => [k, n, 'KE_HOACH', m.name, m.spec || '', m.unit || '', '', Number(m.qty) || 0, '', m.date || ''])));
+  replaceDay_('Tuan_NhanLuc', k, (w.manpower || []).map(m => [k, n, 'NHAN_LUC', m.title, m.avg, m.max, m.total])
+    .concat((w.equipment || []).map(m => [k, n, 'THIET_BI', m.name, m.avg, m.max, ''])));
+  replaceDay_('Tuan_NghiemThu', k, (w.inspections || []).map(x => [k, n, 'NGHIEM_THU', x.date || '', x.desc, x.loc || '', x.result || ''])
+    .concat((w.tests || []).map(x => [k, n, 'THI_NGHIEM', x.date || '', x.desc, x.loc || '', x.result || '']))
+    .concat((w.inspPlans || []).map(x => [k, n, 'KE_HOACH', x.date || '', x.desc, x.loc || '', ''])));
+  const sf = w.safety || {};
+  replaceDay_('Tuan_AnToan', k, [[k, n, 'NHAN_XET', '', sf.summary || '', '']]
+    .concat((sf.activities || []).map(x => [k, n, 'HOAT_DONG', x.date || '', x.desc, '']))
+    .concat((sf.issues || []).map(x => [k, n, 'VI_PHAM', x.date || '', x.desc, x.action || ''])));
+}
+/** TVGS kiểm tra báo cáo tuần: 'approve' | 'return' (bắt buộc ghi chú). */
+function apiReviewPeriod(token, key, action, note) {
+  const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const w = weekGet_(key);
+    if (!w || w.status !== 'locked') throw new Error('Báo cáo tuần chưa được nhà thầu chốt');
+    if (w.review && w.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo tuần đã được xác nhận');
+    if (action === 'approve') {
+      w.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(w), version: w.version || 1 };
+      w.review.url = verifyUrl_(w.review.code);
+      log_(me.id, 'TVGS_XAC_NHAN_TUAN', w.to, w.review.code + ' · Tuần ' + w.no + ' v' + w.review.version);
+    } else {
+      if (!String(note || '').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
+      w.review = { status: 'returned', by: me.id, at: now_(), note: String(note).trim(), version: w.version || 1 };
+      w.status = 'draft';
+      log_(me.id, 'TVGS_YEU_CAU_SUA_TUAN', w.to, w.review.note);
+    }
+    weekWrite_(w);
+    return JSON.stringify(w.review);
+  } finally { lock.releaseLock(); }
+}
+/** Tải file (PDF MS Project) lên Drive – ai có link đều xem được (mở từ QR). */
+function apiUploadFile(token, dataUrl, name) {
+  auth_(token, ['admin', 'chot']);
+  const m = String(dataUrl).match(/^data:(.+?);base64,(.*)$/); if (!m) throw new Error('File không hợp lệ');
+  const f = subFolder_(rootFolder_(), 'MSP').createFile(Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], String(name || 'MSP.pdf')));
+  try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  return JSON.stringify({ fileId: f.getId(), url: f.getUrl(), name: f.getName() });
 }
 
 /** HTML → PDF. Ảnh được giao diện đánh dấu src="fid:<fileId>" → máy chủ tự chèn từ Drive (đỡ gửi dữ liệu nặng từ điện thoại). */
@@ -461,6 +565,9 @@ function apiExportPdf(token, html, fileName, key, kind) {
   const me = auth_(token, ['admin', 'chot']), c = cfg_();
   if (kind === 'day' && reviewOn_(c)) { const r = dayData_(key).report;
     if (!r || !r.review || r.review.status !== 'approved') throw new Error('Báo cáo chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
+  if (kind === 'week') { const w = weekGet_(key);
+    if (!w || w.status !== 'locked') throw new Error('Chốt báo cáo tuần trước khi xuất PDF');
+    if (reviewOn_(c) && (!w.review || w.review.status !== 'approved')) throw new Error('Báo cáo tuần chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
   const got = {};   // ảnh trình duyệt chưa gửi kèm → đọc từ Drive (mỗi ảnh 1 lần)
   html = String(html).replace(/src="fid:([\w-]+)"/g, (m, id) => { try { return 'src="' + (got[id] = got[id] || dataUrl_(id)) + '"'; } catch (e) { return 'src=""'; } });
   const folder = pdfFolder_(c, kind, key);
@@ -468,7 +575,7 @@ function apiExportPdf(token, html, fileName, key, kind) {
   const pdf = Utilities.newBlob(html, 'text/html', 'bc.html').getAs('application/pdf').setName(fileName);
   const file = folder.createFile(pdf), url = file.getUrl();
   // Báo cáo ngày đã được TVGS xác nhận: ai có link đều xem được (chỉ xem) – để mở từ QR trên điện thoại
-  if (kind === 'day') { try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
+  if (kind === 'day' || kind === 'week') { try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
   if (kind === 'day') { setCell_('BaoCao', key, 'pdf_url', url); cdel_(['day:' + key]); }
   else setCell_('TongHopKy', key, 'pdf_url', url);
   log_(me.id, 'XUAT_PDF', kind === 'day' ? key : '', fileName);
@@ -659,7 +766,7 @@ function auth_(token, roles) {
 }
 function strip_(o) {
   const c = JSON.parse(JSON.stringify(o));
-  (c.layouts || [c.layout]).concat(c.photos || [], c.extraPhotos || []).forEach(p => { if (p && p.fileId) p.img = ''; });
+  (c.layouts || [c.layout]).concat(c.photos || [], c.extraPhotos || [], c.gantt || []).forEach(p => { if (p && p.fileId) p.img = ''; });
   return c;
 }
 function uploadImg_(o, folder, name) {

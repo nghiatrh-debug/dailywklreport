@@ -104,7 +104,8 @@ console.log('Đợt 3: xong');
   ctx.apiExportPdf(tk, '<p>x</p>', '20261125-TST-Daily Report.pdf', '2026-11-25', 'day');
   const day = shared.kids['Báo cáo ngày'], mon = day && day.kids['2026-11'];
   A([mon && mon.files.some(i => files[i].name === '20261125-TST-Daily Report.pdf'), 'PDF ngày lưu vào <thư mục dự án>/Báo cáo ngày/2026-11']);
-  ctx.apiExportPdf(tk, '<p>x</p>', 'BCT.pdf', 'W-2026-11-23', 'week'); A([shared.kids['Báo cáo tuần'] && shared.kids['Báo cáo tuần'].files.length === 1, 'PDF tuần lưu vào Báo cáo tuần']);
+  ctx.apiSavePeriod(tk, JSON.stringify({ v: 2, key: 'W-2026-11-20', kind: 'week', from: '2026-11-20', to: '2026-11-26', no: 35, status: 'locked', version: 1, overall: {}, tasks: [] }));
+  ctx.apiExportPdf(tk, '<p>x</p>', 'BCT.pdf', 'W-2026-11-20', 'week'); A([shared.files.some(i => files[i].name === 'BCT.pdf') && !shared.kids['Báo cáo tuần'], 'PDF tuần lưu thẳng vào thư mục đã chọn (không thư mục con)']);
   const c6 = J(ctx.apiPublicConfig()); c6.settings.pdfFolderId = 'NOACCESSFOLDER'; ctx.apiSaveConfig(tk, JSON.stringify(c6));
   err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'x.pdf', '2026-11-25', 'day'); } catch (e) { err = e.message; } A([/thư mục lưu PDF/.test(err), 'thư mục mất quyền → báo lỗi rõ']);
 })();
@@ -181,6 +182,41 @@ console.log('Tốc độ: xong');
   A([(stats.finds || 0) > f0 && sheets.CongViec.data.length === nCV, 'chốt lại: tìm dòng bằng TextFinder, không nhân đôi dòng']);
 })();
 console.log('Dung lượng: xong');
+// ===== Báo cáo tuần (đợt 6A) =====
+(() => {
+  const c8 = J(ctx.apiPublicConfig()); c8.settings = Object.assign({}, c8.settings, { requireReview: true, pdfFolderId: 'SHAREDFOLDER01', pdfFolderName: 'CN8-2 Shared' });
+  if (!c8.users.some(u => u.role === 'tvgs')) c8.users.push({ id: 'uT6', name: 'TV6', role: 'tvgs', active: true });
+  ctx.apiSaveConfig(tk, JSON.stringify(c8)); const tv = c8.users.find(u => u.role === 'tvgs'); ctx.apiSetPin(tk, tv.id, '4646'); const tkT = J(ctx.apiLogin(tv.id, '4646')).token;
+  const base = { v: 2, kind: 'week', key: 'W-2026-11-06', from: '2026-11-06', to: '2026-11-12', no: 34, status: 'draft', version: 1,
+    overall: { plan: 10.47, actualPrev: 10.2, actual: 10.68, planNext: 10.92, rev: 'Rev02', note: '', eval: 'Đạt' }, ratings: { safety: 'mid', work: 'good', resource: 'good' },
+    tasks: [{ section: 'XD', zoneId: 'z1', desc: 'Cột vách B1', unit: 'm3', qty: 50, startPct: 60, planPct: 80, actual: 100, note: '' }], nextPlans: [{ section: 'XD', zoneId: 'z1', desc: 'Sàn GF', target: 50 }],
+    manpower: [{ title: 'Thép', avg: 32, max: 34, total: 224 }], equipment: [{ name: 'Cẩu tháp', avg: 2, max: 2 }], materials: [{ name: 'Bê tông', spec: 'B50', unit: 'm3', prev: 693.5, now: 93 }],
+    matPlans: [], inspections: [{ date: '2026-11-07', desc: 'NT thép sàn', loc: 'Z2', result: 'Đạt' }], tests: [], inspPlans: [], safety: { summary: 'Ổn', activities: [{ date: '2026-11-06', desc: 'Toolbox' }], issues: [] },
+    layouts: [], photos: [], gantt: [{ img, fileId: '', caption: 'Gantt 1' }], msp: null };
+  let r = J(ctx.apiSavePeriod(tk, JSON.stringify(base)));
+  A([r.ok && r.gantt[0], 'lưu tuần nháp: tải ảnh Gantt lên Drive']);
+  let err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'w.pdf', base.key, 'week'); } catch (e) { err = e.message; } A([/Chốt/.test(err), 'chưa chốt tuần → chặn xuất PDF']);
+  r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
+  A([r.review && r.review.status === 'pending', 'chốt tuần → chờ TVGS']);
+  const td = sheets.Tuan_TienDo.data.find(x => x[0] === base.key), hd = sheets.Tuan_TienDo.data[0];
+  A([td && td[hd.indexOf('thuc_te')] === 10.68 && td[hd.indexOf('kh_tuan_sau')] === 10.92 && td[hd.indexOf('chenh_lech')] === 0.21 && td[hd.indexOf('an_toan')] === 'Trung bình', 'Tuan_TienDo: KH, thực tế, chênh lệch, xếp loại']);
+  A([sheets.Tuan_CongViec.data.filter(x => x[0] === base.key).length === 2 && sheets.Tuan_VatTu.data.some(x => x[0] === base.key && x[8] === 786.5) && sheets.Tuan_NhanLuc.data.some(x => x[0] === base.key && x[3] === 'Thép') && sheets.Tuan_AnToan.data.some(x => x[0] === base.key && x[2] === 'HOAT_DONG'), 'Tuan_CongViec / VatTu (lũy kế) / NhanLuc / AnToan ghi khi chốt']);
+  err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'w.pdf', base.key, 'week'); } catch (e) { err = e.message; } A([/TVGS/.test(err), 'chưa TVGS xác nhận → chặn xuất PDF tuần']);
+  err = ''; try { ctx.apiReviewPeriod(tkT, base.key, 'return', ''); } catch (e) { err = e.message; } A([/Ghi rõ/.test(err), 'TVGS trả lại phải ghi chú']);
+  const rv = J(ctx.apiReviewPeriod(tkT, base.key, 'approve'));
+  A([rv.status === 'approved' && /^[0-9A-F]{4}-[0-9A-F]{4}$/.test(rv.code), 'TVGS xác nhận tuần: mã ' + rv.code]);
+  const vf = J(ctx.apiVerify(tk, rv.code)); A([vf.ok === 'current' && vf.kind === 'week' && vf.no === 34 && vf.date === '2026-11-12', 'tra mã: báo cáo tuần 34']);
+  r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', note: 'ghi đè' })))); A([r.noop && r.review.status === 'approved', 'tuần đã chốt: lưu lại không ghi đè, giữ xác nhận TVGS']);
+  const url = ctx.apiExportPdf(tk, '<p>x</p>', '20261112-TST-VC-WR-34-Weekly report and Tracking MSP(checked).pdf', base.key, 'week');
+  const fid = shared.files.find(i => files[i].name.indexOf('WR-34') > 0);
+  A([fid && files[fid].sharing === 'ANYONE_WITH_LINK/VIEW' && sheets.TongHopKy.data.some(x => x[0] === base.key && x[5] === url), 'xuất PDF tuần: thư mục đã chọn, ai có link xem được, ghi link vào TongHopKy']);
+  const pw = J(ctx.apiPeriod(tk, '2026-11-13', '2026-11-19', 'W-2026-11-13')).prevWeek;
+  A([pw && pw.no === 34 && pw.overall.planNext === 10.92 && pw.nextPlans[0].target === 50, 'mở tuần sau: trả kèm báo cáo tuần trước']);
+  r = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'draft', version: 2 })))); A([!r.review.status && ctx.apiVerify(tk, rv.code) && J(ctx.apiVerify(tk, rv.code)).ok !== 'current', 'mở khóa tuần → mã cũ không còn là bản hiện hành']);
+  const up = J(ctx.apiUploadFile(tk, 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4').toString('base64'), 'MSP Rev02.pdf'));
+  A([up.fileId && files[up.fileId].sharing === 'ANYONE_WITH_LINK/VIEW', 'tải PDF MS Project lên Drive, ai có link xem được']);
+})();
+console.log('Báo cáo tuần: xong');
 const arch = ctx.apiResetAll(tk); A([arch.includes('LƯU TRỮ_TST'),'reset archive']);
 A([ctx.apiPublicConfig()===null && sheets.BaoCao.data.length===1,'reset cleared']);
 threw=false; try{ ctx.apiOpen(tk,'','day',''); }catch(e){threw=/AUTH/.test(e.message);} A([threw,'tokens revoked']);

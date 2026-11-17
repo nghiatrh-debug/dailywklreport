@@ -17,7 +17,7 @@ const ss = { getSheetByName:n=>sheets[n]||null, insertSheet:n=>(sheets[n]=mkShee
 function mkFolder(name){ const f={ name, kids:{}, files:[], getUrl:()=>'https://drive/'+name, getName:()=>name, getId:()=>'ID_'+name,
   getFoldersByName(n){ const k=f.kids[n]; let used=false; return {hasNext:()=>!!k&&!used, next:()=>{used=true;return k;}}; },
   createFolder(n){ return f.kids[n]=mkFolder(n); },
-  createFile(blob){ const id='F'+(++fileSeq); files[id]={blob, name:blob.name, trashed:false}; f.files.push(id); return {getId:()=>id, getUrl:()=>'https://drive/file/'+id, setSharing(a,b){ files[id].sharing = a+'/'+b; }, setTrashed(){ files[id].trashed = true; }}; },
+  createFile(blob){ const id='F'+(++fileSeq); files[id]={blob, name:blob.name, trashed:false}; f.files.push(id); return {getId:()=>id, getName:()=>blob.name, getUrl:()=>'https://drive/file/'+id, setSharing(a,b){ files[id].sharing = a+'/'+b; }, setTrashed(){ files[id].trashed = true; }}; },
   getFilesByName(n){ const ids=f.files.filter(i=>files[i].name===n&&!files[i].trashed); let k=0; return {hasNext:()=>k<ids.length, next:()=>({setTrashed(){files[ids[k++]].trashed=true;}})}; } }; return f; }
 const root = mkFolder('root'), shared = mkFolder('CN8-2 Shared');
 function blob(bytes, mime, name){ return { bytes, mime, name, getContentType:()=>mime, getBytes:()=>bytes, getAs(){ return blob(bytes,'application/pdf',name); }, setName(n){ this.name=n; return this; } }; }
