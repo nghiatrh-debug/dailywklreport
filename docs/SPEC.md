@@ -334,3 +334,7 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Lưu ý: phiếu do người chốt sửa ghi vết "sửa bởi <người chốt>" để kỹ sư biết.
 - Đã làm: nút 💬 ở phiếu kỹ sư (thẻ điện thoại + bảng máy tính) và các tab báo cáo ngày (công việc, nghiệm thu/thí nghiệm, ảnh, nhân lực, thiết bị, vật tư, an toàn). Dòng gộp từ phiếu kỹ sư gắn ý kiến về đúng phiếu (theo `by`). Nhãn ý kiến có tên khu vực.
 - Dữ liệu: `review.items[]` {id, scope 'S:<uid>'|'R', path, ref (id hoặc i<n>), label, owner, tags, pct, note, text}; gửi bổ sung = `apiReview(...,'append',...)` khi review đang 'returned'; người chốt đánh dấu `reviewFix{id:true}`; chốt lại → `review.lastItems` kèm `fixed`, xóa reviewFix. Nháp ý kiến TVGS lưu localStorage theo dự án + ngày.
+
+### 9.1 Người chốt sửa phiếu kỹ sư – nút lưu (18/11/2026)
+- Phiếu đã nộp/đã nhận: "💾 Lưu nháp" + "✔ Lưu & về màn hình tổng hợp" (điện thoại: "✔ Lưu & quay lại").
+- Phiếu nháp/bị trả: "📨 Lưu & nộp thay kỹ sư" (điện thoại: "📨 Nộp thay"); ghi enteredBy = người chốt.

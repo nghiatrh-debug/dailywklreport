@@ -161,6 +161,10 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.evaluate(() => VIEW === 'my' && S_OTHER && document.querySelectorAll('#myPane .cmtb.on, .cmtb.on').length >= 1), 'Tới chỗ sửa → mở phiếu kỹ sư, dòng có ý kiến tô cam');
     ok(await pg.evaluate(() => { const b = document.querySelector('.cmtb.on'); const r = b && (b.closest('tr') || b.closest('.tcard')); return !!r && !RO; }), 'Người chốt sửa được ngay trên phiếu kỹ sư');
     await shot(pg, 'desk_chot_cmt_go');
+    ok(await pg.evaluate(() => { const t = [...document.querySelectorAll('#myActs .btn')].map(b => b.innerText.trim()); const st0 = S.status;
+      const acc = t.filter(x => /Lưu/.test(x)).length === 2 && t.some(x => /Lưu & về màn hình tổng hợp/.test(x)) && !t.some(x => /^✔ Lưu thay đổi$/.test(x));
+      S.status = 'draft'; renderMy(); const t2 = [...document.querySelectorAll('#myActs .btn')].map(b => b.innerText.trim()); S.status = st0; renderMy();
+      return acc && t2.some(x => /Lưu & nộp thay kỹ sư/.test(x)); }), 'Người chốt sửa phiếu kỹ sư: “Lưu nháp” + “Lưu & về tổng hợp” (phiếu đã nộp) / “Lưu & nộp thay” (phiếu chưa nộp) – không còn 2 nút Lưu giống nhau');
     await pg.click('[data-view=day]'); await wait(500);
     if (await pg.inputValue('#dateSel') !== '2026-06-27') { await pg.selectOption('#dateSel', '2026-06-27'); await wait(600); }
     await pg.click('#pane [data-act=cmtFix] >> nth=0'); await wait(900);

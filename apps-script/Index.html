@@ -1187,7 +1187,7 @@ function renderMobileBar0(){
   if (!repLocked()){
     if (own && (st==='draft'||st==='returned')) a.push(`<button class="btn pri" data-act="submitSub">📨 Nộp${w.e||w.w?` <span class="badge" style="background:#fef3c7;color:#92400e">⚠${w.e+w.w}</span>`:''}</button>`);
     if (own && st==='submitted') a.push('<button class="btn" data-act="withdrawSub">↺ Rút lại</button>');
-    if (S_OTHER && isChot()) a.push('<button class="btn pri" data-act="saveOther">✔ Lưu</button>');
+    if (S_OTHER && isChot()) a.push(st==='draft'||st==='returned' ? '<button class="btn pri" data-act="submitSub">📨 Nộp thay</button>' : '<button class="btn pri" data-act="saveOther">✔ Lưu & quay lại</button>');
   }
   if (canCmt()) a.push(`<button class="btn" data-act="cmtBasket" style="color:#b45309">📝 Ý kiến${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
   a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
@@ -1306,7 +1306,7 @@ function renderMy(){
   if (!repLocked()){
     if (own && (st==='draft'||st==='returned')) a.push('<button class="btn pri" data-act="submitSub">📨 Nộp cho người tổng hợp</button>');
     if (own && st==='submitted') a.push('<button class="btn" data-act="withdrawSub">↺ Rút lại để sửa</button>');
-    if (S_OTHER && isChot()) a.push('<button class="btn pri" data-act="saveOther">✔ Lưu thay đổi</button>');
+    if (S_OTHER && isChot()) a.push(st==='draft'||st==='returned' ? '<button class="btn pri" data-act="submitSub">📨 Lưu & nộp thay kỹ sư</button>' : '<button class="btn pri" data-act="saveOther">✔ Lưu & về màn hình tổng hợp</button>');
   }
   a.push(`<span class="sp"></span><span class="hint">${S.updatedAt?'Lưu lần cuối '+esc(S.updatedAt):''}</span>`);
   $('#myActs').innerHTML = a.join('');
@@ -2624,12 +2624,13 @@ document.addEventListener('click', async function onClick(e){
     if (w.e) { toast(`⛔ Còn ${w.e} lỗi số liệu (VD % vượt 100) – sửa trước khi nộp`, 5000); MYTAB='work'; renderMy(); return; }
     if (w.w && !(await ask('Còn cảnh báo số liệu', `Phiếu còn <b>${w.w}</b> cảnh báo (chưa nhập % hôm nay / kết quả theo dõi…). Vẫn nộp?`, 'Vẫn nộp'))) return;
     if (!S.plans.length && S.tasks.some(t=>!isMon(t) && (cumOf(t)??0) < 100)) { autoPlan(S); toast('⚡ Đã tự sinh kế hoạch ngày mai'); }
-    if (!S_OTHER) S.tasks.forEach(t=>{ if (!t.carried && hasV(t.startPct)) t.startLocked = true; });
+    if (!S_OTHER) S.tasks.forEach(t=>{ if (!t.carried && hasV(t.startPct)) t.startLocked = true; }); else S.enteredBy = ME.id;
     S.status = 'submitted'; S.submittedAt = nowStr(); S.returnNote = ''; await saveS(true); renderMy();
     if (dirty.S || CONFL.S) return;
+    if (S_OTHER) { toast('📨 Đã nộp thay phiếu của ' + userName(S.uid)); return; }
     toastAct('📨 Đã nộp phiếu. Dùng máy chung? Bấm Đăng xuất.', 'Đăng xuất', 'logout'); }
   if (a==='withdrawSub'){ S.status = 'draft'; await saveS(true); if (dirty.S) { S.status = 'submitted'; renderMy(); return; } renderMy(); toast('Đã rút lại – có thể sửa tiếp'); }
-  if (a==='saveOther'){ await saveS(); }
+  if (a==='saveOther'){ await saveS(true); if (dirty.S || CONFL.S) return; await flush(); VIEW='day'; renderNav(); S_OTHER = false; applyMerge(); renderDayAll(); renderDateSel(); toast('✔ Đã lưu phiếu – báo cáo tổng hợp đã cập nhật'); }
   if (a==='step'){ const o = getPath(R, b.dataset.path); o.qty = Math.max(0, num(o.qty) + (+b.dataset.v)); const el = $('#q-'+b.dataset.path.replace('.','-')); if (el) el.value = o.qty;
     const sm = $('#sumMp'); if (sm) sm.textContent = R.manpower.reduce((x,m)=>x+num(m.qty),0); const se = $('#sumEq'); if (se) se.textContent = R.equipment.reduce((x,m)=>x+num(m.qty),0);
     markDirty('R'); schedulePreview(); }

@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa nhỏ 9.1 – Người chốt sửa phiếu kỹ sư: bỏ 2 nút “Lưu” trùng (18/11/2026)
+- **Lỗi:** người chốt mở phiếu kỹ sư (kể cả phiếu MEP) thấy “💾 Lưu” và “✔ Lưu” – hai nút làm cùng một việc.
+- **Sửa:** phiếu đã nộp → “💾 Lưu nháp” + “✔ Lưu & về màn hình tổng hợp” (lưu xong quay về, báo cáo gộp cập nhật). Phiếu chưa nộp / bị trả → “📨 Lưu & nộp thay kỹ sư” (ghi “nhập thay bởi” người chốt).
+- **Kiểm thử mới (ui.js):** đúng 2 nút khác nhau theo trạng thái phiếu, không còn “Lưu” trùng.
+
+
 ### Đợt 9 – TVGS ghi ý kiến theo từng việc (18/11/2026)
 - **Sửa gì:** TVGS bấm 💬 ngay tại từng dòng (phiếu kỹ sư + các tab báo cáo ngày) → 4 nút chọn nhanh (% chưa đúng · Khối lượng chưa đúng · Ghi rõ vị trí · Thiếu ảnh) + “Đề nghị %” + ghi chú → vào giỏ “📝 Ý kiến (n)” → “Yêu cầu nhà thầu sửa (n)” gửi 1 lần. Đã trả lại vẫn “Gửi bổ sung”. Người chốt thấy danh sách ý kiến, “Tới chỗ sửa →” mở đúng phiếu/dòng (tô cam), sửa trực tiếp, “✔ Đã sửa”; chốt lại → TVGS thấy “Ý kiến lần trước – đã sửa x/y”. PDF không đổi.
 - **Kiểm thử mới:** gastest – trả lại kèm ý kiến, gửi bổ sung (cộng dồn, chặn khi chưa trả lại, kỹ sư không gửi được), đánh dấu đã sửa không ghi đè ý kiến, chốt lại → lastItems có cờ đã sửa. ui.js – nút 💬, hộp ý kiến (4 nút + đề nghị %), giỏ, gửi, gửi bổ sung, người chốt thấy danh sách, Tới chỗ sửa, Đã sửa 1/2; điện thoại TVGS xem phiếu có 💬 và “📝 Ý kiến (1)”.
@@ -258,3 +264,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 08:01 | 81bb6bd | đạt | 134 đạt / 0 lỗi | 184 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 8.7: ô đánh giá Overall Schedule không tràn, tiêu đề tuần 2 dòng |
 | 2026-11-18 09:09 | 8654a65 | đạt | 134 đạt / 0 lỗi | 186 đạt / 0 lỗi | ✅ ĐẠT | Sửa lỗi 8.8: nút In báo cáo ra trang trắng |
 | 2026-11-18 13:46 | 79c380d | đạt | 140 đạt / 0 lỗi | 199 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9: TVGS ghi ý kiến theo từng việc |
+| 2026-11-18 14:14 | 80366d4 | đạt | 140 đạt / 0 lỗi | 200 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.1: bỏ 2 nút Lưu trùng khi người chốt sửa phiếu kỹ sư |
