@@ -242,7 +242,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .doc .phc img{width:100%;display:block;border:1px solid #e2e8f0}
 .doc .noph{border:1px dashed #cbd5e1;height:150px;color:#94a3b8;font-size:10px}
 .doc .sign td{width:50%;text-align:center;padding-top:22px;font-size:10.5px;vertical-align:top}
-.doc .qrst{text-align:right;font-size:6.5px;color:#1e3a8a;line-height:1.25;white-space:nowrap}.doc .qrst img{width:40px;height:40px;display:block;margin:0 0 1px auto}
+.doc .qrst{float:right;text-align:center;font-size:6.5px;color:#1e3a8a;line-height:1.25;white-space:nowrap;margin-top:19px}.doc .qrst img{width:40px;height:40px;display:block;margin:2px auto 1px}
 .doc .ttl{width:100%;border-collapse:collapse}.doc .ttl td{vertical-align:top;padding:0}
 .doc .qrst .cd{font-family:monospace;font-weight:bold;letter-spacing:.5px}
 .doc .wxsrc{text-align:right;font-size:7.5px;color:#94a3b8;margin-top:1px}
@@ -255,15 +255,16 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .doc .lyw img{max-width:100%;max-height:76mm;display:block;margin:0 auto}
 .doc .lysec{page-break-inside:avoid}
 .doc table.winfo{width:100%;border-collapse:collapse;margin:4px 0 6px;font-size:10px}.doc .winfo td{border:1px solid #cbd5e1;padding:3px 6px}.doc .winfo td.k{background:#f1f5f9;width:19%;font-weight:bold}
-.doc .wrate td.c{font-size:9.5px;color:#475569}.doc .wrate td.on{background:#fef9c3;color:#111}.doc .wrate .x{font-size:13px;color:#b91c1c}
+.doc .wrate td.c{font-size:9.5px;color:#94a3b8;width:25.3%}.doc .wrate th.r-good{color:#15803d}.doc .wrate th.r-mid{color:#b45309}.doc .wrate th.r-bad{color:#b91c1c}
+.doc .wrate td.on{font-weight:bold;-webkit-print-color-adjust:exact;print-color-adjust:exact}.doc .wrate td.on.r-good{background:#dcfce7;color:#166534;border:2px solid #22c55e}.doc .wrate td.on.r-mid{background:#fef3c7;color:#92400e;border:2px solid #f59e0b}.doc .wrate td.on.r-bad{background:#fee2e2;color:#991b1b;border:2px solid #ef4444}.doc .wrate .x{font-size:11px}
 .doc table.wovr{width:100%;border-collapse:collapse;margin:8px 0;border:2px solid #1e3a8a}.doc .wovr td{border:1px solid #cbd5e1;text-align:center;padding:6px 4px;width:25%}
 .doc .wovr td.hd{background:#1e3a8a;color:#fff;font-weight:bold;text-align:left;padding:4px 8px}.doc .wovr span{display:block;font-size:9.5px;color:#475569}.doc .wovr b{display:block;font-size:20px;margin:2px 0}
 .doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr td.ok{background:#dcfce7}.doc .wovr td.ok b{color:#166534}.doc .wovr td.warn{background:#fef3c7}.doc .wovr td.warn b{color:#92400e}
 .doc .wovr td.bad{background:#fee2e2}.doc .wovr td.bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
 .doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc td.phz{text-align:left;padding:4px 6px;border-bottom:1px solid #cbd5e1}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
 .doc .gpb{page-break-before:always}.doc .wsec1{background:#1e3a8a;color:#fff;border-left:5px solid #f59e0b;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:bold;font-size:11.5px;padding:5px 8px;margin:12px 0 4px}
-.doc .wsec2{color:#1e3a8a;font-weight:bold;font-size:11px;border-bottom:1.5px solid #1e3a8a;padding:3px 0;margin:8px 0 4px}.doc .wsec2 span,.doc .wsec3 span{float:right;font-weight:normal;color:#475569}
-.doc .wsec3{font-weight:bold;font-size:10.5px;margin:6px 0 2px;padding-left:6px;border-left:3px solid #6366f1}.doc .wsec1,.doc .wsec2,.doc .wsec3{page-break-after:avoid}.doc .wchart{page-break-inside:avoid}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
+.doc .wsec2{background:#dbeafe;color:#1e3a8a;font-weight:bold;font-size:11px;border-left:4px solid #2563eb;padding:4px 8px;margin:10px 0 5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.doc .wsec2 span,.doc .wsec3 span{float:right;font-weight:normal;color:#475569}
+.doc .wsec3{background:#f1f5f9;color:#1e293b;font-weight:bold;font-size:10.5px;margin:7px 0 3px;padding:3px 8px;border-left:3px solid #6366f1;-webkit-print-color-adjust:exact;print-color-adjust:exact}.doc .wsec1,.doc .wsec2,.doc .wsec3{page-break-after:avoid}.doc .wchart{page-break-inside:avoid}.doc .gpage{text-align:center}.doc .gpage img{max-width:100%;max-height:262mm;display:block;margin:0 auto}
 .doc .wmsp{margin:6px 0}.doc .wmsp img{width:40px;height:40px;display:block}
 @media print{@page{size:A4;margin:8mm}}
 </style>
@@ -459,9 +460,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    - Chạy độc lập (IndexedDB trên máy) hoặc Google Apps Script (Sheets + Drive)
    - Nhiều kỹ sư nhập phiếu riêng theo khu vực → người chốt gộp, kiểm tra, chốt
    ===================================================================== */
-const APP = { name:'Lập báo cáo thi công', author:'Huỳnh Trọng Nghĩa', ver:'1.6', since:'11/2026', year:2026 };
-const COPY = `© ${APP.year} ${APP.author} – ${APP.name} v${APP.ver}`;
-const docCredit = () => `<div class="credit">Lập bằng ứng dụng ${APP.name} · © ${APP.year} ${APP.author}</div>`;
+const APP = { name:'Lập báo cáo thi công', author:'Huỳnh Trọng Nghĩa', short:'H.T.N', phone:'0976820909', email:'nghia.tr.h@gmail.com', ver:'1.6', since:'11/2026', year:2026 };
+const COPY = `© ${APP.year} ${APP.short} – ${APP.name} v${APP.ver}`;
+const docCredit = () => `<div class="credit">© ${APP.year} ${APP.short}</div>`;
 const IS_GAS = typeof google !== 'undefined' && google.script && google.script.run;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -758,6 +759,21 @@ const Store = IS_GAS ? {
   exportPdf: async () => { throw new Error('LOCAL'); },
   resetAll: async () => { for (const st of ['reports','subs','periods','kv']) await IDB.clear(st); return ''; }
 };
+/* Đợt 8.1 – Khóa tạm nút khi app đang bận: còn việc chạy ngầm (lưu, tải, đọc hồ sơ, tải file, tạo PDF…) → nút quan trọng mờ, ghi lý do */
+const BUSY_ACTS = new Set(['submitSub','saveSub','saveOther','saveDay','lock','unlock','approveRep','returnRep','returnSub','withdrawSub','wLock','wUnlock','wApprove','wReturn','wReturnGo','wGen','wReg','drive','drivePeriod','savePeriod','saveCfg','deleteDay','refresh']);
+const BUSY_TXT = {open:'Đang tải dữ liệu…', period:'Đang tải dữ liệu…', allReports:'Đang tải dữ liệu…', saveSub:'Đang lưu…', saveReport:'Đang lưu…', savePeriod:'Đang lưu…', saveConfig:'Đang lưu cấu hình…', setPin:'Đang lưu…', deleteDay:'Đang xóa…', clearTestDays:'Đang xóa…', review:'Đang gửi…', reviewPeriod:'Đang gửi…', uploadFile:'Đang tải file lên…', saveLogo:'Đang tải file lên…', exportPdf:'Đang tạo PDF…', catalogAdd:'Đang ghi danh mục…', register:'Đang đọc file hồ sơ…', checkRegister:'Đang đọc file hồ sơ…', checkFolder:'Đang kiểm tra thư mục…'};
+const BUSY = new Map(); let BUSYID = 0, BUSY_MAX = 60000;
+function busyOn(txt, max, quiet){ const id = ++BUSYID; BUSY.set(id, txt); busyPaint();
+  setTimeout(()=>{ if (BUSY.delete(id)) { busyPaint(); if (!quiet) toast('⚠ Kết nối chậm – kiểm tra rồi bấm lại', 6000); } }, max || BUSY_MAX); return id; }
+function busyOff(id){ if (BUSY.delete(id)) busyPaint(); }
+async function busyRun(txt, fn){ const id = busyOn(txt); try { return await fn(); } finally { busyOff(id); } }
+for (const k of Object.keys(BUSY_TXT)) if (Store[k]) { const f = Store[k]; Store[k] = (...a) => busyRun(BUSY_TXT[k], () => f(...a)); }
+function busyPaint(){ const txt = BUSY.size ? [...BUSY.values()].pop() : '';
+  document.querySelectorAll('button[data-act]').forEach(b=>{ if (!BUSY_ACTS.has(b.dataset.act)) return;
+    if (txt) { if (!('bh' in b.dataset)) { b.dataset.bh = b.innerHTML; b.dataset.bd = b.disabled ? '1' : ''; b.disabled = true; b.classList.add('busy'); }
+      const h = '⏳ ' + esc(txt); if (b.innerHTML !== h) b.innerHTML = h; }
+    else if ('bh' in b.dataset) { b.innerHTML = b.dataset.bh; b.disabled = !!b.dataset.bd; b.classList.remove('busy'); delete b.dataset.bh; delete b.dataset.bd; } }); }
+new MutationObserver(()=>{ if (BUSY.size && !busyPaint.q) { busyPaint.q = 1; requestAnimationFrame(()=>{ busyPaint.q = 0; busyPaint(); }); } }).observe(document.documentElement, {childList:true, subtree:true});
 async function localIndex(){ return { reports:(await IDB.all('reports')).map(r=>({date:r.date,status:r.status,version:r.version,review:revOf(r)})), subs:(await IDB.all('subs')).map(s=>({date:s.date,uid:s.uid,status:s.status})), testDays: await IDB.get('kv','testDays') || [] }; }
 /* Chế độ thử nghiệm (bản độc lập): ghi nhận ngày thử – chỉ ngày chưa có dữ liệu */
 async function markTestL(d){ if (!testMode()) return; const L = await IDB.get('kv','testDays') || []; if (L.includes(d)) return;
@@ -1490,7 +1506,7 @@ async function autoWeather(force){
 }
 /* Dấu TVGS: mã QR nhỏ góc phải, ngang tiêu đề báo cáo */
 function qrHead(r){ const rv = r.review || {}; if (r.status!=='locked' || rv.status!=='approved') return '';
-  return `<div class="qrst">${qrImg(verifyLink(rv))}Verified by Consultant - <span class="cd">${esc(rv.code)}</span></div>`; }
+  return `<div class="qrst">Verified by Consultant${qrImg(verifyLink(rv))}<span class="cd">${esc(rv.code)}</span></div>`; }
 function lockLine0(r){
   if (r.status !== 'locked') return `<div class="sm" style="text-align:right;color:#b45309;font-weight:bold">BẢN NHÁP – CHƯA CHỐT / DRAFT</div>`;
   return '';   // bỏ dòng "Chốt bởi…" trên PDF – thời điểm chốt, trễ chốt vẫn xem trong app và nhật ký
@@ -1685,7 +1701,7 @@ function renderPeriodDoc(A, pr, M){ const f = r1;
 /* ===================== BÁO CÁO TUẦN (soạn sửa được, TVGS xác nhận) ===================== */
 let W = null, PW = null, WTAB = 'gen';
 const WTABS = [['gen','📋 Chung'],['prog','📈 Tiến độ tổng'],['task','🏗 I.A Thi công'],['qa','✅ I.B Chất lượng & hồ sơ'],['mat','📦 I.C Vật tư & TB'],['mp','👷 I.D Nhân lực'],['safe','🦺 I.E An toàn'],['plan','🗓 II. KH tuần sau'],['photo','🖼 III. Mặt bằng & ảnh'],['msp','📄 IV. MSP']];
-const RATE = [['good','Tốt'],['mid','Trung bình'],['bad','Kém']];
+const RATE = [['good','Tốt'],['mid','Trung bình'],['bad','Kém']], RATE_ICO = {good:'✔', mid:'●', bad:'✖'};
 const RATE_TXT = { safety:['An toàn & vệ sinh','Mọi công tác đạt vệ sinh an toàn','Một số lỗi nhỏ','Nhiều lỗi nhỏ hoặc vấn đề lớn'],
   work:['Công tác thi công','Mọi công tác kịp tiến độ','Một số hạng mục trễ','Nhiều hạng mục trễ'],
   resource:['Nguồn lực','Mọi nguồn lực sẵn có','Một số nguồn lực bị thiếu','Chậm trễ do thiếu nguồn lực'] };
@@ -2091,8 +2107,8 @@ function weekHeader(w, o){
 function weekDocHTML(w, o = {}){
   const ov = w.overall, ev = wEval(ov), mpT = w.manpower.reduce((s,m)=>s+num(m.avg),0);
   let h = `<div class="doc">${weekHeader(w, o)}
-  <div class="sec">THÔNG TIN CHUNG / GENERAL INFORMATION</div><table class="grid wrate"><tr><th style="width:24%">Hạng mục</th><th class="c">Tốt</th><th class="c">Trung bình</th><th class="c">Kém</th></tr>
-  ${Object.keys(RATE_TXT).map(k=>`<tr><td><b>${RATE_TXT[k][0]}</b></td>${RATE.map(([v],i)=>`<td class="c${w.ratings[k]===v?' on':''}">${w.ratings[k]===v?'<b class="x">X</b> ':''}${RATE_TXT[k][i+1]}</td>`).join('')}</tr>`).join('')}</table>
+  <div class="sec">THÔNG TIN CHUNG / GENERAL INFORMATION</div><table class="grid wrate"><tr><th style="width:24%">Hạng mục</th><th class="c r-good">Tốt</th><th class="c r-mid">Trung bình</th><th class="c r-bad">Kém</th></tr>
+  ${Object.keys(RATE_TXT).map(k=>`<tr><td><b>${RATE_TXT[k][0]}</b></td>${RATE.map(([v],i)=>`<td class="c r-${v}${w.ratings[k]===v?' on':''}">${w.ratings[k]===v?`<span class="x">${RATE_ICO[v]}</span> `:''}${RATE_TXT[k][i+1]}</td>`).join('')}</tr>`).join('')}</table>
   <table class="wovr"><tr><td colspan="4" class="hd">OVERALL SCHEDULE${ov.rev ? ' (theo tiến độ cập nhật ' + esc(ov.rev) + ')' : ''}</td></tr>
   <tr><td><span>Kế hoạch tuần / Plan</span><b>${wPct(ov.plan)}</b></td><td><span>Thực tế tuần này / Actual</span><b>${wPct(ov.actual)}</b><i>${wNum(ov.actualPrev) !== null ? 'tuần trước ' + wPct(ov.actualPrev) + (wNum(ov.actual) !== null ? ' · ' + (ov.actual - ov.actualPrev >= 0 ? '+' : '') + Math.round((ov.actual - ov.actualPrev) * 100) / 100 + '%' : '') : ''}</i></td>
   <td class="ev ${ev.c}"><span>Đánh giá / Evaluation</span><b>${ev.t || '—'}</b><i>${ev.t ? (ev.d > 0 ? '+' : '') + ev.d + '%' : ''}</i></td><td><span>KH tuần sau / Next week</span><b>${wPct(ov.planNext)}</b></td></tr>
@@ -2306,7 +2322,8 @@ function renderConfig(){
     <button class="btn" data-act="resetAll" style="border-color:#fca5a5;color:#b91c1c">⟲ Reset toàn bộ & khai báo dự án mới</button></div>`;
   }
   h += `<div class="about"><b>ℹ️ Giới thiệu</b><div>${esc(APP.name)} – phiên bản ${esc(APP.ver)} · phát hành lần đầu ${esc(APP.since)}</div>
-    <div>Tác giả: <b>${esc(APP.author)}</b> · © ${APP.year} ${esc(APP.author)}. Bảo lưu mọi quyền – không sao chép, chỉnh sửa, phân phối khi chưa có sự đồng ý của tác giả.</div></div>`;
+    <div>Tác giả: <b>${esc(APP.author)}</b> · © ${APP.year} ${esc(APP.short)}. Bảo lưu mọi quyền – không sao chép, chỉnh sửa, phân phối khi chưa có sự đồng ý của tác giả.</div>
+    <button class="btn sm" data-act="contact" style="margin-top:8px">✉ Liên hệ</button></div>`;
   $('#configPane').innerHTML = h;
 }
 
@@ -2436,7 +2453,7 @@ document.addEventListener('change', async e=>{
     } catch(err){ toast('⚠ Không đọc được ảnh'); }
   }
 });
-document.addEventListener('click', async e=>{
+document.addEventListener('click', async function onClick(e){
   if (e.target.matches && e.target.matches('input[data-cfg][readonly]')) { toast('🔒 Bấm “✎ Sửa thông tin” ở đầu trang để sửa các ô này', 4000); return; }
   const b = e.target.closest('[data-act],[data-tab],[data-view],[data-mytab],[data-cfgtab],[data-wtab]'); if (!b) return;
   if (b.dataset.tab){ TAB = b.dataset.tab; renderForm(); updFab(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
@@ -2444,6 +2461,9 @@ document.addEventListener('click', async e=>{
   if (b.dataset.cfgtab){ CFGTAB = b.dataset.cfgtab; renderConfig(); return; }
   if (b.dataset.view){ document.body.classList.remove('pv'); return go(b.dataset.view); }
   const a = b.dataset.act;
+  /* Nút quan trọng: app đang bận thì bỏ qua; bấm rồi thì khóa ngắn chống bấm 2 lần (việc dài đã có khóa theo lệnh máy chủ) */
+  if (BUSY_ACTS.has(a) && !e.busyOk) { if (BUSY.size || b.disabled) return; const id = busyOn('Đang xử lý…', 1500, true);
+    try { e.busyOk = 1; return await onClick(e); } finally { busyOff(id); } }
   if (a==='add') return addItem(b.dataset.root, b.dataset.path, JSON.parse(b.dataset.tpl||'{}'));
   if (a==='seg'){ MYSEG = b.dataset.v; renderMy(); window.scrollTo(0,0); return; }
   if (a==='fab'){ const c = fabCtx(); if (!c) return;
@@ -2603,6 +2623,9 @@ document.addEventListener('click', async e=>{
       if (L.includes(DATE)) { DATE = today(); R = null; S = null; } renderConfig(); renderDateSel(); toast(`✔ Đã xóa ${n} ngày thử`); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
   if (a==='drivePeriod') toDrive('period');
   if (a==='savePeriod'){ if (P.kind==='week' && W) { await saveW(); renderWeek(); } else { await Store.savePeriod(P.manual); toast('✔ Đã lưu phần nhập tay'); } }
+  if (a==='contact'){ modal(`<h3>✉ Liên hệ tác giả</h3><p style="margin:6px 0 4px"><b>${esc(APP.author.toUpperCase())}</b></p>
+    <p style="margin:2px 0">📞 <a href="tel:${APP.phone}">${APP.phone}</a></p><p style="margin:2px 0 10px">✉ <a href="mailto:${APP.email}">${APP.email}</a></p>
+    <div class="acts"><button class="btn" onclick="closeModal()">Đóng</button></div>`); return; }
   if (a==='refresh'){ await flush(); R = null; S = null; VIEW==='my' ? openMy(DATE, ME.id) : openDay(DATE); }
   if (a==='print') doPrint();
   if (a==='pPrev' || a==='pNext'){ const pr = periodRange(); P.anchor = a==='pPrev' ? addDays(pr.from, -1) : addDays(pr.to, 1); loadPeriod(); }

@@ -24,7 +24,7 @@ async function fresh(browser, opt) {
 }
 async function login(pg, uid, pin) {
   await pg.evaluate(() => { const b = document.querySelector('#userChip [data-act=logout]'); if (b) b.click(); }); await wait(400);
-  if (!login.copyOk) login.copyOk = /© 2026 Huỳnh Trọng Nghĩa/.test(await pg.innerText('#login'));
+  if (!login.copyOk) login.copyOk = /© 2026 H\.T\.N/.test(await pg.innerText('#login'));
   await pg.selectOption('#loginUser', uid); await pg.fill('#pinIn', pin); await pg.click('[data-act=doLogin]'); await wait(1000);
 }
 const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
@@ -89,7 +89,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(!!code, 'Xác nhận → tin nhắn Zalo soạn sẵn có mã xác thực ' + code);
     await pg.evaluate(() => closeModal());
     const d26 = await pg.innerText('#doc');
-    ok(d26.includes('Verified by Consultant - ' + code) && await pg.locator('#doc .ttl .qrst img').count() === 1, 'PDF: mã QR + “Verified by Consultant - ' + code + '”');
+    ok(/Verified by Consultant/.test(d26) && d26.includes(code) && await pg.locator('#doc .ttl .qrst img').count() === 1, 'PDF: chữ “Verified by Consultant” + mã QR + mã ' + code);
     const vurl = await pg.evaluate(() => verifyLink(R.review));
     const vp = await ctx.newPage(); await vp.goto(vurl); await wait(1200);
     const vt = await vp.innerText('body');
@@ -199,13 +199,32 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.locator('[data-act=speedTest]').count() === 1, 'Cài đặt: có nút Đo tốc độ');
     ok(/Thư mục lưu báo cáo tuần/i.test(await pg.innerText('#configPane')) && await pg.isVisible('#weekLink') && await pg.locator('[data-act=weekFolderSet]').count() === 1, 'Cài đặt: chọn thư mục riêng lưu báo cáo tuần');
     ok(/Tự dọn dữ liệu/.test(await pg.innerText('#configPane')) && /quá 3 tháng/.test(await pg.innerText('#configPane')) && /Thùng rác/i.test(await pg.innerText('#configPane')), 'Cài đặt: ghi chú tự dọn ảnh quá 3 tháng vào thùng rác Drive');
-    ok(login.copyOk, 'Màn đăng nhập: dòng © 2026 Huỳnh Trọng Nghĩa');
+    ok(login.copyOk, 'Màn đăng nhập: dòng © 2026 H.T.N');
     ok(await pg.evaluate(() => { const d = '2026-11-17', T = [], P = [], C = [], K = []; for (let h = 0; h < 24; h++) { T.push(d + 'T' + String(h).padStart(2,'0') + ':00'); P.push(h === 18 ? 5 : 0); C.push(10); K.push(25 + (h === 18 ? 9 : 0)); }
       const j = {hourly:{time:T, precipitation:P, cloud_cover:C, temperature_2m:K}}, at = h => wxSummary(j, d, new Date(2026, 10, 17, h, 20));
       const a16 = at(16), a17 = at(17), a19 = at(19), past = wxSummary(j, d, new Date(2026, 10, 18, 9, 0));
       return a16.am && !a16.pm && /Nắng/.test(a17.pm) && a17.pmEnd === 17 && /Mưa/.test(a19.pm) && a19.pmEnd === 19 && /34oC/.test(a19.temp) && /Nắng/.test(past.pm) && !/34/.test(past.temp); }),
       'Thời tiết: chiều có sau 17h (12–17h); bấm lúc 19h tính đến 19h; ngày đã qua tính 12–17h');
-    ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền');
+    ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /© 2026 H\.T\.N\. Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền © 2026 H.T.N');
+    await pg.click('[data-act=contact]'); await wait(200);
+    ok(await pg.evaluate(() => { const m = $('#modalBody'); return /HUỲNH TRỌNG NGHĨA/.test(m.innerText) && !!m.querySelector('a[href="tel:0976820909"]') && !!m.querySelector('a[href="mailto:nghia.tr.h@gmail.com"]'); }), 'Nút Liên hệ: hiện tên, điện thoại (bấm gọi), email (bấm gửi thư)');
+    await shot(pg, 'desk_contact'); await pg.evaluate(() => closeModal());
+    /* ---- Đợt 8.1: khóa tạm nút khi app đang bận ---- */
+    const SC = '#configPane [data-act=saveCfg]', scTxt = await pg.locator(SC).first().innerText();
+    await pg.evaluate(() => { window._bp = busyRun('Đang đọc file hồ sơ…', () => new Promise(r=>setTimeout(r, 1500))); }); await wait(150);
+    ok(await pg.evaluate(s => { const b = document.querySelector(s); return b.disabled && /⏳ Đang đọc file hồ sơ/.test(b.innerText); }, SC), 'Đang bận: nút Lưu mờ, ghi lý do “Đang đọc file hồ sơ…”');
+    await pg.evaluate(() => renderConfig()); await wait(100);
+    ok(await pg.evaluate(s => document.querySelector(s).disabled, SC), 'Đang bận: vẽ lại màn hình vẫn giữ nút mờ');
+    ok(await pg.evaluate(async s => { let n = 0; const f = Store.saveConfig; Store.saveConfig = async c => { n++; return f(c); };
+      const b = document.querySelector(s); b.disabled = false; b.click(); await new Promise(r=>setTimeout(r, 200)); Store.saveConfig = f; return n === 0; }, SC), 'Đang bận: bấm cũng không chạy');
+    await pg.evaluate(() => window._bp); await wait(100);
+    ok(await pg.evaluate(([s, t]) => { const b = document.querySelector(s); return !b.disabled && b.innerText === t && !BUSY.size; }, [SC, scTxt]), 'Xong việc: nút sáng lại, đúng chữ cũ');
+    ok(await pg.evaluate(async s => { let n = 0; const f = Store.saveConfig; Store.saveConfig = async c => { n++; await new Promise(r=>setTimeout(r, 300)); return f(c); };
+      const b = document.querySelector(s); b.click(); b.disabled = false; b.click(); await new Promise(r=>setTimeout(r, 900)); Store.saveConfig = f; return n === 1; }, SC), 'Bấm nhanh 2 lần: chỉ chạy 1 lần');
+    await wait(600);
+    ok(await pg.evaluate(async s => { BUSY_MAX = 400; const p = busyRun('Đang lưu…', () => new Promise(r=>setTimeout(r, 1200))); await new Promise(r=>setTimeout(r, 700));
+      const b = document.querySelector(s), r = !b.disabled && /Kết nối chậm/.test($('#toast').innerText); BUSY_MAX = 60000; await p; return r; }, SC), 'Quá thời gian chờ: nút sáng lại + báo “Kết nối chậm”');
+    ok(await pg.evaluate(() => ['saveReport','saveSub','savePeriod','register','exportPdf','catalogAdd','uploadFile','reviewPeriod'].every(k => /busyRun/.test(String(Store[k])))), 'Các lệnh lưu / đọc hồ sơ / tải file / tạo PDF / TVGS đều được theo dõi “đang bận”');
     await shot(pg, 'desk_settings');
     /* ---- Đợt 7: danh mục vật tư ---- */
     await pg.click('[data-cfgtab=lists]'); await wait(300);
@@ -262,7 +281,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     ok(/19\/06\/2026 → 25\/06\/2026/.test(await pg.innerText('#periodPane')) && /T6 → T5/.test(await pg.innerText('#perNav')) && !(await pg.locator('#pKind').count()), 'Tuần mặc định Thứ 6 → Thứ 5 (25/06 thuộc tuần 19–25/06), không còn chọn tháng');
-    ok(/© 2026 Huỳnh Trọng Nghĩa/.test(await pg.innerText('#pdoc')) && /Lập bằng ứng dụng/.test(await pg.innerText('#pdoc')), 'PDF tuần: dòng bản quyền dưới phần ký');
+    ok(/© 2026 H\.T\.N/.test(await pg.innerText('#pdoc')) && !/Lập bằng ứng dụng/.test(await pg.innerText('#pdoc')) && !/Huỳnh Trọng Nghĩa/.test(await pg.innerText('#pdoc')), 'PDF tuần: chân trang chỉ còn © 2026 H.T.N (dưới phần ký)');
     ok(/LẬP BÁO CÁO THI CÔNG/.test(await pg.innerText('.brand h1')) && /Báo cáo tuần/.test(await pg.innerText('#nav')) && !/Tuần \/ Tháng/.test(await pg.innerText('#nav')), 'Tên app LẬP BÁO CÁO THI CÔNG, mục Báo cáo tuần');
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     /* ---- Báo cáo tuần (đợt 6A) ---- */
@@ -351,6 +370,20 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-act=wApprove]'); await wait(700);
     const wcode = await pg.evaluate(() => W.review && W.review.code);
     ok(wcode && /Verified by Consultant/.test(await pg.innerText('#pdoc')), 'TVGS xác nhận tuần → mã xác thực + QR trên PDF');
+    ok(await pg.evaluate(() => { const q = document.querySelector('#pdoc .qrst'); if (!q) return false; const k = [...q.childNodes].filter(n=>n.nodeType===1 || n.textContent.trim());
+      const t = q.getBoundingClientRect(), im = q.querySelector('img').getBoundingClientRect(), cd = q.querySelector('.cd').getBoundingClientRect(), mid = x => x.left + x.width / 2;
+      return /^Verified by Consultant$/.test(k[0].textContent.trim()) && k[1].tagName === 'IMG' && k[2].classList.contains('cd') && Math.abs(mid(im) - mid(cd)) < 2 && Math.abs(mid(im) - mid(t)) < 2 && !/Consultant -/.test(q.innerText); }),
+      'Dấu TVGS: chữ Verified by Consultant ở trên, QR giữa, mã ở dưới – canh giữa theo trục QR');
+    ok(await pg.evaluate(() => { const on = [...document.querySelectorAll('#pdoc .wrate td.on')]; const bg = e => getComputedStyle(e).backgroundColor;
+      return on.length === 3 && !document.querySelector('#pdoc .wrate .x') .textContent.includes('X') && on.every(td => /r-(good|mid|bad)/.test(td.className) && bg(td) !== 'rgb(254, 249, 195)')
+        && on.filter(td=>td.classList.contains('r-good')).every(td => bg(td) === 'rgb(220, 252, 231)' && td.querySelector('.x').textContent === '✔'); }),
+      'Bảng đánh giá: bỏ dấu X nền vàng; Tốt = nền xanh lá + ✔ (Trung bình vàng ●, Kém đỏ ✖)');
+    ok(await pg.evaluate(() => { const bg = s => { const e = document.querySelector('#pdoc ' + s); return e && getComputedStyle(e).backgroundColor; };
+      return bg('.wsec1') === 'rgb(30, 58, 138)' && bg('.wsec2') === 'rgb(219, 234, 254)' && bg('.wsec3') === 'rgb(241, 245, 249)'; }), 'Đầu mục báo cáo tuần 3 cấp màu: navy / xanh nhạt / xám xanh nhạt');
+    await pg.evaluate(() => { W.ratings = {safety:'good', work:'mid', resource:'bad'}; renderWeekDoc(); });
+    ok(await pg.evaluate(() => { const on = [...document.querySelectorAll('#pdoc .wrate td.on')]; return on.map(td=>td.querySelector('.x').textContent).join('') === '✔●✖' && getComputedStyle(on[2]).backgroundColor === 'rgb(254, 226, 226)'; }), 'Bảng đánh giá: đủ 3 mức Tốt ✔ / Trung bình ● / Kém ✖ đúng màu');
+    await pg.locator('#pdoc .wrate').screenshot({ path: path.join(OUT, 'desk_week_rate.png') });
+    await pg.locator('#pdoc .ttl').screenshot({ path: path.join(OUT, 'desk_week_qr.png') });
     ok(await pg.evaluate(async c => { const v = await Store.verify(c); return v.ok === 'current' && v.kind === 'week' && v.no == 34; }, wcode), 'Tra mã xác thực báo cáo tuần');
     await shot(pg, 'desk_week_doc', { fullPage: true });
     await login(pg, 'u_chot', '1234'); await pg.click('[data-view=period]'); await wait(500);

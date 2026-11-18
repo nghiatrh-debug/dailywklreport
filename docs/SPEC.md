@@ -281,7 +281,7 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
   1 Công việc · 2 Kế hoạch ngày mai · 3 Nghiệm thu & thí nghiệm · 4 Vật tư · 5 Nhân lực · 6 Thiết bị · 7 An toàn · 8 Mặt bằng · 9 Hình ảnh.
 - Phiếu của kỹ sư (không có nhân lực/thiết bị) giữ nguyên.
 
-## Đợt 8 – ĐANG GOM Ý, CHƯA LÀM (chờ chủ repo nói "làm đi")
+## Đợt 8 – Khóa nút khi bận, màu đầu mục, H.T.N, dấu TVGS (chốt làm 18/11/2026)
 
 ### 8.1 Khóa tạm nút khi app đang bận (đã thống nhất 18/11/2026)
 - App đếm các việc đang chạy; còn việc chưa xong → nút quan trọng mờ, không bấm được, ghi lý do trên nút ("⏳ Đang lưu…", "⏳ Đang đọc file hồ sơ…"). Xong hết → sáng lại.

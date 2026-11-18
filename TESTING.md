@@ -36,6 +36,14 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 8 – Khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS (18/11/2026)
+- **8.1 Khóa tạm nút:** mọi lệnh gửi máy chủ quan trọng (lưu, tải dữ liệu, đọc file hồ sơ, ghi danh mục, tải file, tạo PDF, TVGS xác nhận…) được theo dõi. Còn việc chạy → các nút Nộp, Chốt, Mở khóa, Tổng hợp lại, Xác nhận/Yêu cầu sửa, Xuất PDF, Lưu cấu hình… mờ và ghi lý do; xong thì sáng lại. Bấm 1 nút → khóa ngắn chống bấm 2 lần. Quá 60 giây → mở lại nút, báo “Kết nối chậm”.
+- **8.2** Đầu mục báo cáo tuần 3 cấp màu (navy / xanh nhạt / xám xanh nhạt). **8.3** Bảng đánh giá: bỏ X nền vàng; Tốt xanh ✔, Trung bình vàng ●, Kém đỏ ✖; ô không chọn chữ xám, cột cố định. **8.4** © 2026 H.T.N (Giới thiệu, chân PDF ngày + tuần, màn đăng nhập), bỏ “Lập bằng ứng dụng…”, nút ✉ Liên hệ. **8.5** Dấu TVGS: chữ trên – QR giữa – mã dưới, canh giữa trục QR, ngang dòng tiêu đề.
+- **Kiểm thử mới (ui.js):** nút mờ + lý do khi bận, vẽ lại vẫn mờ, bấm lúc bận không chạy, xong thì sáng lại đúng chữ cũ, bấm nhanh 2 lần chỉ chạy 1 lần, quá thời gian chờ thì mở lại + cảnh báo, các lệnh máy chủ đều được theo dõi; màu 3 cấp đầu mục; bảng đánh giá đủ 3 mức đúng màu/dấu; thứ tự và canh giữa dấu TVGS; nút Liên hệ (tel:, mailto:); bản quyền H.T.N.
+- **Ảnh đã xem:** desk_week_rate, desk_week_qr, desk_contact, desk_week_doc.
+- **Rủi ro:** dấu ✔ ● ✖ và viền ô trên PDF do Google tạo cần xem 1 file thật trên /dev (bộ chuyển PDF của Google có thể thiếu ký hiệu). Khi tự lưu chạy, nút Chốt mờ trong lúc lưu (vài giây) – đúng thiết kế.
+
+
 ### Sửa nhỏ 7.3 – Đổi thứ tự mục báo cáo ngày (17/11/2026)
 - Nhân lực (5) và Thiết bị (6) chuyển xuống sau Vật tư (4), trước An toàn (7); đánh số lại các mục.
 - Kiểm thử mới (ui.js): kiểm tra đúng thứ tự 1→9 trên bản xem trước.
@@ -220,3 +228,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 13:25 | 87e16e7 | đạt | 134 đạt / 0 lỗi | 166 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.2: đầu mục chính nền navy |
 | 2026-11-17 13:36 | ea14e8e | đạt | 134 đạt / 0 lỗi | 166 đạt / 1 lỗi | ❌ LỖI | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư |
 | 2026-11-17 13:38 | ea14e8e | đạt | 134 đạt / 0 lỗi | 167 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư (sửa kiểm thử tìm bảng) |
+| 2026-11-18 04:24 | a936648 | đạt | 134 đạt / 0 lỗi | 179 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8: khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS |
