@@ -297,3 +297,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Cấp 2 (A –, B –, C –…): nền xanh nhạt #dbeafe, chữ navy, viền trái 4px #2563eb.
 - Cấp 3 (B.1, B.2, B.3, C.1.1…): nền xám xanh rất nhạt #f1f5f9, chữ #1e293b, viền trái 3px #6366f1; số tổng bên phải giữ màu xám.
 - Áp dụng cả bản xem trước và PDF (print-color-adjust: exact).
+
+### 8.3 Màu bảng "Thông tin chung" (đánh giá Tốt / Trung bình / Kém) – đề xuất 18/11/2026
+- Bỏ dấu X + nền vàng. Ô được chọn: Tốt = nền xanh lá nhạt #dcfce7, chữ #166534, viền #22c55e, dấu ✔; Trung bình = nền vàng nhạt #fef3c7, chữ #92400e, viền #f59e0b, dấu ●; Kém = nền đỏ nhạt #fee2e2, chữ #991b1b, viền #ef4444, dấu ✖.
+- Ô không được chọn: chữ xám nhạt #94a3b8. Tiêu đề cột Tốt / Trung bình / Kém tô chữ xanh / cam / đỏ.
+- Cố định độ rộng cột để bảng không xô lệch giữa các tuần.
