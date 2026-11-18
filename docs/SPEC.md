@@ -306,4 +306,4 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 ### 8.4 Giới thiệu: ký hiệu tác giả + nút Liên hệ (yêu cầu 18/11/2026)
 - Mục Giới thiệu (Cấu hình → Cài đặt): dòng "© 2026 Huỳnh Trọng Nghĩa" đổi thành "© 2026 H.T.N". Dòng "Tác giả: Huỳnh Trọng Nghĩa" giữ nguyên.
 - Thêm nút "✉ Liên hệ": bấm hiện hộp thông tin HUỲNH TRỌNG NGHĨA · ĐT 0976820909 (bấm gọi được) · Email nghia.tr.h@gmail.com (bấm mở thư được).
-- Chờ chốt: chân PDF ("Lập bằng ứng dụng … · © 2026 Huỳnh Trọng Nghĩa") và dòng bản quyền ở màn hình đăng nhập có đổi sang H.T.N không.
+- Đã chốt: chân PDF báo cáo ngày + tuần ("Lập bằng ứng dụng … · © 2026 H.T.N") và dòng bản quyền màn hình đăng nhập cũng đổi sang H.T.N. Cập nhật kiểm thử đang dò "© 2026 Huỳnh Trọng Nghĩa".
