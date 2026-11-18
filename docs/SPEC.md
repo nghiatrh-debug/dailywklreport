@@ -313,3 +313,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Dòng "Verified by Consultant" nằm ngang hàng với dòng tiêu đề BÁO CÁO NGÀY / BÁO CÁO TUẦN; khối vẫn ở góc phải.
 - Bỏ dấu "-" giữa chữ và mã. Áp dụng báo cáo ngày + tuần (cùng hàm qrHead).
 - CSS dự kiến: .qrst{float:right;text-align:center;…;margin-top:19px} .qrst img{margin:2px auto 1px}. Đã thử trên bản xem trước báo cáo ngày, cần kiểm lại với tiêu đề báo cáo tuần.
+
+### 8.6 Logo tác giả H.T.N (chốt 18/11/2026 – phương án B, logo nét bút)
+- Đặt ở mục Giới thiệu (bên trái thông tin tác giả, ~160px; điện thoại xếp dọc ~140px) và đầu hộp Liên hệ (~170px).
+- KHÔNG đặt ở chân trang PDF: chân trang giữ "© 2026 H.T.N" như 8.4.
+- Ảnh JPEG nền trắng ~11 KB nhúng trong Index.html (dấu "/" trong base64 ghi "\/" để Apps Script không cắt nhầm).

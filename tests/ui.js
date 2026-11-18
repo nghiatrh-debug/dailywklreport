@@ -208,6 +208,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(/Tác giả: Huỳnh Trọng Nghĩa/.test(await pg.innerText('#configPane')) && /© 2026 H\.T\.N\. Bảo lưu mọi quyền/.test(await pg.innerText('#configPane')), 'Cấu hình: mục Giới thiệu có tác giả, bản quyền © 2026 H.T.N');
     await pg.click('[data-act=contact]'); await wait(200);
     ok(await pg.evaluate(() => { const m = $('#modalBody'); return /HUỲNH TRỌNG NGHĨA/.test(m.innerText) && !!m.querySelector('a[href="tel:0976820909"]') && !!m.querySelector('a[href="mailto:nghia.tr.h@gmail.com"]'); }), 'Nút Liên hệ: hiện tên, điện thoại (bấm gọi), email (bấm gửi thư)');
+    ok(await pg.evaluate(() => { const ok = i => i && i.complete && i.naturalWidth > 100; return ok($('#configPane .about img.htnlogo')) && ok($('#modalBody img.htnlogo')); }), 'Logo H.T.N hiện ở mục Giới thiệu và hộp Liên hệ');
     await shot(pg, 'desk_contact'); await pg.evaluate(() => closeModal());
     /* ---- Đợt 8.1: khóa tạm nút khi app đang bận ---- */
     const SC = '#configPane [data-act=saveCfg]', scTxt = await pg.locator(SC).first().innerText();
@@ -282,6 +283,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     ok(/19\/06\/2026 → 25\/06\/2026/.test(await pg.innerText('#periodPane')) && /T6 → T5/.test(await pg.innerText('#perNav')) && !(await pg.locator('#pKind').count()), 'Tuần mặc định Thứ 6 → Thứ 5 (25/06 thuộc tuần 19–25/06), không còn chọn tháng');
     ok(/© 2026 H\.T\.N/.test(await pg.innerText('#pdoc')) && !/Lập bằng ứng dụng/.test(await pg.innerText('#pdoc')) && !/Huỳnh Trọng Nghĩa/.test(await pg.innerText('#pdoc')), 'PDF tuần: chân trang chỉ còn © 2026 H.T.N (dưới phần ký)');
+    ok(await pg.locator('#pdoc img.htnlogo').count() === 0, 'PDF tuần: không in logo tác giả (chân trang giữ © 2026 H.T.N)');
     ok(/LẬP BÁO CÁO THI CÔNG/.test(await pg.innerText('.brand h1')) && /Báo cáo tuần/.test(await pg.innerText('#nav')) && !/Tuần \/ Tháng/.test(await pg.innerText('#nav')), 'Tên app LẬP BÁO CÁO THI CÔNG, mục Báo cáo tuần');
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     /* ---- Báo cáo tuần (đợt 6A) ---- */

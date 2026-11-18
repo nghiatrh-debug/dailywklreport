@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 8.6 – Logo tác giả H.T.N (18/11/2026)
+- Logo nét bút (phương án B) ở mục Giới thiệu (Cấu hình) và đầu hộp Liên hệ; chân trang PDF giữ chữ © 2026 H.T.N, không in logo.
+- Ảnh JPEG nền trắng ~11 KB nhúng trong Index.html; dấu "/" trong chuỗi base64 ghi "\/" để Apps Script không cắt nhầm.
+- Kiểm thử mới (ui.js): logo tải được ở Giới thiệu + Liên hệ; PDF tuần không có logo. Ảnh đã xem: desk_contact.
+
+
 ### Đợt 8 – Khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS (18/11/2026)
 - **8.1 Khóa tạm nút:** mọi lệnh gửi máy chủ quan trọng (lưu, tải dữ liệu, đọc file hồ sơ, ghi danh mục, tải file, tạo PDF, TVGS xác nhận…) được theo dõi. Còn việc chạy → các nút Nộp, Chốt, Mở khóa, Tổng hợp lại, Xác nhận/Yêu cầu sửa, Xuất PDF, Lưu cấu hình… mờ và ghi lý do; xong thì sáng lại. Bấm 1 nút → khóa ngắn chống bấm 2 lần. Quá 60 giây → mở lại nút, báo “Kết nối chậm”.
 - **8.2** Đầu mục báo cáo tuần 3 cấp màu (navy / xanh nhạt / xám xanh nhạt). **8.3** Bảng đánh giá: bỏ X nền vàng; Tốt xanh ✔, Trung bình vàng ●, Kém đỏ ✖; ô không chọn chữ xám, cột cố định. **8.4** © 2026 H.T.N (Giới thiệu, chân PDF ngày + tuần, màn đăng nhập), bỏ “Lập bằng ứng dụng…”, nút ✉ Liên hệ. **8.5** Dấu TVGS: chữ trên – QR giữa – mã dưới, canh giữa trục QR, ngang dòng tiêu đề.
@@ -229,3 +235,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 13:36 | ea14e8e | đạt | 134 đạt / 0 lỗi | 166 đạt / 1 lỗi | ❌ LỖI | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư |
 | 2026-11-17 13:38 | ea14e8e | đạt | 134 đạt / 0 lỗi | 167 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư (sửa kiểm thử tìm bảng) |
 | 2026-11-18 04:24 | a936648 | đạt | 134 đạt / 0 lỗi | 179 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8: khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS |
+| 2026-11-18 07:04 | 2fe7e84 | đạt | 134 đạt / 0 lỗi | 181 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8.6: logo H.T.N ở Giới thiệu + Liên hệ |
