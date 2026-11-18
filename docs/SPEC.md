@@ -302,3 +302,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Bỏ dấu X + nền vàng. Ô được chọn: Tốt = nền xanh lá nhạt #dcfce7, chữ #166534, viền #22c55e, dấu ✔; Trung bình = nền vàng nhạt #fef3c7, chữ #92400e, viền #f59e0b, dấu ●; Kém = nền đỏ nhạt #fee2e2, chữ #991b1b, viền #ef4444, dấu ✖.
 - Ô không được chọn: chữ xám nhạt #94a3b8. Tiêu đề cột Tốt / Trung bình / Kém tô chữ xanh / cam / đỏ.
 - Cố định độ rộng cột để bảng không xô lệch giữa các tuần.
+
+### 8.4 Giới thiệu: ký hiệu tác giả + nút Liên hệ (yêu cầu 18/11/2026)
+- Mục Giới thiệu (Cấu hình → Cài đặt): dòng "© 2026 Huỳnh Trọng Nghĩa" đổi thành "© 2026 H.T.N". Dòng "Tác giả: Huỳnh Trọng Nghĩa" giữ nguyên.
+- Thêm nút "✉ Liên hệ": bấm hiện hộp thông tin HUỲNH TRỌNG NGHĨA · ĐT 0976820909 (bấm gọi được) · Email nghia.tr.h@gmail.com (bấm mở thư được).
+- Chờ chốt: chân PDF ("Lập bằng ứng dụng … · © 2026 Huỳnh Trọng Nghĩa") và dòng bản quyền ở màn hình đăng nhập có đổi sang H.T.N không.
