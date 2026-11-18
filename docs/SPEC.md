@@ -291,3 +291,9 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Quá 60 giây → mở lại nút + báo "⚠ Kết nối chậm – kiểm tra rồi bấm lại".
 - Không khóa theo ảnh xem trước đang tải (PDF lấy ảnh thẳng từ Drive).
 - Kiểm thử: giả lập máy chủ chậm 3 giây → nút mờ, bấm lúc mờ không chạy, xong thì sáng; quá giờ thì mở lại.
+
+### 8.2 Màu nền đầu mục báo cáo tuần (đề xuất 18/11/2026)
+- Cấp 1 (I, II, III…): giữ nền navy #1e3a8a, chữ trắng, viền vàng.
+- Cấp 2 (A –, B –, C –…): nền xanh nhạt #dbeafe, chữ navy, viền trái 4px #2563eb.
+- Cấp 3 (B.1, B.2, B.3, C.1.1…): nền xám xanh rất nhạt #f1f5f9, chữ #1e293b, viền trái 3px #6366f1; số tổng bên phải giữ màu xám.
+- Áp dụng cả bản xem trước và PDF (print-color-adjust: exact).
