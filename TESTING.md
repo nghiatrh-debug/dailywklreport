@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa nhỏ 8.7 – Overall Schedule + tiêu đề báo cáo tuần (18/11/2026)
+- **Lỗi:** ô Đánh giá co hẹp, “Chậm nhẹ” tràn ô. Nguyên nhân: lớp `warn` của giao diện app (display:block) đè lên ô bảng ở bản xem trước. Sửa: đổi lớp ô thành `e-ok/e-warn/e-bad`, cố định 4 cột 25%, chữ đánh giá 18px Arial 1 dòng.
+- Tiêu đề tuần: “Tuần – Tháng” và “Kỳ báo cáo” thành 2 dòng canh giữa.
+- **Kiểm thử mới (ui.js):** “Chậm nhẹ”, “Chậm” nằm gọn 1 dòng, 4 ô rộng đều; tiêu đề 2 dòng canh giữa. Ảnh đã xem: desk_week_ovr, desk_week_qr.
+
+
 ### Đợt 8.6 – Logo tác giả H.T.N (18/11/2026)
 - Logo nét bút (phương án B) ở mục Giới thiệu (Cấu hình) và đầu hộp Liên hệ; chân trang PDF giữ chữ © 2026 H.T.N, không in logo.
 - Ảnh JPEG nền trắng ~11 KB nhúng trong Index.html; dấu "/" trong chuỗi base64 ghi "\/" để Apps Script không cắt nhầm.
@@ -236,3 +242,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-17 13:38 | ea14e8e | đạt | 134 đạt / 0 lỗi | 167 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 7.3: nhân lực/thiết bị sau vật tư (sửa kiểm thử tìm bảng) |
 | 2026-11-18 04:24 | a936648 | đạt | 134 đạt / 0 lỗi | 179 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8: khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS |
 | 2026-11-18 07:04 | 2fe7e84 | đạt | 134 đạt / 0 lỗi | 181 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8.6: logo H.T.N ở Giới thiệu + Liên hệ |
+| 2026-11-18 08:01 | 81bb6bd | đạt | 134 đạt / 0 lỗi | 184 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 8.7: ô đánh giá Overall Schedule không tràn, tiêu đề tuần 2 dòng |

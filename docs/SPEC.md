@@ -318,3 +318,7 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Đặt ở mục Giới thiệu (bên trái thông tin tác giả, ~160px; điện thoại xếp dọc ~140px) và đầu hộp Liên hệ (~170px).
 - KHÔNG đặt ở chân trang PDF: chân trang giữ "© 2026 H.T.N" như 8.4.
 - Ảnh JPEG nền trắng ~11 KB nhúng trong Index.html (dấu "/" trong base64 ghi "\/" để Apps Script không cắt nhầm).
+
+### 8.7 Sửa nhỏ báo cáo tuần (18/11/2026)
+- Overall Schedule: 4 ô luôn rộng đều (colgroup 25%, table-layout fixed); chữ đánh giá (Đạt / Chậm nhẹ / Chậm) 18px, 1 dòng, font Arial như phần còn lại. Lỗi tràn ô do lớp "warn" của giao diện app đè lên ô bảng → đổi tên lớp ô đánh giá thành e-ok / e-warn / e-bad.
+- Tiêu đề: dòng "Tuần NN – Tháng MM/YYYY" và dòng "KỲ BÁO CÁO / PERIOD: … → …" tách 2 dòng, canh giữa; kỳ báo cáo không xuống dòng.

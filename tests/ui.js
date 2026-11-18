@@ -296,6 +296,16 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     for (const [k, v] of [['plan','10'],['actualPrev','9.5'],['actual','10.4'],['planNext','11']]) await pg.fill(`[data-root=W][data-path="overall.${k}"]`, v);
     await wait(300);
     ok(/Đạt/.test(await pg.innerText('#wEval')) && /10\.4%/.test(await pg.innerText('#pdoc .wovr')), 'Tiến độ tổng: tự đánh giá Đạt, hiện trên PDF');
+    const ovSave = await pg.evaluate(() => JSON.stringify(W.overall));
+    for (const [act, re] of [['8', /Chậm nhẹ/], ['3', /^Chậm$/]]) {
+      await pg.evaluate(a => { W.overall.actual = a; renderWeekDoc(); }, act); await wait(250);
+      const ovr = await pg.evaluate(re => { const tds = [...document.querySelectorAll('#pdoc .wovr tr:nth-child(2) td')], w = tds.map(t => Math.round(t.getBoundingClientRect().width)), ev = document.querySelector('#pdoc .wovr td.ev'), b = ev.querySelector('b');
+        const r = new RegExp(re).test(b.innerText.trim()) && Math.max(...w) - Math.min(...w) <= 2 && b.scrollWidth <= ev.clientWidth && b.getBoundingClientRect().height < 26; return r || JSON.stringify([b.innerText, w, b.scrollWidth, ev.clientWidth, b.getBoundingClientRect().height]); }, re.source); if (ovr !== true) console.log('OVR', ovr); ok(ovr === true, 'Overall Schedule: “' + re.source.replace('$','') + '” nằm gọn 1 dòng, 4 ô đều nhau');
+    }
+    await pg.locator('#pdoc .wovr').screenshot({ path: path.join(OUT, 'desk_week_ovr.png') });
+    ok(await pg.evaluate(() => { const p = [...document.querySelectorAll('#pdoc .ttl .proj')]; return p.length === 2 && /^Tuần \d+ – Tháng \d+\/\d{4}$/.test(p[0].innerText.trim()) && /^KỲ BÁO CÁO \/ PERIOD: .+ → .+/.test(p[1].innerText.trim())
+      && p.every(e => getComputedStyle(e).textAlign === 'center') && p[1].getBoundingClientRect().height < 24; }), 'Tiêu đề tuần: dòng “Tuần – Tháng” và dòng “Kỳ báo cáo” tách 2 dòng, canh giữa, kỳ báo cáo nằm 1 dòng');
+    await pg.evaluate(o => { W.overall = JSON.parse(o); renderWeekDoc(); }, ovSave);
     await pg.fill('[data-root=W][data-path="overall.actual"]', '4'); await wait(300);
     ok(/Chậm</.test(await pg.innerHTML('#wEval')) || /Chậm \(/.test(await pg.innerText('#wEval')) || /→ Chậm/.test(await pg.innerText('#wEval')), 'Chênh lệch < −5% → Chậm');
     await pg.fill('[data-root=W][data-path="overall.actual"]', '10.4'); await wait(200);

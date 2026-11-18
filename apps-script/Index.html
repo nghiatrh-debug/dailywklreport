@@ -259,8 +259,9 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 .doc .wrate td.on{font-weight:bold;-webkit-print-color-adjust:exact;print-color-adjust:exact}.doc .wrate td.on.r-good{background:#dcfce7;color:#166534;border:2px solid #22c55e}.doc .wrate td.on.r-mid{background:#fef3c7;color:#92400e;border:2px solid #f59e0b}.doc .wrate td.on.r-bad{background:#fee2e2;color:#991b1b;border:2px solid #ef4444}.doc .wrate .x{font-size:11px}
 .doc table.wovr{width:100%;border-collapse:collapse;margin:8px 0;border:2px solid #1e3a8a}.doc .wovr td{border:1px solid #cbd5e1;text-align:center;padding:6px 4px;width:25%}
 .doc .wovr td.hd{background:#1e3a8a;color:#fff;font-weight:bold;text-align:left;padding:4px 8px}.doc .wovr span{display:block;font-size:9.5px;color:#475569}.doc .wovr b{display:block;font-size:20px;margin:2px 0}
-.doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr td.ok{background:#dcfce7}.doc .wovr td.ok b{color:#166534}.doc .wovr td.warn{background:#fef3c7}.doc .wovr td.warn b{color:#92400e}
-.doc .wovr td.bad{background:#fee2e2}.doc .wovr td.bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
+.doc .wovr i{display:block;font-size:9px;color:#64748b;font-style:normal}.doc .wovr{table-layout:fixed}.doc .wovr td.ev b{font-family:Arial,Helvetica,sans-serif;font-size:18px;line-height:1.25;white-space:nowrap;margin:3px 0 2px}
+.doc .wovr td.e-ok{background:#dcfce7}.doc .wovr td.e-ok b{color:#166534}.doc .wovr td.e-warn{background:#fef3c7}.doc .wovr td.e-warn b{color:#92400e}
+.doc .wovr td.e-bad{background:#fee2e2}.doc .wovr td.e-bad b{color:#991b1b}.doc .wovr td.nt{text-align:left;font-size:10px}
 .doc td.wz{background:#f8fafc;font-weight:bold;font-size:10px}.doc td.phz{text-align:left;padding:4px 6px;border-bottom:1px solid #cbd5e1}.doc .wchart{margin:4px 0 6px}.doc .wph3 td{width:33%}
 .doc .gpb{page-break-before:always}.doc .wsec1{background:#1e3a8a;color:#fff;border-left:5px solid #f59e0b;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-weight:bold;font-size:11.5px;padding:5px 8px;margin:12px 0 4px}
 .doc .wsec2{background:#dbeafe;color:#1e3a8a;font-weight:bold;font-size:11px;border-left:4px solid #2563eb;padding:4px 8px;margin:10px 0 5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.doc .wsec2 span,.doc .wsec3 span{float:right;font-weight:normal;color:#475569}
@@ -2100,7 +2101,7 @@ function weekHeader(w, o){
   const p = CFG.project, wt = w.weather || {};
   return `<table class="logos2"><tr>${LOGO_KINDS.map(([k,lab,cls,ic,sh])=>{ const src = logoSrc(k, o); return `<td>${src ? `<img src="${src}">` : `<div class="${cls}">${ic}${esc(p[sh])}</div>`}${lab}</td>`; }).join('')}</tr></table>
   <table class="ttl"><tr><td style="width:120px"></td><td><h1>BÁO CÁO TUẦN ${esc(w.no)} / WEEKLY REPORT No.${esc(w.no)}</h1>
-    <div class="proj">${esc(weekMonthLabel(w.to))} · KỲ BÁO CÁO / PERIOD: ${vi(w.from)} → ${vi(w.to)}${w.version > 1 ? ' (v' + w.version + ')' : ''}</div></td><td style="width:120px">${qrHead(w)}</td></tr></table>
+    <div class="proj">${esc(weekMonthLabel(w.to))}</div><div class="proj" style="white-space:nowrap">KỲ BÁO CÁO / PERIOD: ${vi(w.from)} → ${vi(w.to)}${w.version > 1 ? ' (v' + w.version + ')' : ''}</div></td><td style="width:120px">${qrHead(w)}</td></tr></table>
   <table class="winfo"><tr><td class="k">Dự án / Project</td><td colspan="3"><b>${esc(p.code)} – ${esc(p.name)}</b></td></tr>
     <tr><td class="k">Địa điểm / Location</td><td colspan="3">${esc(p.location)}</td></tr>
     <tr><td class="k">Chủ đầu tư / Client</td><td>${esc(p.client)}</td><td class="k">Tư vấn giám sát / Consultant</td><td>${esc(p.consultant)}</td></tr>
@@ -2112,9 +2113,9 @@ function weekDocHTML(w, o = {}){
   let h = `<div class="doc">${weekHeader(w, o)}
   <div class="sec">THÔNG TIN CHUNG / GENERAL INFORMATION</div><table class="grid wrate"><tr><th style="width:24%">Hạng mục</th><th class="c r-good">Tốt</th><th class="c r-mid">Trung bình</th><th class="c r-bad">Kém</th></tr>
   ${Object.keys(RATE_TXT).map(k=>`<tr><td><b>${RATE_TXT[k][0]}</b></td>${RATE.map(([v],i)=>`<td class="c r-${v}${w.ratings[k]===v?' on':''}">${w.ratings[k]===v?`<span class="x">${RATE_ICO[v]}</span> `:''}${RATE_TXT[k][i+1]}</td>`).join('')}</tr>`).join('')}</table>
-  <table class="wovr"><tr><td colspan="4" class="hd">OVERALL SCHEDULE${ov.rev ? ' (theo tiến độ cập nhật ' + esc(ov.rev) + ')' : ''}</td></tr>
+  <table class="wovr"><colgroup><col style="width:25%"><col style="width:25%"><col style="width:25%"><col style="width:25%"></colgroup><tr><td colspan="4" class="hd">OVERALL SCHEDULE${ov.rev ? ' (theo tiến độ cập nhật ' + esc(ov.rev) + ')' : ''}</td></tr>
   <tr><td><span>Kế hoạch tuần / Plan</span><b>${wPct(ov.plan)}</b></td><td><span>Thực tế tuần này / Actual</span><b>${wPct(ov.actual)}</b><i>${wNum(ov.actualPrev) !== null ? 'tuần trước ' + wPct(ov.actualPrev) + (wNum(ov.actual) !== null ? ' · ' + (ov.actual - ov.actualPrev >= 0 ? '+' : '') + Math.round((ov.actual - ov.actualPrev) * 100) / 100 + '%' : '') : ''}</i></td>
-  <td class="ev ${ev.c}"><span>Đánh giá / Evaluation</span><b>${ev.t || '—'}</b><i>${ev.t ? (ev.d > 0 ? '+' : '') + ev.d + '%' : ''}</i></td><td><span>KH tuần sau / Next week</span><b>${wPct(ov.planNext)}</b></td></tr>
+  <td class="ev${ev.c ? ' e-' + ev.c : ''}"><span>Đánh giá / Evaluation</span><b>${ev.t || '—'}</b><i>${ev.t ? (ev.d > 0 ? '+' : '') + ev.d + '%' : ''}</i></td><td><span>KH tuần sau / Next week</span><b>${wPct(ov.planNext)}</b></td></tr>
   ${ov.note ? `<tr><td colspan="4" class="nt">Nhận xét: ${esc(ov.note)}</td></tr>` : ''}</table>`;
   const W2 = (k, t) => `<div class="wsec2">${k} – ${t}</div>`, W3 = t => `<div class="wsec3">${t}</div>`, ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
   // I. HOẠT ĐỘNG THI CÔNG TRONG TUẦN
