@@ -307,3 +307,9 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Mục Giới thiệu (Cấu hình → Cài đặt): dòng "© 2026 Huỳnh Trọng Nghĩa" đổi thành "© 2026 H.T.N". Dòng "Tác giả: Huỳnh Trọng Nghĩa" giữ nguyên.
 - Thêm nút "✉ Liên hệ": bấm hiện hộp thông tin HUỲNH TRỌNG NGHĨA · ĐT 0976820909 (bấm gọi được) · Email nghia.tr.h@gmail.com (bấm mở thư được).
 - Đã chốt: chân PDF báo cáo ngày + tuần chỉ còn "© 2026 H.T.N" (bỏ chữ "Lập bằng ứng dụng …") và dòng bản quyền màn hình đăng nhập cũng đổi sang H.T.N. Cập nhật kiểm thử đang dò "© 2026 Huỳnh Trọng Nghĩa".
+
+### 8.5 Dấu TVGS trên đầu báo cáo: chữ trên, QR giữa, mã dưới (yêu cầu 18/11/2026)
+- Thứ tự trong khối: "Verified by Consultant" (trên) → mã QR → mã xác thực (dưới, ví dụ 516D-EF58). Cả 3 canh giữa theo trục mã QR.
+- Dòng "Verified by Consultant" nằm ngang hàng với dòng tiêu đề BÁO CÁO NGÀY / BÁO CÁO TUẦN; khối vẫn ở góc phải.
+- Bỏ dấu "-" giữa chữ và mã. Áp dụng báo cáo ngày + tuần (cùng hàm qrHead).
+- CSS dự kiến: .qrst{float:right;text-align:center;…;margin-top:19px} .qrst img{margin:2px auto 1px}. Đã thử trên bản xem trước báo cáo ngày, cần kiểm lại với tiêu đề báo cáo tuần.
