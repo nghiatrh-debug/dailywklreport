@@ -280,3 +280,14 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Nhân lực, Thiết bị chuyển xuống sau Vật tư, trước An toàn. Đánh số lại:
   1 Công việc · 2 Kế hoạch ngày mai · 3 Nghiệm thu & thí nghiệm · 4 Vật tư · 5 Nhân lực · 6 Thiết bị · 7 An toàn · 8 Mặt bằng · 9 Hình ảnh.
 - Phiếu của kỹ sư (không có nhân lực/thiết bị) giữ nguyên.
+
+## Đợt 8 – ĐANG GOM Ý, CHƯA LÀM (chờ chủ repo nói "làm đi")
+
+### 8.1 Khóa tạm nút khi app đang bận (đã thống nhất 18/11/2026)
+- App đếm các việc đang chạy; còn việc chưa xong → nút quan trọng mờ, không bấm được, ghi lý do trên nút ("⏳ Đang lưu…", "⏳ Đang đọc file hồ sơ…"). Xong hết → sáng lại.
+- Bấm 1 nút → nút đó khóa đến khi việc của nó xong (chống bấm 2 lần).
+- Việc tính là "bận": đang lưu (tự lưu / bấm Lưu: phiếu, ngày, tuần); đang tải từ máy chủ (mở ngày, đổi tuần, Tổng hợp lại); đang đọc file theo dõi hồ sơ B.3/B.4; đang ghi danh mục vật tư (thêm chủng loại, nạp Excel); đang tải ảnh/file lên Drive (ảnh, mặt bằng, Gantt, MSP); đang tạo PDF.
+- Nút bị khóa tạm: Nộp phiếu, Chốt ngày, Chốt tuần, Mở khóa, Tổng hợp lại, Xác nhận / Yêu cầu sửa (TVGS), Xuất PDF, Lưu cấu hình. Ô nhập liệu KHÔNG khóa.
+- Quá 60 giây → mở lại nút + báo "⚠ Kết nối chậm – kiểm tra rồi bấm lại".
+- Không khóa theo ảnh xem trước đang tải (PDF lấy ảnh thẳng từ Drive).
+- Kiểm thử: giả lập máy chủ chậm 3 giây → nút mờ, bấm lúc mờ không chạy, xong thì sáng; quá giờ thì mở lại.
