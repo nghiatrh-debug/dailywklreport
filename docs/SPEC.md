@@ -325,3 +325,10 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 
 ### 8.8 Sửa lỗi nút In báo cáo ra trang trắng (18/11/2026)
 - Khi in, app chép bản báo cáo đang xem (ngày / tuần / phiếu kỹ sư) vào khung riêng #printRoot ngay dưới <body>; CSS in ẩn mọi thứ khác. Không còn phụ thuộc khung xem trước (cuộn, giới hạn chiều cao, ẩn trên điện thoại). Áp dụng cả khi bấm Ctrl+P.
+
+## Đợt 9 – TVGS ghi ý kiến theo từng việc (ĐANG BÀN, chờ "làm đi") – 18/11/2026
+- Áp dụng báo cáo ngày trước; báo cáo tuần dùng lại ở đợt sau. PDF không đổi.
+- TVGS: mỗi dòng (công việc, kế hoạch, nghiệm thu, vật tư, nhân lực, ảnh) có nút 💬 → ô ý kiến mở tại chỗ: 4 nút chọn nhanh (% chưa đúng · Khối lượng chưa đúng · Ghi rõ vị trí · Thiếu ảnh) + "Đề nghị % hôm nay" + ghi chú. Dòng có ý kiến viền cam, ô bị góp ý tô đỏ.
+- Giỏ ý kiến "📝 Ý kiến (n)": xem lại, sửa/xóa, thêm ý kiến chung → "Gửi yêu cầu sửa (n)" gửi 1 lần. Đã gửi vẫn gửi bổ sung được đến khi nhà thầu chốt lại.
+- Ý kiến CHỈ gửi người chốt (không gửi kỹ sư). Người chốt sửa thẳng số liệu trên phiếu kỹ sư (máy chủ đã cho phép người chốt lưu phiếu; cần mở giao diện sửa phiếu cho người chốt), "Tới chỗ sửa →" nhảy đúng dòng, "Đánh dấu đã sửa", rồi chốt lại → TVGS xác nhận → xuất PDF.
+- Lưu ý: phiếu do người chốt sửa ghi vết "sửa bởi <người chốt>" để kỹ sư biết.
