@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa nhỏ 9.2 – Ý kiến chung của TVGS không mất khi bấm Quay lại (18/11/2026)
+- **Lỗi:** trong giỏ ý kiến, gõ “Ý kiến chung” rồi bấm “← Quay lại” để kiểm tra chỗ khác → mất chữ đã gõ.
+- **Sửa:** ý kiến chung tự lưu nháp trên máy ngay khi gõ; nút đổi thành “💾 Lưu & quay lại”; mở lại giỏ (kể cả sau khi tải lại trang) vẫn còn; số ý kiến trên nút tính cả ý kiến chung; gửi xong mới xóa nháp.
+- **Kiểm thử mới (ui.js):** Lưu & quay lại → đếm (2); tải lại trang, mở lại giỏ → còn đủ ý kiến chung + ý kiến từng việc.
+
+
 ### Sửa nhỏ 9.1 – Người chốt sửa phiếu kỹ sư: bỏ 2 nút “Lưu” trùng (18/11/2026)
 - **Lỗi:** người chốt mở phiếu kỹ sư (kể cả phiếu MEP) thấy “💾 Lưu” và “✔ Lưu” – hai nút làm cùng một việc.
 - **Sửa:** phiếu đã nộp → “💾 Lưu nháp” + “✔ Lưu & về màn hình tổng hợp” (lưu xong quay về, báo cáo gộp cập nhật). Phiếu chưa nộp / bị trả → “📨 Lưu & nộp thay kỹ sư” (ghi “nhập thay bởi” người chốt).
@@ -265,3 +271,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 09:09 | 8654a65 | đạt | 134 đạt / 0 lỗi | 186 đạt / 0 lỗi | ✅ ĐẠT | Sửa lỗi 8.8: nút In báo cáo ra trang trắng |
 | 2026-11-18 13:46 | 79c380d | đạt | 140 đạt / 0 lỗi | 199 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9: TVGS ghi ý kiến theo từng việc |
 | 2026-11-18 14:14 | 80366d4 | đạt | 140 đạt / 0 lỗi | 200 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.1: bỏ 2 nút Lưu trùng khi người chốt sửa phiếu kỹ sư |
+| 2026-11-18 14:42 | 229f737 | đạt | 140 đạt / 0 lỗi | 202 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.2: lưu nháp ý kiến chung TVGS |

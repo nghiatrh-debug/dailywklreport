@@ -141,7 +141,13 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(/Yêu cầu nhà thầu sửa \(1\)/.test(await pg.innerText('#pane')), 'Nút Yêu cầu sửa hiện số ý kiến (1)');
     await pg.click('#pane [data-act=returnRep]'); await wait(300);
     ok(/đề nghị 3%/.test(await pg.innerText('#modalBody')), 'Giỏ ý kiến: liệt kê ý kiến kèm đề nghị %');
-    await pg.fill('#cmtGen', 'Zone B thiếu nghiệm thu cốt thép giằng'); await pg.click('[data-act=cmtSend]'); await wait(800);
+    await pg.fill('#cmtGen', 'Zone B thiếu nghiệm thu cốt thép giằng'); await pg.click('[data-act=cmtKeep]'); await wait(400);
+    ok(!(await pg.isVisible('#modal.on')) && /Yêu cầu nhà thầu sửa \(2\)/.test(await pg.innerText('#pane')), 'Lưu & quay lại: đóng giỏ, giữ ý kiến chung (đếm 2)');
+    await pg.reload(); await pg.waitForSelector('#app', { state: 'attached' }).catch(()=>{}); await wait(1500);
+    if (!(await pg.isVisible('#pane [data-act=returnRep]'))) { await login(pg, 'u_tvgs', '3333'); await pg.selectOption('#dateSel', '2026-06-27'); await wait(700); }
+    await pg.click('#pane [data-act=returnRep]'); await wait(300);
+    ok(await pg.inputValue('#cmtGen') === 'Zone B thiếu nghiệm thu cốt thép giằng' && /đề nghị 3%/.test(await pg.innerText('#modalBody')), 'Tải lại trang / mở lại giỏ: ý kiến chung và ý kiến từng việc vẫn còn');
+    await pg.click('[data-act=cmtSend]'); await wait(800);
     ok(await pg.evaluate(() => R.review.status === 'returned' && R.review.items.length === 1 && !cmtList().length), 'Gửi 1 lần: TVGS yêu cầu sửa kèm ý kiến theo từng việc');
     await pg.evaluate(() => closeModal());
     await pg.click('[data-tab=tasks]'); await wait(300);

@@ -621,6 +621,9 @@ let CMT = [], CMT_DATE = '', CMT_CUR = null, CMT_FOCUS = '';
 const cmtKeyStore = () => 'bcn_cmt_' + ((CFG && CFG.project && CFG.project.code) || '') + '_' + (R ? R.date : '');
 function cmtList(){ if (R && CMT_DATE !== R.date) { CMT_DATE = R.date; try { CMT = JSON.parse(localStorage.getItem(cmtKeyStore()) || '[]'); } catch(e){ CMT = []; } } return CMT; }
 function cmtPersist(){ try { localStorage.setItem(cmtKeyStore(), JSON.stringify(CMT)); } catch(e){} }
+/* Ý kiến chung (không gắn dòng nào): lưu nháp ngay khi gõ, quay lại vẫn còn, gửi xong mới xóa */
+function cmtGen(v){ const k = cmtKeyStore() + '_gen'; try { if (v === undefined) return localStorage.getItem(k) || ''; if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch(e){} return v || ''; }
+const cmtCount = () => cmtList().length + (cmtGen().trim() ? 1 : 0);
 const cmtSent = () => (R && R.review && R.review.status === 'returned' && R.review.items) || [];
 const canCmt = () => canReview() && R && reviewOn() && ((revOf(R) === 'pending' && repLocked()) || revOf(R) === 'returned');
 const cmtScope = it => EDIT === 'S' && S ? 'S:' + S.uid : it && it.by ? 'S:' + it.by : 'R';
@@ -665,9 +668,10 @@ function cmtBasket(){
   modal(`<h3>📝 Ý kiến TVGS – ${vi(R.date)}</h3>
     ${L.length ? L.map((c, k) => `<div class="cmti"><b>${esc(c.owner)} · ${esc(c.label)}</b><br>${esc(cmtText(c))}<button class="del" data-act="cmtRm" data-k="${k}" title="Bỏ">🗑</button></div>`).join('')
       : '<p class="hint">Chưa có ý kiến theo từng việc. Bấm 💬 ở dòng cần góp ý, hoặc ghi ý kiến chung bên dưới.</p>'}
-    <textarea id="cmtGen" class="in" rows="2" placeholder="Ý kiến chung (không gắn với việc nào)" style="margin-top:8px;width:100%"></textarea>
+    <textarea id="cmtGen" class="in" rows="3" placeholder="Ý kiến chung (không gắn với việc nào) – tự lưu nháp, quay lại không mất" style="margin-top:8px;width:100%">${esc(cmtGen())}</textarea>
     ${ret ? '<p class="hint" style="margin:6px 0 0">Báo cáo đang chờ nhà thầu sửa – ý kiến này sẽ được <b>gửi bổ sung</b>.</p>' : ''}
-    <div class="acts"><button class="btn" onclick="closeModal()">← Quay lại</button><button class="btn" data-act="cmtSend" style="color:#fff;background:#dc2626;border-color:#dc2626">${ret ? '📨 Gửi bổ sung' : '↩ Gửi yêu cầu sửa'}${L.length ? ' (' + L.length + ')' : ''}</button></div>`);
+    <p class="hint" style="margin:6px 0 0">Ý kiến được <b>lưu nháp trên máy</b>: bấm “Lưu & quay lại” để kiểm tra tiếp chỗ khác, ghi thêm; khi xong hết mới bấm Gửi.</p>
+    <div class="acts"><button class="btn" data-act="cmtKeep">💾 Lưu & quay lại</button><button class="btn" data-act="cmtSend" style="color:#fff;background:#dc2626;border-color:#dc2626">${ret ? '📨 Gửi bổ sung' : '↩ Gửi yêu cầu sửa'}${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button></div>`);
 }
 async function cmtSend(){
   const gen = ($('#cmtGen') && $('#cmtGen').value || '').trim(), L = cmtList(), ret = revOf(R) === 'returned';
@@ -676,7 +680,7 @@ async function cmtSend(){
   try { closeModal();
     R.review = await Store.review(R.date, ret ? 'append' : 'return', gen, items);
     if (!ret) { R.status = 'draft'; R.reviewFix = {}; }
-    CMT = []; cmtPersist(); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'returned'}); renderDateSel(); renderDayAll(); if (VIEW === 'my' && S) renderMy();
+    CMT = []; cmtPersist(); cmtGen(''); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'returned'}); renderDateSel(); renderDayAll(); if (VIEW === 'my' && S) renderMy();
     const lines = [gen].concat(items.map(c => '• ' + (c.scope !== 'R' ? c.owner + ' – ' : '') + c.label + ': ' + c.text)).filter(Boolean).join('\n');
     zaloModal(ret ? '📨 Đã gửi bổ sung ý kiến' : '↩ Đã gửi yêu cầu sửa', (ret ? 'Đã thêm ' : 'Báo cáo đã mở lại cho nhà thầu với ') + items.length + ' ý kiến theo từng việc. Sao chép tin nhắn gửi nhà thầu:',
       `${ret ? '📨' : '↩'} [${CFG.project.code}] TVGS ${ret ? 'gửi bổ sung ý kiến' : 'yêu cầu sửa'} Báo cáo ngày ${vi(R.date)}:\n${lines}\nSửa xong vui lòng chốt lại để TVGS kiểm tra.`);
@@ -708,11 +712,11 @@ function reviewNotes(){
   const ret = IDX.reports.filter(x=>x.review==='returned' && x.date!==R.date).map(x=>x.date).sort();
   if (canReview() && pend.length) h += `<div class="note"><div class="ulk">🔎 Còn <b>${pend.length}</b> ngày chờ TVGS kiểm tra:${dayBtns(pend)}</div></div>`;
   if (isChot() && ret.length) h += `<div class="note w"><div class="ulk">↩ TVGS yêu cầu sửa <b>${ret.length}</b> ngày:${dayBtns(ret)}</div></div>`;
-  if (rv==='returned') h += `<div class="note w" style="background:#fff7ed;border-color:#fdba74"><b>↩ TVGS ${esc(userName(rw.by))} yêu cầu sửa</b> (${esc(rw.at)}):${rw.note ? `<div style="white-space:pre-wrap;margin:6px 0;font-weight:600">${esc(rw.note)}</div>` : ''}${cmtPanel(rw.items, 'ret')}${isChot()?'Sửa xong bấm <b>Chốt báo cáo ngày</b> để gửi TVGS kiểm tra lại.':''}${canReview() ? `<div class="bar" style="margin:6px 0 0"><button class="btn" data-act="cmtBasket">📝 Gửi bổ sung ý kiến${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button><span class="hint">Bấm 💬 ở từng dòng để thêm ý kiến.</span></div>` : ''}</div>`;
+  if (rv==='returned') h += `<div class="note w" style="background:#fff7ed;border-color:#fdba74"><b>↩ TVGS ${esc(userName(rw.by))} yêu cầu sửa</b> (${esc(rw.at)}):${rw.note ? `<div style="white-space:pre-wrap;margin:6px 0;font-weight:600">${esc(rw.note)}</div>` : ''}${cmtPanel(rw.items, 'ret')}${isChot()?'Sửa xong bấm <b>Chốt báo cáo ngày</b> để gửi TVGS kiểm tra lại.':''}${canReview() ? `<div class="bar" style="margin:6px 0 0"><button class="btn" data-act="cmtBasket">📝 Gửi bổ sung ý kiến${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button><span class="hint">Bấm 💬 ở từng dòng để thêm ý kiến.</span></div>` : ''}</div>`;
   if (rv==='pending') { const ps = planStats(R.tasks), w = allWarn(R.tasks);
     h += canReview() ? `<div class="note" style="border-color:#93c5fd"><b>🔎 Nhà thầu đã chốt – chờ bạn kiểm tra nội dung.</b> Xem bản báo cáo${isMobile()?' (nút 👁 Xem)':' bên phải'}, đối chiếu thực tế công trường.
         <div class="hint" style="padding:6px 0">Đạt KH: <b>${ps.n?ps.ok+'/'+ps.n:'—'}</b> · Lỗi số liệu: <b>${w.e}</b> · Cảnh báo: <b>${w.w}</b>${R.review.lastNote?` · Lần trước yêu cầu sửa: <i>${esc(R.review.lastNote)}</i>`:''}${(R.review.lastItems||[]).length ? `<details style="margin-top:4px"><summary>Ý kiến lần trước – đã sửa ${(R.review.lastItems||[]).filter(c=>c.fixed).length}/${R.review.lastItems.length}</summary>${cmtPanel(R.review.lastItems, 'last')}</details>` : ''}</div>
-        <div class="bar" style="margin:0"><button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu nhà thầu sửa${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button></div><p class="hint" style="margin:6px 0 0">💬 Góp ý từng việc: bấm 💬 ngay tại dòng (trong các tab hoặc khi xem phiếu kỹ sư), cuối cùng bấm “Yêu cầu nhà thầu sửa” để gửi 1 lần.</p></div>`
+        <div class="bar" style="margin:0"><button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu nhà thầu sửa${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button></div><p class="hint" style="margin:6px 0 0">💬 Góp ý từng việc: bấm 💬 ngay tại dòng (trong các tab hoặc khi xem phiếu kỹ sư), cuối cùng bấm “Yêu cầu nhà thầu sửa” để gửi 1 lần.</p></div>`
       : `<div class="note">⏳ Đã chốt lúc ${esc(R.lockedAt)} – <b>đang chờ TVGS kiểm tra nội dung</b>. TVGS xác nhận xong mới xuất PDF chính thức được.</div>`; }
   if (rv==='approved') h += `<div class="note g">✔ TVGS <b>${esc(userName(rw.by))}</b> đã xác nhận nội dung lúc ${esc(rw.at)} · mã xác thực <b>${esc(rw.code)}</b>.${isChot()?' Có thể <b>Lưu PDF</b> và gửi link cho các bên.':''}</div>`;
   return h;
@@ -1167,8 +1171,8 @@ function renderMobileBar0(){
   const el = $('#mBottom'); if (!el) return;
   if (isMobile() && ME && VIEW==='day' && R){ el.classList.add('on'); const a = [];
     if (isChot() && !repLocked() && !SYNCING) a.push('<button class="btn" data-act="saveDay">💾 Lưu</button>');
-    if (canReview() && repLocked() && revOf(R)==='pending') a.push(`<button class="btn ok" data-act="approveRep" style="flex:2">✔ Xác nhận</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
-    if (canReview() && revOf(R)==='returned') a.push(`<button class="btn" data-act="cmtBasket" style="flex:2">📝 Gửi bổ sung${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
+    if (canReview() && repLocked() && revOf(R)==='pending') a.push(`<button class="btn ok" data-act="approveRep" style="flex:2">✔ Xác nhận</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button>`);
+    if (canReview() && revOf(R)==='returned') a.push(`<button class="btn" data-act="cmtBasket" style="flex:2">📝 Gửi bổ sung${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button>`);
     if (isChot()) a.push(repLocked() ? '<button class="btn" data-act="unlock">🔓 Mở khóa</button>' : '<button class="btn ok" data-act="lock" style="flex:2">✔ Chốt ngày</button>');
     if (isChot()) a.push(`<button class="btn" data-act="drive" ${!reviewOn()||revOf(R)==='approved'?'':'style="opacity:.55"'}>☁ PDF</button>`);
     a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
@@ -1189,7 +1193,7 @@ function renderMobileBar0(){
     if (own && st==='submitted') a.push('<button class="btn" data-act="withdrawSub">↺ Rút lại</button>');
     if (S_OTHER && isChot()) a.push(st==='draft'||st==='returned' ? '<button class="btn pri" data-act="submitSub">📨 Nộp thay</button>' : '<button class="btn pri" data-act="saveOther">✔ Lưu & quay lại</button>');
   }
-  if (canCmt()) a.push(`<button class="btn" data-act="cmtBasket" style="color:#b45309">📝 Ý kiến${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
+  if (canCmt()) a.push(`<button class="btn" data-act="cmtBasket" style="color:#b45309">📝 Ý kiến${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button>`);
   a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
   if (S_OTHER) a.unshift('<button class="btn" data-act="backDay">←</button>');
   const T = [['work','📋','Công việc',S.tasks.length],['qa','✅','Nghiệm thu',S.inspections.length+S.tests.length+S.inspectionPlans.length+S.testPlans.length],['photos','📸','Ảnh',S.photos.length],['note','📝','Ghi chú',S.note?1:0]];
@@ -2488,6 +2492,7 @@ async function verifyFlow(){
 function pick(title, opts, cb){ pick._cb = cb;
   modal(`<h3>${esc(title)}</h3><div class="zpick">${opts.map(([v,t])=>`<button class="btn" data-act="pick" data-v="${esc(v)}">${esc(t)}</button>`).join('')}</div><div class="acts"><button class="btn" onclick="closeModal()">Hủy</button></div>`); }
 document.addEventListener('input', e=>{
+  if (e.target.id === 'cmtGen') { cmtGen(e.target.value); return; }
   const t = e.target;
   if (t.dataset.path && t.dataset.root){ const o = rootObj(t.dataset.root); if (!o) return;
     let v = t.type==='checkbox' ? t.checked : t.value; if (t.dataset.num) v = v==='' ? '' : Number(v); setPath(o, t.dataset.path, v);
@@ -2684,6 +2689,7 @@ document.addEventListener('click', async function onClick(e){
   if (a==='returnRep'){ cmtBasket(); return; }
   if (a==='cmtBasket'){ cmtBasket(); return; }
   if (a==='cmtSend'){ await cmtSend(); return; }
+  if (a==='cmtKeep'){ const g = $('#cmtGen'); if (g) cmtGen(g.value.trim()); closeModal(); cmtRerender(); if (VIEW === 'day') renderDayAll(); toast('💾 Đã lưu nháp ' + cmtCount() + ' ý kiến – kiểm tra tiếp, xong bấm Gửi'); return; }
   if (a==='cmt'){ EDIT = b.dataset.root || EDIT; cmtOpen(b.dataset.path, +b.dataset.i); return; }
   if (a==='cmtTag'){ b.classList.toggle('on'); return; }
   if (a==='cmtOk' || a==='cmtDel'){ const c = CMT_CUR; if (!c) return; const L = cmtList(), k = L.findIndex(x => cmtSame(x, c.scope, c.path, c.ref, c.label));
@@ -2692,7 +2698,7 @@ document.addEventListener('click', async function onClick(e){
       if (k >= 0) L[k] = c; else L.push(c); }
     else if (k >= 0) L.splice(k, 1);
     cmtPersist(); closeModal(); cmtRerender(); toast(a==='cmtOk' ? '💬 Đã ghi ý kiến – tổng ' + L.length + '. Gửi 1 lần ở nút “Yêu cầu sửa”.' : 'Đã bỏ ý kiến'); return; }
-  if (a==='cmtRm'){ cmtList().splice(+b.dataset.k, 1); cmtPersist(); cmtRerender(); cmtBasket(); return; }
+  if (a==='cmtRm'){ const g = $('#cmtGen'); if (g) cmtGen(g.value); cmtList().splice(+b.dataset.k, 1); cmtPersist(); cmtRerender(); cmtBasket(); return; }
   if (a==='cmtShow'){ const c = cmtSent().find(x => x.id === b.dataset.id); if (!c) return; const fx = (R.reviewFix || {})[c.id];
     modal(`<h3>💬 Ý kiến TVGS</h3><p style="margin:4px 0"><b>${esc(c.label)}</b></p><div class="note" style="margin:6px 0">${esc(c.text)}</div><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn ok" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đánh dấu đã sửa'}</button></div>`); return; }
   if (a==='cmtFix'){ if (!isChot() || repLocked()) return; R.reviewFix = R.reviewFix || {}; const id = b.dataset.id; if (R.reviewFix[id]) delete R.reviewFix[id]; else R.reviewFix[id] = true;

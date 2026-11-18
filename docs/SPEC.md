@@ -338,3 +338,6 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 ### 9.1 Người chốt sửa phiếu kỹ sư – nút lưu (18/11/2026)
 - Phiếu đã nộp/đã nhận: "💾 Lưu nháp" + "✔ Lưu & về màn hình tổng hợp" (điện thoại: "✔ Lưu & quay lại").
 - Phiếu nháp/bị trả: "📨 Lưu & nộp thay kỹ sư" (điện thoại: "📨 Nộp thay"); ghi enteredBy = người chốt.
+
+### 9.2 Lưu nháp ý kiến chung (18/11/2026)
+- Ô "Ý kiến chung" trong giỏ tự lưu nháp (localStorage, theo dự án + ngày); nút "💾 Lưu & quay lại"; gửi xong mới xóa. Số trên nút = số ý kiến từng việc + 1 nếu có ý kiến chung.
