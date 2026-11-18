@@ -271,6 +271,15 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 </style>
 <style>
 #printRoot{display:none}
+.cmtb{border:1px solid #cbd5e1;background:#fff;border-radius:16px;min-width:32px;height:30px;padding:0 6px;font-size:14px;cursor:pointer;float:right;margin-left:6px;display:inline-flex;align-items:center;gap:3px}
+.cmtb i{font-style:normal;font-size:10px;font-weight:700;color:#92400e}.cmtb.on{background:#f59e0b;border-color:#f59e0b;color:#fff}.cmtb.on i{color:#fff}.cmtb.fx{background:#16a34a;border-color:#16a34a}
+.tc-h .cmtb{float:none}.tcard:has(.cmtb.on),.rcard:has(.cmtb.on),.pcard:has(.cmtb.on){border:2px solid #f59e0b;background:#fffbeb}tr:has(.cmtb.on)>td{background:#fffbeb}
+.tcard:has(.cmtb.fx),.rcard:has(.cmtb.fx){border-color:#22c55e;background:#f0fdf4}
+.chips .chip{border:1px solid #cbd5e1;background:#fff;border-radius:16px;padding:7px 12px;font-size:13px;margin:0 6px 6px 0;cursor:pointer}.chips .chip.on{background:#4f46e5;border-color:#4f46e5;color:#fff}
+.cmtpct{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px}.cmtpct .in{width:80px;text-align:center;font-weight:800}
+.cmti{background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:8px;margin-top:6px;font-size:13px;position:relative}.cmti .del{position:absolute;right:6px;top:6px}
+.cmti .tag.okt{background:#dcfce7;color:#166534}.cmti .tag.badt{background:#fee2e2;color:#991b1b}
+.cmtflash{outline:3px solid #f59e0b;outline-offset:2px;transition:outline .3s}
 @media print{
   body{background:#fff}
   /* In: chỉ in bản sao báo cáo đặt thẳng dưới <body>, không phụ thuộc khung xem trước (cuộn/co giãn/ẩn trên điện thoại) */
@@ -604,17 +613,106 @@ const REV_TXT = {pending:['b-sub','⏳ Chờ TVGS kiểm tra'], returned:['b-ret
 const revBadge = r => reviewOn() && REV_TXT[revOf(r)] ? ` <span class="badge ${REV_TXT[revOf(r)][0]}">${REV_TXT[revOf(r)][1]}</span>` : '';
 const dayBtns = L => L.slice(0,8).map(d=>`<button class="btn sm" data-act="gotoDate" data-d="${d}">${vi(d).slice(0,5)}</button>`).join('') + (L.length>8?' …':'');
 /* Banner TVGS: việc cần làm của từng bên + trạng thái ngày đang mở */
+/* ===================== ĐỢT 9: Ý KIẾN TVGS THEO TỪNG VIỆC =====================
+   TVGS bấm 💬 ngay tại dòng → ý kiến vào "giỏ" (nháp, lưu trên máy) → gửi 1 lần; đã gửi vẫn gửi bổ sung được đến khi nhà thầu chốt lại.
+   Người chốt thấy danh sách ý kiến, "Tới chỗ sửa →", đánh dấu đã sửa (R.reviewFix). Ý kiến không in lên PDF. */
+const CMT_TAGS = ['% chưa đúng', 'Khối lượng chưa đúng', 'Ghi rõ vị trí', 'Thiếu ảnh'];
+let CMT = [], CMT_DATE = '', CMT_CUR = null, CMT_FOCUS = '';
+const cmtKeyStore = () => 'bcn_cmt_' + ((CFG && CFG.project && CFG.project.code) || '') + '_' + (R ? R.date : '');
+function cmtList(){ if (R && CMT_DATE !== R.date) { CMT_DATE = R.date; try { CMT = JSON.parse(localStorage.getItem(cmtKeyStore()) || '[]'); } catch(e){ CMT = []; } } return CMT; }
+function cmtPersist(){ try { localStorage.setItem(cmtKeyStore(), JSON.stringify(CMT)); } catch(e){} }
+const cmtSent = () => (R && R.review && R.review.status === 'returned' && R.review.items) || [];
+const canCmt = () => canReview() && R && reviewOn() && ((revOf(R) === 'pending' && repLocked()) || revOf(R) === 'returned');
+const cmtScope = it => EDIT === 'S' && S ? 'S:' + S.uid : it && it.by ? 'S:' + it.by : 'R';
+const cmtOwner = sc => sc && sc.indexOf('S:') === 0 ? userName(sc.slice(2)) : 'Báo cáo tổng hợp';
+function cmtItem(path, i){ const o = rootObj(EDIT); const a = o ? getPath(o, path) : null; return a && a[i] || null; }
+const cmtRef = (it, i) => it && it.id ? String(it.id) : 'i' + i;
+function cmtLabel(path, it, i){ if (!it) return '#' + (i + 1);
+  const t = it.desc || it.title || it.name || it.cat || it.caption || '', z = it.zoneId && CFG.zones.find(x => x.id === it.zoneId);
+  return (z ? '[' + z.name + '] ' : '') + (t ? String(t) : '#' + (i + 1)) + (it.spec ? ' – ' + it.spec : ''); }
+const cmtText = c => [(c.tags || []).join(', '), c.pct !== '' && c.pct != null ? 'đề nghị ' + c.pct + '%' : '', c.note || ''].filter(Boolean).join(' – ');
+const cmtSame = (c, sc, path, ref, label) => c.scope === sc && c.path === path && (c.ref === ref || (!/^i\d+$/.test(ref) ? false : c.label === label));
+/* Nút 💬 gắn cạnh nút xóa của mỗi dòng (phiếu kỹ sư + các danh sách báo cáo ngày) */
+function cmtBtn(path, i){
+  if (!R || (EDIT !== 'S' && EDIT !== 'R') || !reviewOn()) return '';
+  const it = cmtItem(path, i); if (!it) return '';
+  const sc = cmtScope(it), ref = cmtRef(it, i), label = cmtLabel(path, it, i), ck = sc + '|' + path + '|' + ref;
+  const sent = cmtSent().find(c => cmtSame(c, sc, path, ref, label));
+  if (canCmt()) { const d = cmtList().find(c => cmtSame(c, sc, path, ref, label));
+    return `<button class="cmtb${d || sent ? ' on' : ''}" data-act="cmt" data-root="${EDIT}" data-path="${path}" data-i="${i}" data-ck="${esc(ck)}" title="Ý kiến TVGS">💬${sent && !d ? '<i>đã gửi</i>' : ''}</button>`; }
+  if (sent && isChot()) { const fx = (R.reviewFix || {})[sent.id];
+    return `<button class="cmtb on${fx ? ' fx' : ''}" data-act="cmtShow" data-id="${esc(sent.id)}" data-ck="${esc(ck)}" title="Ý kiến TVGS">💬<i>${fx ? 'đã sửa' : 'TVGS'}</i></button>`; }
+  return '';
+}
+function cmtOpen(path, i){
+  const it = cmtItem(path, i) || {}, sc = cmtScope(it), ref = cmtRef(it, i), label = cmtLabel(path, it, i);
+  const d = cmtList().find(c => cmtSame(c, sc, path, ref, label));
+  CMT_CUR = d ? Object.assign({}, d) : { scope: sc, path, ref, label, owner: cmtOwner(sc), tags: [], pct: '', note: '' };
+  const isPct = (path === 'tasks' && !isMon(it)) || (path === 'plans' && !it.mon);
+  const info = path === 'tasks' && !isMon(it) ? `Lũy kế hôm qua <b>${esc(it.prevProgress) || '—'}</b> · KH hôm nay <b>${khTxt(it)}</b> · Làm được hôm nay <b>${hasV(it.dayPct) ? esc(it.dayPct) + '%' : '—'}</b> · Lũy kế <b>${esc(it.progress) || '—'}</b>`
+    : path === 'plans' && !it.mon ? `Dự kiến thực hiện <b>${hasV(it.add) ? esc(it.add) + '%' : '—'}</b> · Lũy kế dự kiến <b>${esc(it.target) || '—'}</b>` : '';
+  const sent = cmtSent().find(c => cmtSame(c, sc, path, ref, label));
+  modal(`<h3>💬 Ý kiến TVGS</h3><p style="margin:4px 0"><span class="hint">${esc(CMT_CUR.owner)}</span><br><b>${esc(label)}</b></p>${info ? `<p class="hint" style="margin:4px 0 8px">${info}</p>` : ''}
+    ${sent ? `<div class="note" style="margin:6px 0">Đã gửi trước đó: ${esc(sent.text)}</div>` : ''}
+    <div class="chips">${CMT_TAGS.map(t => `<button class="chip${CMT_CUR.tags.includes(t) ? ' on' : ''}" data-act="cmtTag" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+    ${isPct ? `<label class="cmtpct">Đề nghị % ${path === 'plans' ? 'dự kiến' : 'làm được hôm nay'}: <input id="cmtPct" class="in" inputmode="decimal" value="${esc(CMT_CUR.pct)}" placeholder="VD: 3"> %</label>` : ''}
+    <textarea id="cmtNote" class="in" rows="2" placeholder="Ghi chú thêm (tùy chọn)" style="margin-top:8px;width:100%">${esc(CMT_CUR.note)}</textarea>
+    <div class="acts">${d ? '<button class="btn" data-act="cmtDel" style="color:#b91c1c">🗑 Bỏ ý kiến</button>' : ''}<button class="btn" onclick="closeModal()">Hủy</button><button class="btn ok" data-act="cmtOk">✔ Ghi ý kiến</button></div>`);
+}
+function cmtRerender(){ if (VIEW === 'my' && S) renderMy(); else if (R) { renderForm(); } renderMobileBar(); }
+function cmtBasket(){
+  const L = cmtList(), ret = revOf(R) === 'returned';
+  modal(`<h3>📝 Ý kiến TVGS – ${vi(R.date)}</h3>
+    ${L.length ? L.map((c, k) => `<div class="cmti"><b>${esc(c.owner)} · ${esc(c.label)}</b><br>${esc(cmtText(c))}<button class="del" data-act="cmtRm" data-k="${k}" title="Bỏ">🗑</button></div>`).join('')
+      : '<p class="hint">Chưa có ý kiến theo từng việc. Bấm 💬 ở dòng cần góp ý, hoặc ghi ý kiến chung bên dưới.</p>'}
+    <textarea id="cmtGen" class="in" rows="2" placeholder="Ý kiến chung (không gắn với việc nào)" style="margin-top:8px;width:100%"></textarea>
+    ${ret ? '<p class="hint" style="margin:6px 0 0">Báo cáo đang chờ nhà thầu sửa – ý kiến này sẽ được <b>gửi bổ sung</b>.</p>' : ''}
+    <div class="acts"><button class="btn" onclick="closeModal()">← Quay lại</button><button class="btn" data-act="cmtSend" style="color:#fff;background:#dc2626;border-color:#dc2626">${ret ? '📨 Gửi bổ sung' : '↩ Gửi yêu cầu sửa'}${L.length ? ' (' + L.length + ')' : ''}</button></div>`);
+}
+async function cmtSend(){
+  const gen = ($('#cmtGen') && $('#cmtGen').value || '').trim(), L = cmtList(), ret = revOf(R) === 'returned';
+  if (!L.length && !gen) { toast('Chưa có ý kiến nào – bấm 💬 ở dòng cần góp ý hoặc ghi ý kiến chung'); return; }
+  const items = L.map(c => ({ id: uid(), scope: c.scope, path: c.path, ref: c.ref, label: c.label, owner: c.owner, tags: c.tags, pct: c.pct, note: c.note, text: cmtText(c) }));
+  try { closeModal();
+    R.review = await Store.review(R.date, ret ? 'append' : 'return', gen, items);
+    if (!ret) { R.status = 'draft'; R.reviewFix = {}; }
+    CMT = []; cmtPersist(); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'returned'}); renderDateSel(); renderDayAll(); if (VIEW === 'my' && S) renderMy();
+    const lines = [gen].concat(items.map(c => '• ' + (c.scope !== 'R' ? c.owner + ' – ' : '') + c.label + ': ' + c.text)).filter(Boolean).join('\n');
+    zaloModal(ret ? '📨 Đã gửi bổ sung ý kiến' : '↩ Đã gửi yêu cầu sửa', (ret ? 'Đã thêm ' : 'Báo cáo đã mở lại cho nhà thầu với ') + items.length + ' ý kiến theo từng việc. Sao chép tin nhắn gửi nhà thầu:',
+      `${ret ? '📨' : '↩'} [${CFG.project.code}] TVGS ${ret ? 'gửi bổ sung ý kiến' : 'yêu cầu sửa'} Báo cáo ngày ${vi(R.date)}:\n${lines}\nSửa xong vui lòng chốt lại để TVGS kiểm tra.`);
+  } catch(e){ toast('⚠ ' + (e.message || e), 5000); }
+}
+/* Tới đúng dòng có ý kiến: mở phiếu kỹ sư / tab báo cáo ngày, cuộn tới và tô sáng */
+const CMT_TAB = { tasks:'work', plans:'work', inspections:'qa', tests:'qa', inspectionPlans:'qa', testPlans:'qa', photos:'photos' };
+async function cmtGo(c){
+  const ck = c.scope + '|' + c.path + '|' + c.ref; CMT_FOCUS = ck;
+  if (c.scope.indexOf('S:') === 0) { await flush(); const u = c.scope.slice(2); VIEW = 'my'; renderNav(); MYTAB = CMT_TAB[c.path] || 'work'; MYSEG = c.path === 'plans' ? 'tomorrow' : 'today';
+    S = SUBS.find(x => x.uid === u); if (!S) { toast('Không tìm thấy phiếu của ' + userName(u)); return; } S_OTHER = u !== ME.id; renderMy(); renderDateSel(); loadImages(); }
+  else { if (VIEW !== 'day') { VIEW = 'day'; renderNav(); renderDayAll(); } }
+  setTimeout(() => { const b = [...document.querySelectorAll('[data-ck]')].find(x => x.dataset.ck === ck) || [...document.querySelectorAll('.cmtb.on')][0];
+    const box = b && (b.closest('.tcard') || b.closest('tr') || b.closest('.pcard'));
+    if (box) { box.scrollIntoView({ behavior: 'smooth', block: 'center' }); box.classList.add('cmtflash'); setTimeout(() => box.classList.remove('cmtflash'), 2500); }
+    else toast('Dòng này đã bị xóa hoặc đổi – kiểm tra lại theo nội dung ý kiến'); }, 120);
+}
+/* Danh sách ý kiến trong khung "TVGS yêu cầu sửa" (người chốt + TVGS) và "lần trước" khi TVGS kiểm tra lại */
+function cmtPanel(items, mode){
+  if (!items || !items.length) return '';
+  const fix = R.reviewFix || {}, nf = items.filter(c => mode === 'last' ? c.fixed : fix[c.id]).length;
+  return `<div class="cmtlist"><div class="hint" style="margin:4px 0">${items.length} ý kiến theo từng việc · đã sửa <b>${nf}/${items.length}</b></div>` + items.map(c => { const fx = mode === 'last' ? c.fixed : fix[c.id];
+    return `<div class="cmti"><span class="tag ${fx ? 'okt' : 'badt'}">${fx ? 'Đã sửa' : 'Chưa sửa'}</span> <b>${esc(c.label)}</b>${c.scope !== 'R' ? ` <span class="hint">(${esc(c.owner)})</span>` : ''}<br>${esc(c.text)}
+      <div class="bar" style="margin:4px 0 0;justify-content:flex-end">${mode === 'last' && !canReview() ? '' : `<button class="btn sm" data-act="cmtGo" data-id="${esc(c.id)}" data-m="${mode}">Tới chỗ ${isChot() && mode !== 'last' ? 'sửa' : 'xem'} →</button>`}${isChot() && mode !== 'last' ? `<button class="btn sm" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đã sửa'}</button>` : ''}</div></div>`; }).join('') + '</div>';
+}
 function reviewNotes(){
   if (!reviewOn() || !R) return ''; let h = ''; const rv = revOf(R), rw = R.review || {};
   const pend = IDX.reports.filter(x=>x.review==='pending' && x.date!==R.date).map(x=>x.date).sort();
   const ret = IDX.reports.filter(x=>x.review==='returned' && x.date!==R.date).map(x=>x.date).sort();
   if (canReview() && pend.length) h += `<div class="note"><div class="ulk">🔎 Còn <b>${pend.length}</b> ngày chờ TVGS kiểm tra:${dayBtns(pend)}</div></div>`;
   if (isChot() && ret.length) h += `<div class="note w"><div class="ulk">↩ TVGS yêu cầu sửa <b>${ret.length}</b> ngày:${dayBtns(ret)}</div></div>`;
-  if (rv==='returned') h += `<div class="note w" style="background:#fff7ed;border-color:#fdba74"><b>↩ TVGS ${esc(userName(rw.by))} yêu cầu sửa</b> (${esc(rw.at)}):<div style="white-space:pre-wrap;margin:6px 0;font-weight:600">${esc(rw.note)}</div>${isChot()?'Sửa xong bấm <b>Chốt báo cáo ngày</b> để gửi TVGS kiểm tra lại.':''}</div>`;
+  if (rv==='returned') h += `<div class="note w" style="background:#fff7ed;border-color:#fdba74"><b>↩ TVGS ${esc(userName(rw.by))} yêu cầu sửa</b> (${esc(rw.at)}):${rw.note ? `<div style="white-space:pre-wrap;margin:6px 0;font-weight:600">${esc(rw.note)}</div>` : ''}${cmtPanel(rw.items, 'ret')}${isChot()?'Sửa xong bấm <b>Chốt báo cáo ngày</b> để gửi TVGS kiểm tra lại.':''}${canReview() ? `<div class="bar" style="margin:6px 0 0"><button class="btn" data-act="cmtBasket">📝 Gửi bổ sung ý kiến${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button><span class="hint">Bấm 💬 ở từng dòng để thêm ý kiến.</span></div>` : ''}</div>`;
   if (rv==='pending') { const ps = planStats(R.tasks), w = allWarn(R.tasks);
     h += canReview() ? `<div class="note" style="border-color:#93c5fd"><b>🔎 Nhà thầu đã chốt – chờ bạn kiểm tra nội dung.</b> Xem bản báo cáo${isMobile()?' (nút 👁 Xem)':' bên phải'}, đối chiếu thực tế công trường.
-        <div class="hint" style="padding:6px 0">Đạt KH: <b>${ps.n?ps.ok+'/'+ps.n:'—'}</b> · Lỗi số liệu: <b>${w.e}</b> · Cảnh báo: <b>${w.w}</b>${R.review.lastNote?` · Lần trước yêu cầu sửa: <i>${esc(R.review.lastNote)}</i>`:''}</div>
-        <div class="bar" style="margin:0"><button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu nhà thầu sửa</button></div></div>`
+        <div class="hint" style="padding:6px 0">Đạt KH: <b>${ps.n?ps.ok+'/'+ps.n:'—'}</b> · Lỗi số liệu: <b>${w.e}</b> · Cảnh báo: <b>${w.w}</b>${R.review.lastNote?` · Lần trước yêu cầu sửa: <i>${esc(R.review.lastNote)}</i>`:''}${(R.review.lastItems||[]).length ? `<details style="margin-top:4px"><summary>Ý kiến lần trước – đã sửa ${(R.review.lastItems||[]).filter(c=>c.fixed).length}/${R.review.lastItems.length}</summary>${cmtPanel(R.review.lastItems, 'last')}</details>` : ''}</div>
+        <div class="bar" style="margin:0"><button class="btn ok" data-act="approveRep">✔ Xác nhận nội dung đúng</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu nhà thầu sửa${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button></div><p class="hint" style="margin:6px 0 0">💬 Góp ý từng việc: bấm 💬 ngay tại dòng (trong các tab hoặc khi xem phiếu kỹ sư), cuối cùng bấm “Yêu cầu nhà thầu sửa” để gửi 1 lần.</p></div>`
       : `<div class="note">⏳ Đã chốt lúc ${esc(R.lockedAt)} – <b>đang chờ TVGS kiểm tra nội dung</b>. TVGS xác nhận xong mới xuất PDF chính thức được.</div>`; }
   if (rv==='approved') h += `<div class="note g">✔ TVGS <b>${esc(userName(rw.by))}</b> đã xác nhận nội dung lúc ${esc(rw.at)} · mã xác thực <b>${esc(rw.code)}</b>.${isChot()?' Có thể <b>Lưu PDF</b> và gửi link cho các bên.':''}</div>`;
   return h;
@@ -693,7 +791,7 @@ const Store = IS_GAS ? {
   reviewPeriod: async (k, act, note) => J(await gas('apiReviewPeriod', TOKEN, k, act, note||'')),
   uploadFile: async (data, name) => J(await gas('apiUploadFile', TOKEN, data, name)),
   exportPdf: (html, name, key, kind) => gas('apiExportPdf', TOKEN, html, name, key, kind),
-  review: async (d, act, note) => J(await gas('apiReview', TOKEN, d, act, note||'')),
+  review: async (d, act, note, items) => J(await gas('apiReview', TOKEN, d, act, note||'', JSON.stringify(items||[]))),
   verify: async code => J(await gas('apiVerify', TOKEN, code)),
   cleanup: async () => J(await gas('apiCleanup', TOKEN)),
   catalogAdd: async e => J(await gas('apiCatalogAdd', TOKEN, JSON.stringify(e))),
@@ -724,16 +822,22 @@ const Store = IS_GAS ? {
   saveSub: async s => { await markTestL(s.date); s = withBase(s); revL(s, await IDB.get('subs', s.key)); await IDB.put('subs', s.key, s); return {ok:true, rev:s.rev}; },
   saveReport: async r => { await markTestL(r.date); r = withBase(r); const old = await IDB.get('reports', r.date), kept = old && old.review || null; revL(r, old);
     const accepted = [], subRevs = []; for (const u of (r.acceptSubs||[])) { const sb = await IDB.get('subs', r.date + '|' + u); if (sb && sb.status==='submitted') { sb.status='accepted'; sb.rev=(sb.rev||0)+1; await IDB.put('subs', sb.key, sb); accepted.push(u); subRevs.push(sb.rev); } } delete r.acceptSubs;
-    if (r.status==='locked') r.review = (!old || old.status!=='locked') ? (reviewOn() ? {status:'pending', since:nowStr(), lastNote: kept && kept.status==='returned' ? kept.note : ''} : null) : kept;
+    const fix = r.reviewFix || {}; if (r.status==='locked' && (!old || old.status!=='locked')) delete r.reviewFix;
+    if (r.status==='locked') r.review = (!old || old.status!=='locked') ? (reviewOn() ? {status:'pending', since:nowStr(), lastNote: kept && kept.status==='returned' ? kept.note : '', lastItems: kept && kept.status==='returned' ? (kept.items||[]).map(x=>Object.assign({}, x, {fixed:!!fix[x.id]})) : []} : null) : kept;
     else r.review = kept && kept.status==='returned' ? kept : null;
     await IDB.put('reports', r.date, r); return {ok:true, rev:r.rev, review:r.review, accepted, subRevs}; },
   deleteDay: async d => { await IDB.del('reports', d); for (const s of (await IDB.all('subs')).filter(x=>x.date===d)) await IDB.del('subs', s.key);
     const L = await IDB.get('kv','testDays') || []; await IDB.put('kv','testDays', L.filter(x=>x!==d)); },
-  review: async (d, act, note) => { const r = await IDB.get('reports', d); if (!r || r.status!=='locked') throw new Error('Báo cáo chưa được nhà thầu chốt');
+  review: async (d, act, note, items) => { const r = await IDB.get('reports', d); items = items || []; note = String(note||'').trim();
+    if (act==='append'){ if (!r || r.status==='locked' || !r.review || r.review.status!=='returned') throw new Error('Báo cáo không còn ở trạng thái chờ nhà thầu sửa – không gửi bổ sung được');
+      if (!items.length && !note) throw new Error('Chưa có ý kiến nào để gửi bổ sung');
+      r.review.items = (r.review.items||[]).concat(items); if (note) r.review.note = (r.review.note ? r.review.note + '\n' : '') + note; r.review.addedAt = nowStr();
+      r.rev = (r.rev||0) + 1; await IDB.put('reports', d, r); return r.review; }
+    if (!r || r.status!=='locked') throw new Error('Báo cáo chưa được nhà thầu chốt');
     if (act==='approve'){ const o = clone(r); delete o.review; const h = (await sha(JSON.stringify(o))).toUpperCase().replace(/[^0-9A-F]/g,'').padEnd(8,'0');
       r.review = {status:'approved', by:ME.id, at:nowStr(), code:h.slice(0,4)+'-'+h.slice(4,8), version:r.version||1};
       const vl = await IDB.get('kv','vlog') || []; vl.push({code:r.review.code, date:d, by:ME.name, at:r.review.at}); await IDB.put('kv','vlog', vl); }
-    else { if (!String(note||'').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); r.review = {status:'returned', by:ME.id, at:nowStr(), note:String(note).trim(), version:r.version||1}; r.status = 'draft'; }
+    else { if (!note && !items.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); r.review = {status:'returned', by:ME.id, at:nowStr(), note, items, version:r.version||1}; r.status = 'draft'; r.reviewFix = {}; }
     r.rev = (r.rev||0) + 1; await IDB.put('reports', d, r); return r.review; },
   verify: async code => { const k = String(code||'').toUpperCase().replace(/[^0-9A-F]/g,''); if (k.length!==8) return {ok:false}; const cd = k.slice(0,4)+'-'+k.slice(4);
     const r = (await IDB.all('reports')).find(x=>x.review && x.review.status==='approved' && x.review.code===cd);
@@ -765,7 +869,7 @@ const Store = IS_GAS ? {
   resetAll: async () => { for (const st of ['reports','subs','periods','kv']) await IDB.clear(st); return ''; }
 };
 /* Đợt 8.1 – Khóa tạm nút khi app đang bận: còn việc chạy ngầm (lưu, tải, đọc hồ sơ, tải file, tạo PDF…) → nút quan trọng mờ, ghi lý do */
-const BUSY_ACTS = new Set(['submitSub','saveSub','saveOther','saveDay','lock','unlock','approveRep','returnRep','returnSub','withdrawSub','wLock','wUnlock','wApprove','wReturn','wReturnGo','wGen','wReg','drive','drivePeriod','savePeriod','saveCfg','deleteDay','refresh']);
+const BUSY_ACTS = new Set(['cmtSend','submitSub','saveSub','saveOther','saveDay','lock','unlock','approveRep','returnRep','returnSub','withdrawSub','wLock','wUnlock','wApprove','wReturn','wReturnGo','wGen','wReg','drive','drivePeriod','savePeriod','saveCfg','deleteDay','refresh']);
 const BUSY_TXT = {open:'Đang tải dữ liệu…', period:'Đang tải dữ liệu…', allReports:'Đang tải dữ liệu…', saveSub:'Đang lưu…', saveReport:'Đang lưu…', savePeriod:'Đang lưu…', saveConfig:'Đang lưu cấu hình…', setPin:'Đang lưu…', deleteDay:'Đang xóa…', clearTestDays:'Đang xóa…', review:'Đang gửi…', reviewPeriod:'Đang gửi…', uploadFile:'Đang tải file lên…', saveLogo:'Đang tải file lên…', exportPdf:'Đang tạo PDF…', catalogAdd:'Đang ghi danh mục…', register:'Đang đọc file hồ sơ…', checkRegister:'Đang đọc file hồ sơ…', checkFolder:'Đang kiểm tra thư mục…'};
 const BUSY = new Map(); let BUSYID = 0, BUSY_MAX = 60000;
 function busyOn(txt, max, quiet){ const id = ++BUSYID; BUSY.set(id, txt); busyPaint();
@@ -815,7 +919,7 @@ const ninp = (path, val, ph='') => `<input class="in" type="number" step="any" i
 const ta = (path, val, ph='', rows=2) => `<textarea class="in" rows="${rows}" data-path="${path}" placeholder="${esc(ph)}" ${da()}>${esc(val)}</textarea>`;
 const sel = (path, val, opts) => `<select class="in" data-path="${path}" ${da()}>${opts.map(o=>{const v=typeof o==='string'?o:o.v,t=typeof o==='string'?o:o.t;return `<option value="${esc(v)}" ${String(v)===String(val??'')?'selected':''}>${esc(t)}</option>`}).join('')}</select>`;
 const chk = (path, val) => `<input type="checkbox" data-path="${path}" ${val?'checked':''} ${da()} style="width:18px;height:18px;margin-top:9px">`;
-const delBtn = (path, i) => RO ? '' : `<button class="del" data-act="del" data-root="${EDIT}" data-path="${path}" data-i="${i}" title="Xóa">🗑</button>`;
+const delBtn = (path, i) => (RO ? '' : `<button class="del" data-act="del" data-root="${EDIT}" data-path="${path}" data-i="${i}" title="Xóa">🗑</button>`) + cmtBtn(path, i);
 const addBtn = (path, label, tpl='{}', cls='add') => RO ? '' : `<button class="${cls}" data-act="add" data-root="${EDIT}" data-path="${path}" data-tpl='${esc(tpl)}'>+ ${label}</button>`;
 const wbsOpts = () => [{v:'',t:'— đầu mục —'}, ...CFG.wbs.map(w=>({v:w.code, t:w.code+' · '+w.name}))];
 const W_OPTS = ['', 'Nắng / Sunny','Nắng nhẹ / Sunny','Nhiều mây / Cloudy','Mưa rào / Shower','Mưa / Rain','Mưa lớn / Heavy rain'];
@@ -1063,7 +1167,8 @@ function renderMobileBar0(){
   const el = $('#mBottom'); if (!el) return;
   if (isMobile() && ME && VIEW==='day' && R){ el.classList.add('on'); const a = [];
     if (isChot() && !repLocked() && !SYNCING) a.push('<button class="btn" data-act="saveDay">💾 Lưu</button>');
-    if (canReview() && repLocked() && revOf(R)==='pending') a.push('<button class="btn ok" data-act="approveRep" style="flex:2">✔ Xác nhận</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa</button>');
+    if (canReview() && repLocked() && revOf(R)==='pending') a.push(`<button class="btn ok" data-act="approveRep" style="flex:2">✔ Xác nhận</button><button class="btn" data-act="returnRep" style="color:#b45309">↩ Yêu cầu sửa${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
+    if (canReview() && revOf(R)==='returned') a.push(`<button class="btn" data-act="cmtBasket" style="flex:2">📝 Gửi bổ sung${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
     if (isChot()) a.push(repLocked() ? '<button class="btn" data-act="unlock">🔓 Mở khóa</button>' : '<button class="btn ok" data-act="lock" style="flex:2">✔ Chốt ngày</button>');
     if (isChot()) a.push(`<button class="btn" data-act="drive" ${!reviewOn()||revOf(R)==='approved'?'':'style="opacity:.55"'}>☁ PDF</button>`);
     a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
@@ -1084,6 +1189,7 @@ function renderMobileBar0(){
     if (own && st==='submitted') a.push('<button class="btn" data-act="withdrawSub">↺ Rút lại</button>');
     if (S_OTHER && isChot()) a.push('<button class="btn pri" data-act="saveOther">✔ Lưu</button>');
   }
+  if (canCmt()) a.push(`<button class="btn" data-act="cmtBasket" style="color:#b45309">📝 Ý kiến${cmtList().length ? ' (' + cmtList().length + ')' : ''}</button>`);
   a.push('<button class="btn" data-act="showPrev">👁 Xem</button>');
   if (S_OTHER) a.unshift('<button class="btn" data-act="backDay">←</button>');
   const T = [['work','📋','Công việc',S.tasks.length],['qa','✅','Nghiệm thu',S.inspections.length+S.tests.length+S.inspectionPlans.length+S.testPlans.length],['photos','📸','Ảnh',S.photos.length],['note','📝','Ghi chú',S.note?1:0]];
@@ -1277,13 +1383,13 @@ function renderForm(){
     h += `<div class="note">Gộp từ phiếu đã nộp. Muốn sửa số → tab <b>Tình trạng phiếu</b> → “Xem / sửa”.</div>${shortNote(planStats(R.tasks))}`;
     SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k); if (S2.opt && !T.length) return;
       h += `<div class="zbar ${S2.k==='MEP'?'mep':''}"><span>${S2.t.split(' / ')[0]}</span><span class="hint">${T.length} việc</span></div>` +
-        (T.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p">${isMon(t)?esc(t.progress)||'—':esc(t.progress)||'—'}</span></div>
+        (T.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}${cmtBtn('tasks', R.tasks.indexOf(t))}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p">${isMon(t)?esc(t.progress)||'—':esc(t.progress)||'—'}</span></div>
           ${isMon(t)?'':`<div class="m"><span>Hôm qua ${showPct(t.prevProgress)||'0%'} · KH ${khTxt(t)} · làm ${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</span><span>${judgeHtml(t)}</span></div>`}
           ${t.qtyDay!==''&&t.qtyDay!=null?`<div class="m"><span>KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</span></div>`:''}${warnHtml(t)}</div>`).join('') || '<p class="hint">Chưa có.</p>'); });
   }
   if (M && TAB==='qa'){
-    const L = (arr, k) => arr.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p ${t[k]==='Không đạt'?'bad':''}">${esc(t[k])}</span></div></div>`).join('') || '<p class="hint">Chưa có.</p>';
-    h += `<div class="zbar"><span>✅ Nghiệm thu trong ngày</span></div>${L(R.inspections,'result')}<div class="zbar"><span>🧪 Thí nghiệm trong ngày</span></div>${L(R.tests,'result')}<div class="zbar"><span>📅 Kế hoạch nghiệm thu ngày mai</span></div>${L(R.inspectionPlans,'time')}<div class="zbar"><span>🧫 Kế hoạch thí nghiệm ngày mai</span></div>${L(R.testPlans,'time')}`;
+    const L = (arr, k, p) => arr.map(t=>`<div class="rcard"><div class="t">${esc(t.desc)}${cmtBtn(p, arr.indexOf(t))}</div><div class="m"><span>📍 ${esc(locText(t))} · ${esc(userName(t.by))}</span><span class="p ${t[k]==='Không đạt'?'bad':''}">${esc(t[k])}</span></div></div>`).join('') || '<p class="hint">Chưa có.</p>';
+    h += `<div class="zbar"><span>✅ Nghiệm thu trong ngày</span></div>${L(R.inspections,'result','inspections')}<div class="zbar"><span>🧪 Thí nghiệm trong ngày</span></div>${L(R.tests,'result','tests')}<div class="zbar"><span>📅 Kế hoạch nghiệm thu ngày mai</span></div>${L(R.inspectionPlans,'time','inspectionPlans')}<div class="zbar"><span>🧫 Kế hoạch thí nghiệm ngày mai</span></div>${L(R.testPlans,'time','testPlans')}`;
   }
   if (M && TAB==='mat'){
     h += `<div class="zbar"><span>📦 Vật tư nhập về</span>${addBtn('materials','Thêm','{"name":"","spec":"","unit":"","qty":""}')}</div>`
@@ -1308,18 +1414,18 @@ function renderForm(){
     SECTIONS.forEach(S2=>{ const T = R.tasks.filter(t=>sectionOf(t)===S2.k); if (S2.opt && !T.length) return;
       h += `<div class="ph"><h4 class="${S2.k==='MEP'?'mep':''}">${S2.t}</h4><span class="hint">${T.length} việc</span></div>
       <div class="tw"><table class="ed" style="min-width:720px"><thead><tr><th>STT</th><th>Công việc</th><th style="width:72px">Lũy kế hôm qua</th><th style="width:58px">KH hôm nay</th><th style="width:62px">Thực hiện</th><th style="width:72px">Lũy kế hôm nay</th><th style="width:130px">So với KH</th></tr></thead><tbody>
-      ${T.map((t,i)=>{ const c = 'style="padding:8px;text-align:center"'; return `<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}${t.qtyDay!==''&&t.qtyDay!=null?`<div class="hint">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''}<div class="hint" style="padding:2px 0">📍 ${esc(locText(t))} · ${esc(userName(t.by))}</div>${warnHtml(t)}</td>${isMon(t)
+      ${T.map((t,i)=>{ const c = 'style="padding:8px;text-align:center"'; return `<tr><td class="n">${i+1}</td><td style="padding:8px">${cmtBtn('tasks', R.tasks.indexOf(t))}${esc(t.desc)}${t.qtyDay!==''&&t.qtyDay!=null?`<div class="hint">KL ngày: ${esc(t.qtyDay)} ${esc(t.unit)}</div>`:''}<div class="hint" style="padding:2px 0">📍 ${esc(locText(t))} · ${esc(userName(t.by))}</div>${warnHtml(t)}</td>${isMon(t)
         ? `<td ${c}>${esc(t.prevProgress)||'—'}</td><td ${c}>${esc(t.planText)||'—'}</td><td ${c} colspan="2"><b>${esc(t.progress)||'—'}</b></td><td ${c}><span class="hint">Việc theo dõi</span></td>`
         : `<td ${c}>${showPct(t.prevProgress)||(t.carried?'0%':fp(num(t.startPct))+'*')}</td><td ${c}>${khTxt(t)}</td><td ${c}>${hasV(t.dayPct)?'+'+r1(num(t.dayPct))+'%':'—'}</td><td ${c}><b>${esc(t.progress)||'—'}</b></td><td style="padding:8px">${judgeHtml(t, true)}</td>`}</tr>`; }).join('') || '<tr><td colspan="7" class="hint" style="padding:12px">Chưa có.</td></tr>'}</tbody></table></div>`; });
     h += `<div class="hint">* Việc mới: lũy kế hôm qua do kỹ sư nhập (trống = 0%).</div>`;
   }
   if (!M && TAB==='qa'){
-    const list = (arr, cols) => arr.map((t,i)=>`<tr><td class="n">${i+1}</td><td style="padding:8px">${esc(t.desc)}</td><td style="padding:8px">${esc(locText(t))}</td><td style="padding:8px">${esc(t[cols])}</td><td style="padding:8px" class="hint">${esc(userName(t.by))}</td></tr>`).join('') || '<tr><td colspan="5" class="hint" style="padding:12px">Chưa có.</td></tr>';
+    const list = (arr, cols, p) => arr.map((t,i)=>`<tr><td class="n">${i+1}</td><td style="padding:8px">${cmtBtn(p, i)}${esc(t.desc)}</td><td style="padding:8px">${esc(locText(t))}</td><td style="padding:8px">${esc(t[cols])}</td><td style="padding:8px" class="hint">${esc(userName(t.by))}</td></tr>`).join('') || '<tr><td colspan="5" class="hint" style="padding:12px">Chưa có.</td></tr>';
     const head = c => `<div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Nội dung</th><th style="width:110px">Vị trí</th><th style="width:110px">${c}</th><th style="width:90px">Người báo cáo</th></tr></thead><tbody>`;
-    h += `<div class="note">Gộp tự động từ phiếu kỹ sư.</div><div class="ph"><h3>✅ Nghiệm thu trong ngày</h3></div>${head('Kết quả')}${list(R.inspections,'result')}</tbody></table></div>
-    <div class="ph"><h3>🧪 Thí nghiệm trong ngày</h3></div>${head('Kết quả')}${list(R.tests,'result')}</tbody></table></div>
-    <div class="ph"><h3>📅 Kế hoạch nghiệm thu ngày mai</h3></div>${head('Thời gian')}${list(R.inspectionPlans,'time')}</tbody></table></div>
-    <div class="ph"><h3>🧫 Kế hoạch thí nghiệm ngày mai</h3></div>${head('Thời gian')}${list(R.testPlans,'time')}</tbody></table></div>`;
+    h += `<div class="note">Gộp tự động từ phiếu kỹ sư.</div><div class="ph"><h3>✅ Nghiệm thu trong ngày</h3></div>${head('Kết quả')}${list(R.inspections,'result','inspections')}</tbody></table></div>
+    <div class="ph"><h3>🧪 Thí nghiệm trong ngày</h3></div>${head('Kết quả')}${list(R.tests,'result','tests')}</tbody></table></div>
+    <div class="ph"><h3>📅 Kế hoạch nghiệm thu ngày mai</h3></div>${head('Thời gian')}${list(R.inspectionPlans,'time','inspectionPlans')}</tbody></table></div>
+    <div class="ph"><h3>🧫 Kế hoạch thí nghiệm ngày mai</h3></div>${head('Thời gian')}${list(R.testPlans,'time','testPlans')}</tbody></table></div>`;
   }
   if (!M && TAB==='mat'){
     h += `<div class="ph"><h3>📦 Vật tư nhập về trong ngày</h3>${addBtn('materials','Thêm vật tư','{"name":"","spec":"","unit":"","qty":""}')}</div>
@@ -1341,7 +1447,7 @@ function renderForm(){
   if (TAB==='photos'){
     const subPh = R.photos.filter(p=>p.by);
     h += `<div class="ph"><h3>🖼 Ảnh từ phiếu kỹ sư</h3><span class="hint">${subPh.length} ảnh</span></div>
-    <div class="pgrid">${subPh.map(ph=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:'<div class="noimg">Ảnh trên Drive</div>'}${ph.warn?`<span class="warn">⚠ ${esc(ph.warn)}</span>`:''}<div class="hint" style="padding:6px">${esc(ph.caption)} · ${esc(userName(ph.by))}</div></div>`).join('') || '<p class="hint">Chưa có.</p>'}</div>
+    <div class="pgrid">${subPh.map(ph=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:'<div class="noimg">Ảnh trên Drive</div>'}${ph.warn?`<span class="warn">⚠ ${esc(ph.warn)}</span>`:''}<div class="hint" style="padding:6px">${cmtBtn('photos', R.photos.indexOf(ph))}${esc(ph.caption)} · ${esc(userName(ph.by))}</div></div>`).join('') || '<p class="hint">Chưa có.</p>'}</div>
     <div class="ph" style="margin-top:18px"><h3>➕ Ảnh bổ sung của người chốt</h3></div>
     ${RO?'':'<label class="drop">📸 Thêm ảnh<input type="file" accept="image/\*" multiple data-img="extraPhotos"></label>'}
     <div class="pgrid">${R.extraPhotos.map((ph,i)=>`<div class="pcard">${ph.img?`<img src="${ph.img}">`:'<div class="noimg">—</div>'}<div class="pc">${inp(`extraPhotos.${i}.caption`,ph.caption,'Chú thích')}${delBtn('extraPhotos',i)}</div></div>`).join('')}</div>`;
@@ -2574,11 +2680,23 @@ document.addEventListener('click', async function onClick(e){
     try { R.review = await Store.review(R.date, 'approve'); idxSet('reports', {date:R.date, status:R.status, version:R.version, review:'approved'}); renderDateSel(); renderDayAll();
       zaloModal('✔ Đã xác nhận nội dung', 'Mã xác thực in trên PDF: <b>' + esc(R.review.code) + '</b>. Sao chép tin nhắn gửi nhà thầu:', `✔ [${CFG.project.code}] TVGS ${ME.name} đã xác nhận nội dung Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Mã xác thực: ${R.review.code}. Nhà thầu xuất PDF và gửi các bên.`);
     } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
-  if (a==='returnRep'){ const note = await prompt2('Yêu cầu nhà thầu sửa – ' + vi(R.date), 'Ghi rõ nội dung sai cần sửa:', 'VD: Zone B thiếu nghiệm thu cốt thép giằng tầng 3; nhân lực ghi 45, thực tế 38'); if (note===null) return;
-    if (!note.trim()) { toast('Cần ghi rõ nội dung cần sửa'); return; }
-    try { R.review = await Store.review(R.date, 'return', note); R.status = 'draft'; idxSet('reports', {date:R.date, status:'draft', version:R.version, review:'returned'}); renderDateSel(); renderDayAll();
-      zaloModal('↩ Đã gửi yêu cầu sửa', 'Báo cáo đã mở lại cho nhà thầu. Sao chép tin nhắn gửi nhà thầu:', `↩ [${CFG.project.code}] TVGS yêu cầu sửa Báo cáo ngày ${vi(R.date)}:\n${note.trim()}\nSửa xong vui lòng chốt lại để TVGS kiểm tra.`);
-    } catch(e){ toast('⚠ ' + (e.message||e), 5000); } }
+  if (a==='returnRep'){ cmtBasket(); return; }
+  if (a==='cmtBasket'){ cmtBasket(); return; }
+  if (a==='cmtSend'){ await cmtSend(); return; }
+  if (a==='cmt'){ EDIT = b.dataset.root || EDIT; cmtOpen(b.dataset.path, +b.dataset.i); return; }
+  if (a==='cmtTag'){ b.classList.toggle('on'); return; }
+  if (a==='cmtOk' || a==='cmtDel'){ const c = CMT_CUR; if (!c) return; const L = cmtList(), k = L.findIndex(x => cmtSame(x, c.scope, c.path, c.ref, c.label));
+    if (a==='cmtOk'){ c.tags = [...document.querySelectorAll('#modalBody .chip.on')].map(x => x.dataset.t); c.pct = $('#cmtPct') ? $('#cmtPct').value.trim().replace(',', '.').replace('%', '') : ''; c.note = $('#cmtNote').value.trim();
+      if (!c.tags.length && c.pct === '' && !c.note) { toast('Chọn ít nhất 1 nội dung hoặc ghi chú'); return; }
+      if (k >= 0) L[k] = c; else L.push(c); }
+    else if (k >= 0) L.splice(k, 1);
+    cmtPersist(); closeModal(); cmtRerender(); toast(a==='cmtOk' ? '💬 Đã ghi ý kiến – tổng ' + L.length + '. Gửi 1 lần ở nút “Yêu cầu sửa”.' : 'Đã bỏ ý kiến'); return; }
+  if (a==='cmtRm'){ cmtList().splice(+b.dataset.k, 1); cmtPersist(); cmtRerender(); cmtBasket(); return; }
+  if (a==='cmtShow'){ const c = cmtSent().find(x => x.id === b.dataset.id); if (!c) return; const fx = (R.reviewFix || {})[c.id];
+    modal(`<h3>💬 Ý kiến TVGS</h3><p style="margin:4px 0"><b>${esc(c.label)}</b></p><div class="note" style="margin:6px 0">${esc(c.text)}</div><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn ok" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đánh dấu đã sửa'}</button></div>`); return; }
+  if (a==='cmtFix'){ if (!isChot() || repLocked()) return; R.reviewFix = R.reviewFix || {}; const id = b.dataset.id; if (R.reviewFix[id]) delete R.reviewFix[id]; else R.reviewFix[id] = true;
+    closeModal(); markDirty('R'); cmtRerender(); if (VIEW !== 'day') { renderDayAll(); } return; }
+  if (a==='cmtGo'){ const src = b.dataset.m === 'last' ? (R.review.lastItems || []) : cmtSent(); const c = src.find(x => x.id === b.dataset.id); if (c) await cmtGo(c); return; }
   if (a==='verify') return verifyFlow();
   if (a==='wxFetch') return autoWeather(true);
   if (a==='pdfFolderSet'){ const link = ($('#pdfLink').value||'').trim(); if (!link) { toast('Dán link thư mục Drive trước'); return; }

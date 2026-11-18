@@ -67,11 +67,22 @@ A([sheets.NhatKy.data.length>3,'audit log rows: '+(sheets.NhatKy.data.length-1)]
   err = ''; try { ctx.apiReview(tk.replace(/./,'x'), d, 'approve'); } catch (e) { err = e.message; } A([/AUTH/.test(err), 'review cần đăng nhập']);
   const kId = J(ctx.apiLogin('uK','1111')).token; err = ''; try { ctx.apiReview(kId, d, 'approve'); } catch (e) { err = e.message; } A([/quyền/.test(err), 'kỹ sư không xác nhận được']);
   err = ''; try { ctx.apiReview(tkT, d, 'return', ''); } catch (e) { err = e.message; } A([/Ghi rõ/.test(err), 'yêu cầu sửa bắt buộc ghi chú']);
-  const ret = J(ctx.apiReview(tkT, d, 'return', 'Sai nhân lực'));
+  /* Đợt 9: ý kiến theo từng việc + gửi bổ sung + đánh dấu đã sửa */
+  err = ''; try { ctx.apiReview(tkT, d, 'append', '', JSON.stringify([{ label:'x', text:'y' }])); } catch (e) { err = e.message; } A([/không còn ở trạng thái chờ/.test(err), 'chưa trả lại → không gửi bổ sung được']);
+  const it1 = { id:'c1', scope:'S:uK', path:'tasks', ref:'t1', label:'Lắp đặt cốt thép dầm sàn GF', owner:'KS K', tags:['% chưa đúng'], pct:'3', note:'', text:'% chưa đúng – đề nghị 3%' };
+  const ret = J(ctx.apiReview(tkT, d, 'return', 'Sai nhân lực', JSON.stringify([it1])));
   r = J(ctx.apiOpen(tk, d, 'day')).report; A([ret.status === 'returned' && r.status === 'draft' && r.review.note === 'Sai nhân lực', 'TVGS yêu cầu sửa → mở lại cho nhà thầu']);
+  A([r.review.items.length === 1 && r.review.items[0].pct === '3' && r.review.items[0].path === 'tasks', 'Yêu cầu sửa kèm ý kiến theo từng việc (đề nghị %)']);
+  const ap = J(ctx.apiReview(tkT, d, 'append', 'Bổ sung: thiếu ảnh', JSON.stringify([{ id:'c2', scope:'R', path:'materials', ref:'i0', label:'Thép D32', text:'Khối lượng chưa đúng' }])));
+  r = J(ctx.apiOpen(tk, d, 'day')).report;
+  A([ap.items.length === 2 && r.review.items.length === 2 && /Sai nhân lực\nBổ sung: thiếu ảnh/.test(r.review.note) && r.status === 'draft', 'Đã trả lại vẫn gửi bổ sung ý kiến được (cộng dồn)']);
+  err = ''; try { ctx.apiReview(kId, d, 'append', 'x'); } catch (e) { err = e.message; } A([/quyền/.test(err), 'kỹ sư không gửi ý kiến TVGS được']);
+  ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { reviewFix: { c1: true }, review: { status:'approved' } })));
+  r = J(ctx.apiOpen(tk, d, 'day')).report; A([r.review.status === 'returned' && r.review.items.length === 2 && r.reviewFix.c1 === true, 'Người chốt đánh dấu đã sửa; lưu không ghi đè ý kiến TVGS']);
   const idx3 = J(ctx.apiOpen(tk, d, 'day')).index; A([idx3.reports.find(x=>x.date===d).review === 'returned', 'index có trạng thái TVGS']);
   ctx.apiSaveReport(tk, JSON.stringify(Object.assign({}, r, { status:'locked', version:2, review:{ status:'approved', code:'GIAM-AO00' } })));
-  r = J(ctx.apiOpen(tk, d, 'day')).report; A([r.review.status === 'pending' && r.review.lastNote === 'Sai nhân lực', 'chốt lại → chờ kiểm tra lại; giao diện không tự đặt “đã xác nhận”']);
+  r = J(ctx.apiOpen(tk, d, 'day')).report; A([r.review.status === 'pending' && /^Sai nhân lực/.test(r.review.lastNote), 'chốt lại → chờ kiểm tra lại; giao diện không tự đặt “đã xác nhận”']);
+  A([r.review.lastItems.length === 2 && r.review.lastItems.find(x=>x.id==='c1').fixed === true && r.review.lastItems.find(x=>x.id==='c2').fixed === false && !r.reviewFix, 'Chốt lại → TVGS thấy ý kiến lần trước: dòng nào đã sửa / chưa sửa']);
   const ok3 = J(ctx.apiReview(tkT, d, 'approve')); A([/^[0-9A-F]{4}-[0-9A-F]{4}$/.test(ok3.code), 'xác nhận → mã xác thực ' + ok3.code]);
   A([typeof ctx.apiExportPdf(tk, '<p>x</p>', 'a.pdf', d, 'day') === 'string', 'đã xác nhận → xuất PDF được']);
   A([/\/exec\?v=[0-9A-F]{4}-[0-9A-F]{4}$/.test(ok3.url), 'link QR trỏ trang xác thực bản /exec: ' + ok3.url]);

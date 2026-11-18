@@ -36,6 +36,13 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9 – TVGS ghi ý kiến theo từng việc (18/11/2026)
+- **Sửa gì:** TVGS bấm 💬 ngay tại từng dòng (phiếu kỹ sư + các tab báo cáo ngày) → 4 nút chọn nhanh (% chưa đúng · Khối lượng chưa đúng · Ghi rõ vị trí · Thiếu ảnh) + “Đề nghị %” + ghi chú → vào giỏ “📝 Ý kiến (n)” → “Yêu cầu nhà thầu sửa (n)” gửi 1 lần. Đã trả lại vẫn “Gửi bổ sung”. Người chốt thấy danh sách ý kiến, “Tới chỗ sửa →” mở đúng phiếu/dòng (tô cam), sửa trực tiếp, “✔ Đã sửa”; chốt lại → TVGS thấy “Ý kiến lần trước – đã sửa x/y”. PDF không đổi.
+- **Kiểm thử mới:** gastest – trả lại kèm ý kiến, gửi bổ sung (cộng dồn, chặn khi chưa trả lại, kỹ sư không gửi được), đánh dấu đã sửa không ghi đè ý kiến, chốt lại → lastItems có cờ đã sửa. ui.js – nút 💬, hộp ý kiến (4 nút + đề nghị %), giỏ, gửi, gửi bổ sung, người chốt thấy danh sách, Tới chỗ sửa, Đã sửa 1/2; điện thoại TVGS xem phiếu có 💬 và “📝 Ý kiến (1)”.
+- **Ảnh đã xem:** desk_tvgs_cmt, desk_chot_cmt, desk_chot_cmt_go, m_tvgs_cmt, m_tvgs_cmt_box.
+- **Rủi ro:** ý kiến gắn theo mã dòng; dòng không có mã (dữ liệu cũ) gắn theo thứ tự + tên – nếu nhà thầu xóa/đổi dòng thì “Tới chỗ sửa” báo không tìm thấy. Nháp ý kiến TVGS nằm trên máy đang dùng (đổi máy giữa chừng thì mất nháp chưa gửi).
+
+
 ### Sửa lỗi 8.8 – Nút “In báo cáo” ra trang trắng (18/11/2026)
 - **Lỗi:** bấm In → trang 1 trắng. Nguyên nhân: CSS in cũ chỉ “làm hiện” khung #doc nằm trong khung xem trước (có cuộn, giới hạn chiều cao, vị trí tương đối) nên báo cáo bị đẩy/xén ra ngoài trang; báo cáo tuần (#pdoc) còn không được in.
 - **Sửa:** trước khi in, chép báo cáo đang xem vào khung #printRoot đặt thẳng dưới <body>, CSS in ẩn mọi thứ khác; hoạt động cả với Ctrl+P (sự kiện beforeprint).
@@ -250,3 +257,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 07:04 | 2fe7e84 | đạt | 134 đạt / 0 lỗi | 181 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8.6: logo H.T.N ở Giới thiệu + Liên hệ |
 | 2026-11-18 08:01 | 81bb6bd | đạt | 134 đạt / 0 lỗi | 184 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 8.7: ô đánh giá Overall Schedule không tràn, tiêu đề tuần 2 dòng |
 | 2026-11-18 09:09 | 8654a65 | đạt | 134 đạt / 0 lỗi | 186 đạt / 0 lỗi | ✅ ĐẠT | Sửa lỗi 8.8: nút In báo cáo ra trang trắng |
+| 2026-11-18 13:46 | 79c380d | đạt | 140 đạt / 0 lỗi | 199 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9: TVGS ghi ý kiến theo từng việc |

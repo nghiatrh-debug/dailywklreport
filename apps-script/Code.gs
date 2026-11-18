@@ -254,7 +254,9 @@ function apiSaveReport(token, json) {
     // Trạng thái TVGS do máy chủ quản lý – giao diện không tự đặt được
     const kept = old && old.review ? old.review : null;
     if (old && old.status === 'locked' && old.review && old.review.status === 'approved' && r.status === 'locked') throw new Error('Báo cáo đã được TVGS xác nhận – mở khóa trước khi sửa');
-    if (r.status === 'locked') r.review = (!old || old.status !== 'locked') ? (reviewOn_(c) ? { status: 'pending', since: now_(), lastNote: kept && kept.status === 'returned' ? kept.note : '' } : null) : kept;
+    const fix = r.reviewFix || {};
+    if (r.status === 'locked' && (!old || old.status !== 'locked')) delete r.reviewFix;
+    if (r.status === 'locked') r.review = (!old || old.status !== 'locked') ? (reviewOn_(c) ? { status: 'pending', since: now_(), lastNote: kept && kept.status === 'returned' ? kept.note : '', lastItems: kept && kept.status === 'returned' ? (kept.items || []).map(x => Object.assign({}, x, { fixed: !!fix[x.id] })) : [] } : null) : kept;
     else r.review = kept && kept.status === 'returned' ? kept : null;
     mergeWbs_(r.wbsMem); delete r.wbsMem; mergeMat_(r.matMem); delete r.matMem;
     if (!Array.isArray(r.layouts)) r.layouts = r.layout && (r.layout.img || r.layout.fileId) ? [r.layout] : [];
@@ -313,11 +315,30 @@ function vcode_(r) {
   return h.slice(0, 4) + '-' + h.slice(4, 8);
 }
 /** TVGS: action = 'approve' (xác nhận nội dung đúng) | 'return' (yêu cầu nhà thầu sửa, bắt buộc ghi chú). */
-function apiReview(token, date, action, note) {
+/** Ý kiến TVGS theo từng việc (Đợt 9): làm sạch danh sách gửi lên. */
+function cmtItems_(json) {
+  let a = []; try { a = JSON.parse(json || '[]'); } catch (e) { a = []; }
+  const s_ = (v, n) => String(v == null ? '' : v).slice(0, n);
+  return (Array.isArray(a) ? a : []).slice(0, 200).map(c => ({ id: s_(c.id, 40) || Utilities.getUuid().slice(0, 8), scope: s_(c.scope, 60), path: s_(c.path, 40), ref: s_(c.ref, 60),
+    label: s_(c.label, 300), owner: s_(c.owner, 80), tags: (Array.isArray(c.tags) ? c.tags : []).slice(0, 6).map(t => s_(t, 40)), pct: s_(c.pct, 10), note: s_(c.note, 1000), text: s_(c.text, 1500) }));
+}
+const cmtNote_ = its => its.map(c => '• ' + (c.owner ? c.owner + ' – ' : '') + c.label + ': ' + c.text).join('\n');
+function apiReview(token, date, action, note, items) {
   const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
-    const r = dayData_(date).report;
+    const r = dayData_(date).report, its = cmtItems_(items); note = String(note || '').trim();
+    if (action === 'append') {
+      if (!r || r.status === 'locked' || !r.review || r.review.status !== 'returned') throw new Error('Báo cáo ngày ' + date + ' không còn ở trạng thái chờ nhà thầu sửa – không gửi bổ sung được');
+      if (!its.length && !note) throw new Error('Chưa có ý kiến nào để gửi bổ sung');
+      r.rev = (r.rev || 0) + 1;
+      r.review.items = (r.review.items || []).concat(its); if (note) r.review.note = (r.review.note ? r.review.note + '\n' : '') + note;
+      r.review.addedAt = now_();
+      log_(me.id, 'TVGS_BO_SUNG_Y_KIEN', date, [note, cmtNote_(its)].filter(String).join('\n'));
+      writeReport_(r, c);
+      const da = dayData_(date); da.report = strip_(r); dayPut_(date, da);
+      return JSON.stringify(r.review);
+    }
     if (!r || r.status !== 'locked') throw new Error('Báo cáo ngày ' + date + ' chưa được nhà thầu chốt');
     if (r.review && r.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo đã được xác nhận');
     r.rev = (r.rev || 0) + 1;
@@ -326,10 +347,10 @@ function apiReview(token, date, action, note) {
       r.review.url = verifyUrl_(r.review.code);
       log_(me.id, 'TVGS_XAC_NHAN', date, r.review.code + ' · v' + r.review.version);
     } else {
-      if (!String(note || '').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
-      r.review = { status: 'returned', by: me.id, at: now_(), note: String(note).trim(), version: r.version || 1 };
-      r.status = 'draft';
-      log_(me.id, 'TVGS_YEU_CAU_SUA', date, r.review.note);
+      if (!note && !its.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
+      r.review = { status: 'returned', by: me.id, at: now_(), note: note, items: its, version: r.version || 1 };
+      r.status = 'draft'; r.reviewFix = {};
+      log_(me.id, 'TVGS_YEU_CAU_SUA', date, [note, cmtNote_(its)].filter(String).join('\n'));
     }
     writeReport_(r, c);
     const dd = dayData_(date); dd.report = strip_(r); dayPut_(date, dd);
