@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Sửa lỗi 8.8 – Nút “In báo cáo” ra trang trắng (18/11/2026)
+- **Lỗi:** bấm In → trang 1 trắng. Nguyên nhân: CSS in cũ chỉ “làm hiện” khung #doc nằm trong khung xem trước (có cuộn, giới hạn chiều cao, vị trí tương đối) nên báo cáo bị đẩy/xén ra ngoài trang; báo cáo tuần (#pdoc) còn không được in.
+- **Sửa:** trước khi in, chép báo cáo đang xem vào khung #printRoot đặt thẳng dưới <body>, CSS in ẩn mọi thứ khác; hoạt động cả với Ctrl+P (sự kiện beforeprint).
+- **Kiểm thử mới (ui.js):** in báo cáo ngày và tuần → chỉ còn bản báo cáo, nằm ngay đầu trang. Đã in thử PDF bằng Chrome ở màn hình hẹp, cuộn giữa trang: 3 trang đủ nội dung, không trang trắng.
+
+
 ### Sửa nhỏ 8.7 – Overall Schedule + tiêu đề báo cáo tuần (18/11/2026)
 - **Lỗi:** ô Đánh giá co hẹp, “Chậm nhẹ” tràn ô. Nguyên nhân: lớp `warn` của giao diện app (display:block) đè lên ô bảng ở bản xem trước. Sửa: đổi lớp ô thành `e-ok/e-warn/e-bad`, cố định 4 cột 25%, chữ đánh giá 18px Arial 1 dòng.
 - Tiêu đề tuần: “Tuần – Tháng” và “Kỳ báo cáo” thành 2 dòng canh giữa.
@@ -243,3 +249,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 04:24 | a936648 | đạt | 134 đạt / 0 lỗi | 179 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8: khóa nút khi bận, màu đầu mục, bảng đánh giá, H.T.N, dấu TVGS |
 | 2026-11-18 07:04 | 2fe7e84 | đạt | 134 đạt / 0 lỗi | 181 đạt / 0 lỗi | ✅ ĐẠT | Đợt 8.6: logo H.T.N ở Giới thiệu + Liên hệ |
 | 2026-11-18 08:01 | 81bb6bd | đạt | 134 đạt / 0 lỗi | 184 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 8.7: ô đánh giá Overall Schedule không tràn, tiêu đề tuần 2 dòng |
+| 2026-11-18 09:09 | 8654a65 | đạt | 134 đạt / 0 lỗi | 186 đạt / 0 lỗi | ✅ ĐẠT | Sửa lỗi 8.8: nút In báo cáo ra trang trắng |

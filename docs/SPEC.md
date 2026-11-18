@@ -322,3 +322,6 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 ### 8.7 Sửa nhỏ báo cáo tuần (18/11/2026)
 - Overall Schedule: 4 ô luôn rộng đều (colgroup 25%, table-layout fixed); chữ đánh giá (Đạt / Chậm nhẹ / Chậm) 18px, 1 dòng, font Arial như phần còn lại. Lỗi tràn ô do lớp "warn" của giao diện app đè lên ô bảng → đổi tên lớp ô đánh giá thành e-ok / e-warn / e-bad.
 - Tiêu đề: dòng "Tuần NN – Tháng MM/YYYY" và dòng "KỲ BÁO CÁO / PERIOD: … → …" tách 2 dòng, canh giữa; kỳ báo cáo không xuống dòng.
+
+### 8.8 Sửa lỗi nút In báo cáo ra trang trắng (18/11/2026)
+- Khi in, app chép bản báo cáo đang xem (ngày / tuần / phiếu kỹ sư) vào khung riêng #printRoot ngay dưới <body>; CSS in ẩn mọi thứ khác. Không còn phụ thuộc khung xem trước (cuộn, giới hạn chiều cao, ẩn trên điện thoại). Áp dụng cả khi bấm Ctrl+P.

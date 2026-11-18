@@ -90,6 +90,12 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.evaluate(() => closeModal());
     const d26 = await pg.innerText('#doc');
     ok(/Verified by Consultant/.test(d26) && d26.includes(code) && await pg.locator('#doc .ttl .qrst img').count() === 1, 'PDF: chữ “Verified by Consultant” + mã QR + mã ' + code);
+    { await pg.evaluate(() => printFill()); await pg.emulateMedia({ media: 'print' });
+      const pr = await pg.evaluate(() => { const r = $('#printRoot'), d = r && r.querySelector('.doc'); if (!d) return 'no-doc';
+        const others = [...document.body.children].filter(e => e !== r && getComputedStyle(e).display !== 'none').map(e => e.id || e.className);
+        return others.length ? 'others:' + others.join(',') : d.getBoundingClientRect().top < 40 && d.innerText.length > 300 ? true : 'top:' + d.getBoundingClientRect().top; });
+      await pg.emulateMedia({ media: 'screen' }); if (pr !== true) console.log('PRINT', pr);
+      ok(pr === true, 'In báo cáo ngày: chỉ in bản báo cáo, nằm ngay đầu trang (không còn trang trắng)'); }
     const vurl = await pg.evaluate(() => verifyLink(R.review));
     const vp = await ctx.newPage(); await vp.goto(vurl); await wait(1200);
     const vt = await vp.innerText('body');
@@ -396,6 +402,12 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.evaluate(() => { const on = [...document.querySelectorAll('#pdoc .wrate td.on')]; return on.map(td=>td.querySelector('.x').textContent).join('') === '✔●✖' && getComputedStyle(on[2]).backgroundColor === 'rgb(254, 226, 226)'; }), 'Bảng đánh giá: đủ 3 mức Tốt ✔ / Trung bình ● / Kém ✖ đúng màu');
     await pg.locator('#pdoc .wrate').screenshot({ path: path.join(OUT, 'desk_week_rate.png') });
     await pg.locator('#pdoc .ttl').screenshot({ path: path.join(OUT, 'desk_week_qr.png') });
+    { await pg.evaluate(() => printFill()); await pg.emulateMedia({ media: 'print' });
+      const pr = await pg.evaluate(() => { const r = $('#printRoot'), d = r && r.querySelector('.doc'); if (!d) return 'no-doc';
+        const others = [...document.body.children].filter(e => e !== r && getComputedStyle(e).display !== 'none').map(e => e.id || e.className);
+        return others.length ? 'others:' + others.join(',') : d.getBoundingClientRect().top < 40 && d.innerText.length > 300 ? true : 'top:' + d.getBoundingClientRect().top; });
+      await pg.emulateMedia({ media: 'screen' }); if (pr !== true) console.log('PRINT', pr);
+      ok(pr === true, 'In báo cáo tuần: chỉ in bản báo cáo, nằm ngay đầu trang (không còn trang trắng)'); }
     ok(await pg.evaluate(async c => { const v = await Store.verify(c); return v.ok === 'current' && v.kind === 'week' && v.no == 34; }, wcode), 'Tra mã xác thực báo cáo tuần');
     await shot(pg, 'desk_week_doc', { fullPage: true });
     await login(pg, 'u_chot', '1234'); await pg.click('[data-view=period]'); await wait(500);

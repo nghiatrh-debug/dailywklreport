@@ -270,11 +270,12 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 @media print{@page{size:A4;margin:8mm}}
 </style>
 <style>
+#printRoot{display:none}
 @media print{
   body{background:#fff}
-  body *{visibility:hidden}
-  #doc,#doc *{visibility:visible}
-  #doc{position:absolute;left:0;top:0;width:100%;box-shadow:none}
+  /* In: chỉ in bản sao báo cáo đặt thẳng dưới <body>, không phụ thuộc khung xem trước (cuộn/co giãn/ẩn trên điện thoại) */
+  body > *:not(#printRoot){display:none!important}
+  #printRoot{display:block!important}
   .doc{padding:0}
 }
 </style>
@@ -2333,7 +2334,12 @@ function renderConfig(){
 
 /* ===================== IN / PDF ===================== */
 function docHtml(el){ return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>${$('#docCss').textContent}</style></head><body>${el.innerHTML}</body></html>`; }
-function doPrint(){ try { window.print(); } catch(e){} if (!IS_GAS) setTimeout(()=>toast('Nếu hộp thoại in không mở: khung xem trước trên Claude chặn lệnh in. Bản Apps Script in bình thường.', 5000), 400); }
+function printFill(){ const src = VIEW==='period' ? $('#pdoc') : VIEW==='my' ? $('#mydoc') : $('#doc');
+  let pr = $('#printRoot'); if (!pr) { pr = document.createElement('div'); pr.id = 'printRoot'; document.body.appendChild(pr); }
+  pr.innerHTML = src ? src.innerHTML : ''; }
+window.addEventListener('beforeprint', printFill);
+window.addEventListener('afterprint', ()=>{ const pr = $('#printRoot'); if (pr) pr.innerHTML = ''; });
+function doPrint(){ printFill(); try { window.print(); } catch(e){} if (!IS_GAS) setTimeout(()=>toast('Nếu hộp thoại in không mở: khung xem trước trên Claude chặn lệnh in. Bản Apps Script in bình thường.', 5000), 400); }
 async function toDrive(kind){
   if (!IS_GAS){ modal(`<h3>Cần triển khai bản Google Apps Script</h3><p>Bản xem trước lưu dữ liệu trên máy. Để lưu Google Sheets + PDF vào Drive, triển khai theo HUONG_DAN_TRIEN_KHAI.md.</p><div class="acts"><button class="btn pri" onclick="closeModal()">Đã hiểu</button></div>`); return; }
   try { toast('⏳ Đang tạo PDF… thường mất 10–20 giây, vui lòng chờ', 30000);
