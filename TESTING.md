@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9.4 – Lỗi “Promise: renderPeriod” trên điện thoại TVGS (19/11/2026)
+- **Nguyên nhân:** mở app xong bấm ngay vào Báo cáo tuần; logo đơn vị tải xong trước khi số liệu tuần về → app vẽ lại trang tuần khi chưa có dữ liệu → báo lỗi (trang vẫn hiện đúng sau đó).
+- **Sửa gì:** chưa có dữ liệu kỳ thì bỏ qua lần vẽ lại. Thanh báo lỗi hiện thêm nội dung lỗi (Safari trước đây chỉ hiện vị trí).
+- **Kiểm thử mới:** ui.js – gọi vẽ trang kỳ khi tuần chưa tải xong: không lỗi.
+- **Rủi ro còn lại:** không.
+
 ### Đợt 9.3 – Ý kiến TVGS theo từng dòng cho báo cáo tuần (19/11/2026)
 - **Sửa gì:** báo cáo tuần có đủ chức năng như báo cáo ngày: 💬 từng dòng (kể cả dòng 🔒, B.3/B.4) + Tiến độ tổng, Đánh giá chung, Nhận xét an toàn; giỏ ý kiến lưu nháp, gửi 1 lần / gửi bổ sung; người chốt “Tới chỗ sửa” (tự chuyển thẻ), “Đã sửa”; chốt lại → TVGS thấy “đã sửa x/y”. Dòng 🔒 nhắc cách sửa. Máy tính: 💬 ở cột STT cho dễ thấy.
 - Quản trị kiêm người chốt: khi báo cáo đang trả về thì không hiện “gửi bổ sung” (vai người sửa).
@@ -280,3 +286,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 14:14 | 80366d4 | đạt | 140 đạt / 0 lỗi | 200 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.1: bỏ 2 nút Lưu trùng khi người chốt sửa phiếu kỹ sư |
 | 2026-11-18 14:42 | 229f737 | đạt | 140 đạt / 0 lỗi | 202 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.2: lưu nháp ý kiến chung TVGS |
 | 2026-11-19 13:55 | 3033811 | đạt | 145 đạt / 0 lỗi | 212 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9.3: ý kiến TVGS theo từng dòng cho báo cáo tuần |
+| 2026-11-19 14:18 | 0edff6b | đạt | 145 đạt / 0 lỗi | 213 đạt / 0 lỗi | ✅ ĐẠT | 9.4 sửa lỗi renderPeriod khi tuần chưa tải xong |

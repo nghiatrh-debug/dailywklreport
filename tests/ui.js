@@ -336,6 +336,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
 
     await login(pg, 'u_chot', '1234');
     await pg.click('[data-view=period]'); await wait(500);
+    ok(await pg.evaluate(() => { const w = W, m = P.manual; W = null; P.manual = null; let e = ''; try { renderPeriod(); } catch(x){ e = x.message; } W = w; P.manual = m; return e; }) === '', 'Logo tải xong khi kỳ tuần chưa tải xong: không báo lỗi renderPeriod');
     await pg.fill('#pAnchor', '2026-06-25'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(600);
     ok(/19\/06\/2026 → 25\/06\/2026/.test(await pg.innerText('#periodPane')) && /T6 → T5/.test(await pg.innerText('#perNav')) && !(await pg.locator('#pKind').count()), 'Tuần mặc định Thứ 6 → Thứ 5 (25/06 thuộc tuần 19–25/06), không còn chọn tháng');
     ok(/© 2026 H\.T\.N/.test(await pg.innerText('#pdoc')) && !/Lập bằng ứng dụng/.test(await pg.innerText('#pdoc')) && !/Huỳnh Trọng Nghĩa/.test(await pg.innerText('#pdoc')), 'PDF tuần: chân trang chỉ còn © 2026 H.T.N (dưới phần ký)');

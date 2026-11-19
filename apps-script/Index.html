@@ -5,7 +5,7 @@
 (function(){ function show(t){ var d = document.createElement('div'); d.id = 'jsErr'; d.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;background:#fee2e2;color:#991b1b;font:12px/1.4 monospace;padding:6px 10px;white-space:pre-wrap';
   d.textContent = '⚠ Lỗi ứng dụng: ' + t; (document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(d); })); }
   window.addEventListener('error', function(e){ show((e.message || 'lỗi') + (e.lineno ? ' (dòng ' + e.lineno + ':' + e.colno + ')' : '')); });
-  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; show('Promise: ' + (r && (r.stack || r.message) || r)); }); })();
+  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; show('Promise: ' + (r && ((r.message || '') + ' | ' + (r.stack || '')) || r)); }); })();
 </script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1792,6 +1792,7 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
   W = null; renderPeriod(); }
 function renderPeriod(){
   if (P.kind==='week' && W) return renderWeek();
+  if (!P.manual) return;
   const pr = periodRange(), A = aggregate(P.reports), M = P.manual, ro = !isChot() ? 'disabled' : '';
   const ok = A.insp.filter(x=>x.result==='Đạt').length;
   $('#perPrevBar').innerHTML = (isChot() ? '<button class="btn" data-act="savePeriod">💾 Lưu phần nhập tay</button><button class="btn pri" data-act="drivePeriod">☁ Xuất PDF lên Google Drive</button>' : '') + '<button class="btn" data-act="print">🖨 In báo cáo</button>';
