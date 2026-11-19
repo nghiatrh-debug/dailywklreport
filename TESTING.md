@@ -36,6 +36,13 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9.3 – Ý kiến TVGS theo từng dòng cho báo cáo tuần (19/11/2026)
+- **Sửa gì:** báo cáo tuần có đủ chức năng như báo cáo ngày: 💬 từng dòng (kể cả dòng 🔒, B.3/B.4) + Tiến độ tổng, Đánh giá chung, Nhận xét an toàn; giỏ ý kiến lưu nháp, gửi 1 lần / gửi bổ sung; người chốt “Tới chỗ sửa” (tự chuyển thẻ), “Đã sửa”; chốt lại → TVGS thấy “đã sửa x/y”. Dòng 🔒 nhắc cách sửa. Máy tính: 💬 ở cột STT cho dễ thấy.
+- Quản trị kiêm người chốt: khi báo cáo đang trả về thì không hiện “gửi bổ sung” (vai người sửa).
+- **Kiểm thử mới:** gastest – tuần trả lại kèm ý kiến, gửi bổ sung, lưu không ghi đè ý kiến, chốt lại → lastItems đã sửa/chưa sửa. ui.js – 💬 Tiến độ tổng (đề nghị % thực tế tuần này), 💬 dòng 🔒 (nhắc cách sửa), đếm (2), gửi, người chốt 0/2 → Tới chỗ sửa đúng thẻ → Đã sửa → chốt lại → TVGS thấy 1/2 rồi xác nhận.
+- **Ảnh đã xem:** desk_week_tvgs_cmt, desk_week_chot_cmt.
+
+
 ### Sửa nhỏ 9.2 – Ý kiến chung của TVGS không mất khi bấm Quay lại (18/11/2026)
 - **Lỗi:** trong giỏ ý kiến, gõ “Ý kiến chung” rồi bấm “← Quay lại” để kiểm tra chỗ khác → mất chữ đã gõ.
 - **Sửa:** ý kiến chung tự lưu nháp trên máy ngay khi gõ; nút đổi thành “💾 Lưu & quay lại”; mở lại giỏ (kể cả sau khi tải lại trang) vẫn còn; số ý kiến trên nút tính cả ý kiến chung; gửi xong mới xóa nháp.
@@ -272,3 +279,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 13:46 | 79c380d | đạt | 140 đạt / 0 lỗi | 199 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9: TVGS ghi ý kiến theo từng việc |
 | 2026-11-18 14:14 | 80366d4 | đạt | 140 đạt / 0 lỗi | 200 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.1: bỏ 2 nút Lưu trùng khi người chốt sửa phiếu kỹ sư |
 | 2026-11-18 14:42 | 229f737 | đạt | 140 đạt / 0 lỗi | 202 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.2: lưu nháp ý kiến chung TVGS |
+| 2026-11-19 13:55 | 3033811 | đạt | 145 đạt / 0 lỗi | 212 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9.3: ý kiến TVGS theo từng dòng cho báo cáo tuần |

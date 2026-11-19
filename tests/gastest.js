@@ -222,6 +222,17 @@ console.log('Dung lượng: xong');
   A([sheets.Tuan_CongViec.data.filter(x => x[0] === base.key).length === 2 && sheets.Tuan_VatTu.data.some(x => x[0] === base.key && x[8] === 786.5) && sheets.Tuan_NhanLuc.data.some(x => x[0] === base.key && x[3] === 'Thép') && sheets.Tuan_AnToan.data.some(x => x[0] === base.key && x[2] === 'HOAT_DONG'), 'Tuan_CongViec / VatTu (lũy kế) / NhanLuc / AnToan ghi khi chốt']);
   err = ''; try { ctx.apiExportPdf(tk, '<p>x</p>', 'w.pdf', base.key, 'week'); } catch (e) { err = e.message; } A([/TVGS/.test(err), 'chưa TVGS xác nhận → chặn xuất PDF tuần']);
   err = ''; try { ctx.apiReviewPeriod(tkT, base.key, 'return', ''); } catch (e) { err = e.message; } A([/Ghi rõ/.test(err), 'TVGS trả lại phải ghi chú']);
+  { /* Đợt 9 – báo cáo tuần: ý kiến theo từng dòng, gửi bổ sung, đánh dấu đã sửa, chốt lại */
+    let e2 = ''; try { ctx.apiReviewPeriod(tkT, base.key, 'append', 'x'); } catch (e) { e2 = e.message; } A([/không còn ở trạng thái chờ/.test(e2), 'Tuần chưa trả lại → không gửi bổ sung được']);
+    const w1 = J(ctx.apiReviewPeriod(tkT, base.key, 'return', '', JSON.stringify([{ id:'w1', scope:'W', path:'overall', ref:'i0', label:'Tiến độ tổng', text:'% chưa đúng – đề nghị 10.5%', pct:'10.5' }])));
+    A([w1.status === 'returned' && w1.items.length === 1 && ctx.weekGet_(base.key).status === 'draft', 'TVGS trả tuần kèm ý kiến theo dòng (không cần ghi chú chung)']);
+    const w2 = J(ctx.apiReviewPeriod(tkT, base.key, 'append', 'Bổ sung ảnh', JSON.stringify([{ id:'w2', scope:'W', path:'tasks', ref:'i0', label:'Cột vách B1', text:'Khối lượng chưa đúng' }])));
+    A([w2.items.length === 2 && /Bổ sung ảnh/.test(w2.note), 'Tuần: gửi bổ sung ý kiến cộng dồn']);
+    J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'draft', version: 2, reviewFix: { w1: true }, review: { status: 'approved' }, gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
+    const wk = ctx.weekGet_(base.key);
+    A([(wk.review || {}).status === 'returned' && (wk.review.items || []).length === 2, 'Tuần: người chốt lưu không ghi đè ý kiến TVGS']);
+    const rl = J(ctx.apiSavePeriod(tk, JSON.stringify(Object.assign({}, base, { status: 'locked', version: 2, reviewFix: { w1: true }, gantt: [{ fileId: r.gantt[0], caption: 'Gantt 1' }] }))));
+    A([rl.review.status === 'pending' && rl.review.lastItems.length === 2 && rl.review.lastItems.find(x => x.id === 'w1').fixed === true && rl.review.lastItems.find(x => x.id === 'w2').fixed === false, 'Tuần chốt lại → TVGS thấy ý kiến lần trước: đã sửa / chưa sửa']); }
   const rv = J(ctx.apiReviewPeriod(tkT, base.key, 'approve'));
   A([rv.status === 'approved' && /^[0-9A-F]{4}-[0-9A-F]{4}$/.test(rv.code), 'TVGS xác nhận tuần: mã ' + rv.code]);
   const vf = J(ctx.apiVerify(tk, rv.code)); A([vf.ok === 'current' && vf.kind === 'week' && vf.no === 34 && vf.date === '2026-11-12', 'tra mã: báo cáo tuần 34']);

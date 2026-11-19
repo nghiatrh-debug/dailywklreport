@@ -341,3 +341,9 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 
 ### 9.2 Lưu nháp ý kiến chung (18/11/2026)
 - Ô "Ý kiến chung" trong giỏ tự lưu nháp (localStorage, theo dự án + ngày); nút "💾 Lưu & quay lại"; gửi xong mới xóa. Số trên nút = số ý kiến từng việc + 1 nếu có ý kiến chung.
+
+### 9.3 Ý kiến TVGS theo từng dòng – báo cáo tuần (19/11/2026)
+- Dùng chung cơ chế Đợt 9 (ngữ cảnh tuần khi đang ở màn hình Báo cáo tuần): 💬 ở mọi dòng các thẻ I.A–III (kể cả dòng 🔒 tổng hợp, B.3 hồ sơ, B.4 văn bản), và cho Tiến độ tổng, Đánh giá chung, Nhận xét an toàn. Máy tính: 💬 nằm ở cột STT.
+- Dòng 🔒: hộp ý kiến nhắc nhà thầu sửa ở báo cáo ngày rồi “Tổng hợp lại”, hoặc giải trình ở cột Ghi chú.
+- Máy chủ: apiReviewPeriod nhận items + 'append'; saveWeek_ khi chốt lại sau khi bị trả → review.lastNote + lastItems (cờ fixed từ W.reviewFix), xóa reviewFix.
+- Quản trị kiêm người chốt: khi báo cáo đang bị trả về thì ở vai người sửa (không gửi bổ sung ý kiến) – áp dụng cả báo cáo ngày.

@@ -528,7 +528,10 @@ function saveWeek_(me, w) {
     w.review = old ? old.review || null : null;
     if (old && old.status === 'locked' && w.status !== 'locked') {           // mở khóa
       if (w.review) w.review = { lastNote: w.review.note || '', lastStatus: w.review.status }; log_(me.id, 'MO_KHOA_TUAN', w.to, w.key + ' → v' + w.version); }
-    if (w.status === 'locked' && !(old && old.status === 'locked')) { w.lockedAt = now_(); w.lockedBy = me.id; if (reviewOn_(c)) w.review = { status: 'pending', version: w.version };
+    if (w.status === 'locked' && !(old && old.status === 'locked')) { w.lockedAt = now_(); w.lockedBy = me.id;
+      const kept = w.review, fix = w.reviewFix || {}; delete w.reviewFix;
+      if (reviewOn_(c)) w.review = { status: 'pending', version: w.version, lastNote: kept && kept.status === 'returned' ? kept.note || '' : '',
+        lastItems: kept && kept.status === 'returned' ? (kept.items || []).map(x => Object.assign({}, x, { fixed: !!fix[x.id] })) : [] };
       log_(me.id, 'CHOT_TUAN', w.to, 'Tuần ' + w.no + ' v' + w.version); }
     const imgs = (w.gantt || []).filter(g => g && g.img && !g.fileId);
     if (imgs.length) { const f = subFolder_(rootFolder_(), 'Tuan'); (w.gantt || []).forEach((g, i) => uploadImg_(g, f, w.key + '_gantt_' + (i + 1))); }
@@ -637,11 +640,19 @@ function apiRegisterWeek(token, from, to) {
   return JSON.stringify({ subs: subs, docs: docs, at: now_() });
 }
 /** TVGS kiểm tra báo cáo tuần: 'approve' | 'return' (bắt buộc ghi chú). */
-function apiReviewPeriod(token, key, action, note) {
+function apiReviewPeriod(token, key, action, note, items) {
   const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
-    const w = weekGet_(key);
+    const w = weekGet_(key), its = cmtItems_(items); note = String(note || '').trim();
+    if (action === 'append') {
+      if (!w || w.status === 'locked' || !w.review || w.review.status !== 'returned') throw new Error('Báo cáo tuần không còn ở trạng thái chờ nhà thầu sửa – không gửi bổ sung được');
+      if (!its.length && !note) throw new Error('Chưa có ý kiến nào để gửi bổ sung');
+      w.review.items = (w.review.items || []).concat(its); if (note) w.review.note = (w.review.note ? w.review.note + '\n' : '') + note;
+      w.review.addedAt = now_();
+      log_(me.id, 'TVGS_BO_SUNG_Y_KIEN_TUAN', w.to, [note, cmtNote_(its)].filter(String).join('\n'));
+      weekWrite_(w); return JSON.stringify(w.review);
+    }
     if (!w || w.status !== 'locked') throw new Error('Báo cáo tuần chưa được nhà thầu chốt');
     if (w.review && w.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo tuần đã được xác nhận');
     if (action === 'approve') {
@@ -649,10 +660,10 @@ function apiReviewPeriod(token, key, action, note) {
       w.review.url = verifyUrl_(w.review.code);
       log_(me.id, 'TVGS_XAC_NHAN_TUAN', w.to, w.review.code + ' · Tuần ' + w.no + ' v' + w.review.version);
     } else {
-      if (!String(note || '').trim()) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
-      w.review = { status: 'returned', by: me.id, at: now_(), note: String(note).trim(), version: w.version || 1 };
-      w.status = 'draft';
-      log_(me.id, 'TVGS_YEU_CAU_SUA_TUAN', w.to, w.review.note);
+      if (!note && !its.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
+      w.review = { status: 'returned', by: me.id, at: now_(), note: note, items: its, version: w.version || 1 };
+      w.status = 'draft'; w.reviewFix = {};
+      log_(me.id, 'TVGS_YEU_CAU_SUA_TUAN', w.to, [note, cmtNote_(its)].filter(String).join('\n'));
     }
     weekWrite_(w);
     return JSON.stringify(w.review);
