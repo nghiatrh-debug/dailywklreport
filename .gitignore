@@ -4,3 +4,4 @@ node_modules/
 .clasprc.json
 tests/shots/
 package-lock.json
+.env*
