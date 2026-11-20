@@ -342,3 +342,12 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   const tkK = J(ctx.apiLogin('uK7', '7171')).token; let err = ''; try { ctx.apiCatalogAdd(tkK, JSON.stringify({ name: 'X', unit: 'kg' })); } catch (e) { err = e.message; }
   A([/quyền/.test(err), 'kỹ sư không thêm được chủng loại']);
 })();
+// Đợt 9.7 – Quản trị xóa bản tuần (chưa chốt) để làm lại từ đầu
+(() => {
+  const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tkA = J(ctx.apiLogin(adm.id, '5678')).token, tkS = J(ctx.apiLogin('uK7', '7171')).token, k = 'W-2027-02-05', wk = { v: 2, kind: 'week', key: k, from: '2027-02-05', to: '2027-02-11', no: 99, status: 'draft', version: 1, overall: {}, tasks: [], review: null };
+  ctx.apiSavePeriod(tkA, JSON.stringify(wk)); A([!!ctx.weekGet_(k), 'Tuần nháp đã lưu']);
+  let e = ''; try { ctx.apiDeleteWeek(tkS, k); } catch (x) { e = x.message; } A([/quyền/i.test(e) && !!ctx.weekGet_(k), 'Kỹ sư không xóa được bản tuần ' + e]);
+  A([ctx.apiDeleteWeek(tkA, k) === true && !ctx.weekGet_(k), 'Quản trị xóa bản tuần chưa chốt']);
+  ctx.apiSavePeriod(tkA, JSON.stringify(Object.assign({}, wk, { status: 'locked' }))); e = ''; try { ctx.apiDeleteWeek(tkA, k); } catch (x) { e = x.message; }
+  A([/đã chốt/.test(e) && !!ctx.weekGet_(k), 'Tuần đã chốt → không xóa được']);
+})();

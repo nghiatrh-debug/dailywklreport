@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9.7 – Quản trị xóa bản tuần, làm lại từ đầu (20/11/2026)
+- **Sửa gì:** nút “🗑 Xóa bản tuần này, làm lại từ đầu” (thẻ Chung, chỉ Quản trị, chỉ tuần chưa chốt, có hỏi lại). Xóa bản tuần đã lưu (số nhập tay, ý kiến TVGS, trạng thái trả về) + nháp ý kiến trên máy; báo cáo ngày giữ nguyên; app tự tổng hợp lại. Máy chủ `apiDeleteWeek` chặn người không phải quản trị và tuần đã chốt, ghi nhật ký XOA_BAN_TUAN.
+- “🗑 Xóa toàn bộ ngày thử” xóa thêm bản tuần chưa chốt có chứa ngày thử.
+- **Kiểm thử mới:** gastest – kỹ sư không xóa được, quản trị xóa được tuần nháp, tuần đã chốt bị chặn. ui.js – quản trị thấy nút, xóa xong mất khung “TVGS yêu cầu sửa”, người chốt thường không thấy nút. Ảnh `desk_week_delete.png` đã xem.
+- **Rủi ro còn lại:** xóa là vĩnh viễn (không hoàn tác) – đã có hộp hỏi lại.
+
 ### Đợt 9.6 – Ý kiến TVGS trên dòng đã bị xóa (20/11/2026)
 - **Lỗi:** TVGS ghi ý kiến vào 1 việc làm sai/dư, người chốt xóa hẳn việc đó ở phiếu kỹ sư nhưng ý kiến vẫn “Chưa sửa” mãi.
 - **Sửa gì:** ý kiến mà dòng gốc không còn → tự hiện “🗑 Đã xóa dòng”, tính là đã sửa (lưu vào reviewFix nên khi chốt lại TVGS thấy “đã sửa”), ẩn nút “Tới chỗ sửa”.
@@ -306,3 +312,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 03:58 | 6ce7d6c | đạt | 145 đạt / 0 lỗi | 214 đạt / 0 lỗi | ✅ ĐẠT | 9.5 sửa lỗi reviewFix khi bấm 💬 ở báo cáo tuần |
 | 2026-11-20 04:15 | fe315c3 | đạt | 145 đạt / 0 lỗi | 215 đạt / 0 lỗi | ✅ ĐẠT | 9.6 ý kiến TVGS trên dòng đã xóa → tự đánh dấu đã sửa |
 | 2026-11-20 04:33 | f5af234 | đạt | 145 đạt / 0 lỗi | 218 đạt / 0 lỗi | ✅ ĐẠT | 9.6b nhắc Tổng hợp lại khi số liệu ngày đổi |
+| 2026-11-20 05:57 | 970b006 | đạt | 149 đạt / 0 lỗi | 221 đạt / 0 lỗi | ✅ ĐẠT | 9.7 quản trị xóa bản tuần làm lại từ đầu |

@@ -431,11 +431,32 @@ function markTest_(d, day) {
 }
 function apiClearTestDays(token) {
   const me = auth_(token, ['admin']), L = testDays_();
+  weekKeysOf_(L).forEach(k => replaceDay_('TongHopKy', k, []));
   L.forEach(d => { NORMALIZED.concat(['BaoCao']).forEach(n => replaceDay_(n, d, [])); replaceDay_('PhieuKS', d, [], 1); });
   setKv_('testDays', '[]');
   cdel_(['idx'].concat(L.map(d => 'day:' + d)));
   log_(me.id, 'XOA_NGAY_THU', '', L.join(', '));
   return L.length;
+}
+
+/** Mã các bản tuần CHƯA CHỐT có chứa một trong các ngày L. */
+function weekKeysOf_(L) {
+  if (!L.length) return [];
+  const tk = col_('TongHopKy', 0), tf = col_('TongHopKy', 2), tt = col_('TongHopKy', 3), ts = col_('TongHopKy', SCHEMA.TongHopKy.indexOf('trang_thai'));
+  return tk.filter((k, i) => k.indexOf('W-') === 0 && ts[i] !== 'locked' && L.some(d => d >= tf[i] && d <= tt[i]));
+}
+/** Quản trị: xóa bản tuần đã lưu (chưa chốt) để tổng hợp lại từ đầu. Báo cáo ngày giữ nguyên. */
+function apiDeleteWeek(token, key) {
+  const me = auth_(token, ['admin']); key = String(key || '');
+  if (key.indexOf('W-') !== 0) throw new Error('Mã tuần không hợp lệ');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const w = weekGet_(key); if (!w) return false;
+    if (w.status === 'locked') throw new Error('Tuần đã chốt – mở khóa trước khi xóa');
+    replaceDay_('TongHopKy', key, []);
+    log_(me.id, 'XOA_BAN_TUAN', w.to || '', key);
+    return true;
+  } finally { lock.releaseLock(); }
 }
 
 function writeNormalized_(r, c, pctOf) {

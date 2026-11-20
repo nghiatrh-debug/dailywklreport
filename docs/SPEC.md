@@ -352,3 +352,9 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Ý kiến TVGS mà dòng gốc đã bị xóa → hiện “🗑 Đã xóa dòng”, tính là đã sửa (ghi vào reviewFix), ẩn “Tới chỗ sửa”.
 - Báo cáo tuần chưa chốt: khi mở, app tự tổng hợp thử (không ghi) và so các dòng tự động (🔒) với bản đang lưu. Khác nhau → dải vàng “⚠ Số liệu báo cáo ngày đã thay đổi sau lần tổng hợp … – bấm ⟳ Tổng hợp lại” (chỉ người chốt thấy). Bấm tổng hợp lại → dải mất. Không tự ghi đè.
 - Không so ảnh (bộ ảnh có chọn ngẫu nhiên).
+
+### 9.7 Quản trị xóa bản tuần, làm lại từ đầu (20/11/2026)
+- Chỉ **Quản trị** thấy nút “🗑 Xóa bản tuần này, làm lại từ đầu” (thẻ Chung, cạnh Lưu nháp / Chốt tuần), chỉ khi tuần **chưa chốt** và đã có bản lưu. Hỏi xác nhận.
+- Xóa dòng tuần trong TongHopKy (số nhập tay, ý kiến TVGS, trạng thái trả về). Báo cáo ngày, phiếu kỹ sư giữ nguyên. Mở lại → tự tổng hợp mới. Ghi nhật ký XOA_BAN_TUAN.
+- Máy chủ chặn: không phải quản trị, hoặc tuần đã chốt.
+- “🗑 Xóa toàn bộ ngày thử” xóa thêm các bản tuần chưa chốt có chứa ngày thử.
