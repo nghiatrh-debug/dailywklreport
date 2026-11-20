@@ -533,7 +533,7 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Lưu ý: quy tắc tính lúc hiển thị → mở lại ngày cũ trong app cũng thấy theo quy tắc mới; PDF đã phát hành không đổi.
 - Kiểm thử: 0/0 → Hụt; KH trống + làm 0 (kế thừa) → Hụt; việc mới không KH → không đánh giá; thống kê 4/13 theo ví dụ; Tạm dừng → không tính, có lý do trên PDF, chuyển sang ngày sau +1 ngày; nộp thiếu KH ngày mai / KH 0 → bị chặn; chốt thiếu KH → cảnh báo.
 
-### 10B – chốt phạm vi (20/11/2026), làm 2 bước
+### 10B – chốt phạm vi (20/11/2026), làm 2 bước – đang làm 10B1
 **Bước 10B1** (thay luồng phát hành – chạy thử vài ngày rồi mới làm 10B2):
 - Tự phát hành PDF + QR khi TVGS Xác nhận (ngày + tuần) như 10B.1; bỏ nút "☁ PDF" của người chốt; lỗi → `pub=fail`, dải đỏ + "Xuất lại" (Quản trị, người chốt, TVGS). CĐT chỉ thấy khi `pub=ok`.
 - Chuyển đổi: ngày / tuần đã xác nhận + đã có `pdf_url` trước bản này → coi `pub=ok`.
@@ -543,7 +543,7 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 **Bước 10B2** (hiển thị):
 - **Lịch phát hành** cho CĐT: 14 ngày gần nhất + các tuần; trạng thái ✅ Đã phát hành · ⏳ Chờ TVGS (x giờ, > 24 giờ tô đỏ) · ✎ Nhà thầu chưa chốt · ⚠ Lỗi phát hành · ✖ Chưa có báo cáo · 🏖 Ngày nghỉ (lý do). Không hiện nội dung.
 - **Ngày nghỉ**: người chốt / Quản trị đánh dấu ngày không làm báo cáo là ngày nghỉ (Chủ nhật / Lễ / Tết / Khác + ghi chú), chọn được **từ ngày → đến ngày** (VD nghỉ Tết). Không tự trừ Chủ nhật – nhà thầu tự đánh dấu. Ghi nhật ký `DANH_DAU_NGAY_NGHI`.
-- Thẻ **"Báo cáo đã phát hành"** cho kỹ sư (chỉ đọc, lọc như CĐT); "Phiếu của tôi" giữ nguyên.
+- ~~Thẻ "Báo cáo đã phát hành" cho kỹ sư~~ – **bỏ** (anh Nghĩa 20/11).
 - Số đếm trên thẻ menu (TVGS chờ kiểm tra, người chốt bị trả về).
 - Tra mã xác thực: giữ nút "🔎 Tra mã xác thực" có sẵn ở khung xem báo cáo, không thêm thẻ riêng.
-- Kế hoạch nghiệm thu ngày mai trong phiếu kỹ sư: **đã có** (thẻ "Nghiệm thu & TN" → "📅 Kế hoạch nghiệm thu ngày mai"); 10B2 thêm lối tắt ở phần "Ngày mai" của thẻ Công việc nếu anh Nghĩa muốn.
+- Kế hoạch nghiệm thu ngày mai trong phiếu kỹ sư: **đã có** (thẻ "Nghiệm thu & TN" → "📅 Kế hoạch nghiệm thu ngày mai"). Lối tắt – **bỏ** (anh Nghĩa 20/11).
