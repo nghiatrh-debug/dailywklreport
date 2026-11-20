@@ -2726,7 +2726,7 @@ document.addEventListener('click', async function onClick(e){
     else if (k >= 0) L.splice(k, 1);
     cmtPersist(); closeModal(); cmtRerender(); toast(a==='cmtOk' ? '💬 Đã ghi ý kiến – tổng ' + L.length + '. Gửi 1 lần ở nút “Yêu cầu sửa”.' : 'Đã bỏ ý kiến'); return; }
   if (a==='cmtRm'){ const g = $('#cmtGen'); if (g) cmtGen(g.value); cmtList().splice(+b.dataset.k, 1); cmtPersist(); cmtRerender(); cmtBasket(); return; }
-  if (a==='cmtShow'){ const c = cmtSent().find(x => x.id === b.dataset.id); if (!c) return; const fx = (R.reviewFix || {})[c.id];
+  if (a==='cmtShow'){ const c = cmtSent().find(x => x.id === b.dataset.id); if (!c) return; const fx = (CX().reviewFix || {})[c.id];
     modal(`<h3>💬 Ý kiến TVGS</h3><p style="margin:4px 0"><b>${esc(c.label)}</b></p><div class="note" style="margin:6px 0">${esc(c.text)}</div><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn ok" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đánh dấu đã sửa'}</button></div>`); return; }
   if (a==='cmtFix'){ if (!isChot() || cxLocked()) return; const d = CX(); d.reviewFix = d.reviewFix || {}; const id = b.dataset.id; if (d.reviewFix[id]) delete d.reviewFix[id]; else d.reviewFix[id] = true;
     closeModal(); if (cxW()) { await saveW(true); renderWeek(); return; } markDirty('R'); cmtRerender(); if (VIEW !== 'day') { renderDayAll(); } return; }

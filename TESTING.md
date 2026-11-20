@@ -36,6 +36,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9.5 – Lỗi “reviewFix” khi bấm 💬 ở báo cáo tuần (20/11/2026)
+- **Nguyên nhân:** bấm 💬 (ý kiến TVGS đã gửi) trong báo cáo tuần, app đọc nhầm dấu “đã sửa” của báo cáo ngày (đang trống) → lỗi, không mở được ý kiến.
+- **Sửa gì:** đọc đúng báo cáo đang mở (ngày hoặc tuần).
+- **Kiểm thử mới:** ui.js – người chốt bấm 💬 ở báo cáo tuần: mở được ý kiến, không lỗi.
+- **Rủi ro còn lại:** không.
+
 ### Đợt 9.4 – Lỗi “Promise: renderPeriod” trên điện thoại TVGS (19/11/2026)
 - **Nguyên nhân:** mở app xong bấm ngay vào Báo cáo tuần; logo đơn vị tải xong trước khi số liệu tuần về → app vẽ lại trang tuần khi chưa có dữ liệu → báo lỗi (trang vẫn hiện đúng sau đó).
 - **Sửa gì:** chưa có dữ liệu kỳ thì bỏ qua lần vẽ lại. Thanh báo lỗi hiện thêm nội dung lỗi (Safari trước đây chỉ hiện vị trí).
@@ -287,3 +293,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-18 14:42 | 229f737 | đạt | 140 đạt / 0 lỗi | 202 đạt / 0 lỗi | ✅ ĐẠT | Sửa nhỏ 9.2: lưu nháp ý kiến chung TVGS |
 | 2026-11-19 13:55 | 3033811 | đạt | 145 đạt / 0 lỗi | 212 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9.3: ý kiến TVGS theo từng dòng cho báo cáo tuần |
 | 2026-11-19 14:18 | 0edff6b | đạt | 145 đạt / 0 lỗi | 213 đạt / 0 lỗi | ✅ ĐẠT | 9.4 sửa lỗi renderPeriod khi tuần chưa tải xong |
+| 2026-11-20 03:58 | 6ce7d6c | đạt | 145 đạt / 0 lỗi | 214 đạt / 0 lỗi | ✅ ĐẠT | 9.5 sửa lỗi reviewFix khi bấm 💬 ở báo cáo tuần |

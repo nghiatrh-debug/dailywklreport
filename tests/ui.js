@@ -461,6 +461,11 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('#periodPane [data-act=cmtFix] >> nth=0'); await wait(900);
     ok(await pg.evaluate(async () => { const w = await IDB.get('periods', W.key); const id = W.review.items[0].id; return W.reviewFix[id] && w.reviewFix && w.reviewFix[id]; }), 'Tuần – Đánh dấu đã sửa: lưu lại');
     await shot(pg, 'desk_week_chot_cmt');
+    { const pe = []; const h = e => pe.push(e.message); pg.on('pageerror', h);
+      await pg.evaluate(() => { window._R = R; R = null; });
+      await pg.click('#periodPane .cmtb.on >> nth=0'); await wait(400);
+      ok(!pe.length && /Ý kiến TVGS/.test(await pg.innerText('#modal')) && /Chưa sửa/.test(await pg.innerText('#modal')), 'Tuần – bấm 💬 xem ý kiến đã gửi: mở được, không lỗi reviewFix ' + pe.join(' '));
+      pg.off('pageerror', h); await pg.evaluate(() => { closeModal(); R = window._R; }); }
     await pg.click('[data-act=wLock]'); await wait(900);
     await login(pg, 'u_tvgs', '3333');
     await pg.click('[data-view=period]'); await wait(500);
