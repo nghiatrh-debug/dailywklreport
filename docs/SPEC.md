@@ -547,3 +547,10 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Số đếm trên thẻ menu (TVGS chờ kiểm tra, người chốt bị trả về).
 - Tra mã xác thực: giữ nút "🔎 Tra mã xác thực" có sẵn ở khung xem báo cáo, không thêm thẻ riêng.
 - Kế hoạch nghiệm thu ngày mai trong phiếu kỹ sư: **đã có** (thẻ "Nghiệm thu & TN" → "📅 Kế hoạch nghiệm thu ngày mai"). Lối tắt – **bỏ** (anh Nghĩa 20/11).
+
+### 10A.9 Sửa theo giả lập đầu-cuối 21/11/2026 (đã chốt, làm ngay)
+1. **Kỹ sư không nộp phiếu** (chưa có / đang nhập / bị trả): khi gộp báo cáo, việc dở dang của khu vực người đó (kế thừa từ hôm trước, lũy kế < 100%, không phải việc theo dõi) **vẫn đưa vào báo cáo**, % hôm nay trống → **"Hụt – kỹ sư không báo cáo"** (đếm ngày Hụt liên tiếp như thường); việc đang Tạm dừng vẫn hiện Tạm dừng. Hộp hỏi khi chốt nói rõ điều này. PDF cột Chênh lệch: "Hụt" + "KS không báo cáo".
+2. **Mở khóa ngày / tuần đã phát hành**: CĐT **vẫn thấy ngày / tuần đó** trong danh sách, nhưng không xem nội dung đang sửa – hiện dải "✎ Nhà thầu đang sửa – bản mới chờ TVGS xác nhận" + nút **Mở PDF đã phát hành** (link PDF cũ). TVGS xác nhận lại → link cũ bị xóa, phát hành bản mới. Kỳ tuần / tháng của CĐT chỉ gom ngày đang ở trạng thái đã phát hành.
+3. Tự sinh KH ngày mai **bỏ qua việc đang Tạm dừng**.
+4. CĐT **không thấy danh sách phiếu kỹ sư** (máy chủ không gửi phiếu kỹ sư cho CĐT; màn hình ẩn khối phiếu).
+5. Hộp mở khóa: bỏ chữ "khi xuất lại" → "TVGS xác nhận lại sẽ phát hành PDF mới thay file cũ".
