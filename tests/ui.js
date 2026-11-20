@@ -574,6 +574,60 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await ctx.close();
   }
 
+  /* ---------- ĐỢT 10A.7 + 10A.8: Cấu hình rút gọn của người chốt; So với KH, KH ngày mai, Tạm dừng ---------- */
+  {
+    const { ctx, pg, errs } = await fresh(browser, { viewport: { width: 1440, height: 900 } });
+    const J8 = await pg.evaluate(() => { const T = (o) => Object.assign({ zoneId:'zA', desc:'X', carried:true, prevProgress:'26%', planToday:'', dayPct:'' }, o);
+      const a = [judge(T({planToday:0, dayPct:0})), judge(T({})), judge(T({planToday:5, dayPct:0})), judge(T({carried:false, prevProgress:'', planToday:'', dayPct:5})), judge(T({planToday:5, dayPct:5})), judge(T({planToday:0, dayPct:3})), judge(T({paused:true, pauseNote:'Chờ bảo dưỡng'}))];
+      const L = [...Array(4)].map(()=>T({planToday:5, dayPct:5})).concat([...Array(5)].map(()=>T({planToday:5, dayPct:3})), [...Array(4)].map(()=>T({planToday:0, dayPct:0})), [T({paused:true})]);
+      const ps = planStats(L); return JSON.stringify([a, ps.ok + '/' + ps.n]); });
+    ok(J8 === JSON.stringify([['short','short','short',null,'ok','over','pause'], '4/13']), '10A.8: 0/0 → Hụt; KH trống + làm 0 → Hụt; việc mới không KH → không đánh giá; Tạm dừng không tính; ví dụ TVGS → 4/13 ' + J8);
+    ok(await pg.evaluate(() => /Hụt – không thực hiện/.test(judgeHtml({carried:true, prevProgress:'40%', planToday:0, dayPct:0}))), '10A.8: nhãn “Hụt – không thực hiện”');
+    // Kỹ sư: Tạm dừng + chặn nộp khi thiếu KH ngày mai
+    await login(pg, 'u_than', '1111');
+    const ci = await pg.evaluate(() => S.tasks.findIndex(t => t.carried && !isMon(t) && (cumOf(t) ?? 0) < 100));
+    ok(ci >= 0 && await pg.locator(`[data-act=pauseTask][data-i="${ci}"]`).count() === 1, '10A.8: việc kế thừa có nút ⏸ Tạm dừng');
+    await pg.click(`[data-act=pauseTask][data-i="${ci}"]`); await wait(300); await pg.evaluate(() => $('#mOk').click()); await wait(300);
+    ok(await pg.evaluate(i => !S.tasks[i].paused, ci), '10A.8: Tạm dừng không ghi lý do → không nhận');
+    await pg.click(`[data-act=pauseTask][data-i="${ci}"]`); await wait(300); await pg.fill('#pIn', 'Chờ bảo dưỡng bê tông'); await pg.evaluate(() => $('#mOk').click()); await wait(400);
+    ok(await pg.evaluate(i => S.tasks[i].paused && S.tasks[i].pauseNote === 'Chờ bảo dưỡng bê tông' && judge(S.tasks[i]) === 'pause', ci) && await pg.isDisabled(`#pg-${ci}`) && /Tạm dừng/.test(await pg.innerText(`#jd-${ci}`)), '10A.8: Tạm dừng có lý do → khóa ô % hôm nay, hiện ⏸ + lý do');
+    ok(/Tạm dừng[\s\S]*Chờ bảo dưỡng bê tông/.test(await pg.innerText('#mydoc, #pdocMy, #v-my')), '10A.8: bản xem trước ghi ⏸ Tạm dừng + lý do');
+    await shot(pg, 'desk_10a8_pause');
+    await pg.evaluate(() => { S.tasks.forEach(t => { if (!isMon(t) && !t.paused) t.dayPct = 2; recalc(t); }); S.plans = S.plans.filter(pl => !S.tasks.some(t => keyOf(t) === keyOf(pl) && !isMon(t))); S.plans.push({ id:'pX', zoneId:'zA', desc:'Việc khác', add:3 }); renderMy(); });
+    const need = await pg.evaluate(() => needPlan(S).length);
+    await pg.evaluate(() => { const b = document.querySelector('[data-act=submitSub]'); if (b) b.click(); }); await wait(500);
+    const askTxt = await pg.evaluate(() => (document.querySelector('.modal, #modal') || document.body).innerText);
+    ok(need > 0 && /chưa lên kế hoạch ngày mai/i.test(askTxt), '10A.8: nộp khi thiếu KH ngày mai → hỏi (' + need + ' việc)');
+    await pg.evaluate(() => $('#mOk').click()); await wait(600);
+    ok(await pg.evaluate(() => S.status !== 'submitted' && needPlan(S).length > 0 && S.plans.some(pl => pl.add === '')), '10A.8: chưa nộp; đã tạo dòng KH còn thiếu (để trống %)');
+    await shot(pg, 'desk_10a8_needplan');
+    await pg.evaluate(() => { S.plans.forEach(pl => { if (!pl.mon && !(num(pl.add) > 0)) { pl.add = 0; } }); });
+    ok(await pg.evaluate(() => needPlan(S).length > 0), '10A.8: KH ngày mai 0% vẫn tính là thiếu');
+    await pg.evaluate(() => { S.plans.forEach(pl => { if (!pl.mon && !(num(pl.add) > 0)) { pl.add = 5; planCalc(pl, S.tasks); } }); renderMy(); });
+    await pg.evaluate(() => { const b = document.querySelector('[data-act=submitSub]'); if (b) b.click(); }); await wait(900);
+    if (await pg.locator('#mOk').count()) { await pg.evaluate(() => $('#mOk').click()); await wait(900); }
+    ok(await pg.evaluate(() => S.status === 'submitted'), '10A.8: đủ KH ngày mai (> 0%) → nộp được');
+    const nx = await pg.evaluate(async () => { const s = clone(S); const r = rollTasks(Object.assign(blankReport(s.date), { tasks: s.tasks, plans: s.plans, inspectionPlans: [], testPlans: [] }), ['zA','zB']); const t = r.tasks.find(x => x.paused); return t ? [t.pauseNote, t.pauseDays].join('|') : ''; });
+    ok(nx === 'Chờ bảo dưỡng bê tông|2', '10A.8: Tạm dừng tự chuyển sang ngày sau kèm lý do, đếm 2 ngày: ' + nx);
+    // Người chốt (vai chot): Cấu hình rút gọn
+    await login(pg, 'u_chot', '1234');
+    await pg.evaluate(async () => { CFG.users.push({ id:'u_c10', name:'Chốt NT', role:'chot', active:true }); await Store.saveConfig(CFG); await Store.setPin('u_c10', '5555'); }); await wait(300);
+    await login(pg, 'u_c10', '5555');
+    await pg.evaluate(() => go('config')); await wait(500);
+    const tabs = await pg.$$eval('#cfgTabs .tab', b => b.map(x => x.textContent).join('|'));
+    ok(tabs === 'Khu vực & phân công|Danh mục|Kỹ sư|File theo dõi hồ sơ', '10A.7 người chốt: Cấu hình rút gọn 4 thẻ: ' + tabs);
+    await pg.click('[data-cfgtab=eng]'); await wait(300);
+    ok(await pg.locator('#v-config [data-act=setPin]').count() === 2 && !/DSPCons|CĐT – Ban/.test(await pg.innerText('#v-config table')), '10A.7: thẻ Kỹ sư chỉ có tài khoản kỹ sư');
+    await shot(pg, 'desk_10a7_eng');
+    await pg.click('[data-cfgtab=zones]'); await wait(300);
+    await pg.evaluate(async () => { CFG.zones[0].name = 'Zone A mới'; CFG.users.find(u => u.id === 'u_tvgs').role = 'admin'; CFG.settings.pdfFolderId = 'HACK'; document.querySelector('#v-config [data-act=saveCfg]').click(); }); await wait(800);
+    ok(await pg.evaluate(async () => { const c = await IDB.get('kv', 'config'); return c.zones[0].name === 'Zone A mới' && c.users.find(u => u.id === 'u_tvgs').role === 'tvgs' && !c.settings.pdfFolderId; }), '10A.7: người chốt lưu khu vực – vai / thư mục PDF gửi kèm bị bỏ qua');
+    await pg.click('[data-cfgtab=reg]'); await wait(300);
+    ok(await pg.locator('#regLink').count() === 1 && !(await pg.locator('[data-act=pdfFolderSet],[data-act=weekFolderSet]').count()), '10A.7: thẻ File theo dõi hồ sơ có ô dán link, không có chọn thư mục PDF');
+    ok(!errs.length, '10A.7/10A.8: không lỗi JavaScript ' + errs.join(' | '));
+    await ctx.close();
+  }
+
   /* ---------- ĐIỆN THOẠI ---------- */
   for (const [W, H, n] of [[375, 667, 'se'], [390, 844, 'ip'], [412, 915, 'an']]) {
     const { ctx, pg, errs } = await fresh(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });

@@ -393,7 +393,7 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   A([pw.manual && pw.manual.review.status === 'approved' && !pw.hidden, 'Tuần TVGS xác nhận → CĐT thấy']);
   A([J(ctx.apiPeriod(tkC, D1, D4, '')).reports.length === 4 && J(ctx.apiOpen(tkC, D1, 'day')).report.status === 'draft', 'Người chốt vẫn thấy mọi ngày (kể cả nháp)']);
   // Quyền cấu hình
-  A([/quyền/.test(err(() => ctx.apiSaveConfig(tkC, JSON.stringify(J(ctx.apiPublicConfig()))))) && /quyền/.test(err(() => ctx.apiSetPin(tkC, 'uK7', '1212'))), 'Người chốt không sửa Cấu hình, không đặt PIN người khác']);
+  A([/quyền/.test(err(() => ctx.apiSaveConfig(tkC, JSON.stringify(J(ctx.apiPublicConfig()))))) && /quyền/.test(err(() => ctx.apiSetPin(tkC, 'uT10', '1212'))), 'Người chốt không sửa Cấu hình (toàn bộ), không đặt PIN TVGS']);
   A([/quyền/.test(err(() => ctx.apiSaveLogo(tkC, 'client', 'data:image/png;base64,iVBORw0KGgo=', ''))) && /quyền/.test(err(() => ctx.apiClearTestDays(tkC))), 'Người chốt không đổi logo, không xóa ngày thử']);
   // Xem như (chỉ Quản trị, chỉ thu hẹp)
   A([/chưa phát hành/.test(err(() => ctx.apiOpen(tkA + '~cdt', D1, 'day'))) && J(ctx.apiOpen(tkA, D1, 'day')).report.status === 'draft', 'Quản trị "Xem như CĐT": máy chủ lọc như CĐT; bỏ "xem như" → thấy hết']);
@@ -405,4 +405,35 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   // Quản trị cuối
   const c9 = J(ctx.apiPublicConfig()); c9.users = c9.users.filter(u => u.role !== 'admin');
   A([/ít nhất 1 tài khoản Quản trị/.test(err(() => ctx.apiSaveConfig(tkA, JSON.stringify(c9)))), 'Không xóa được Quản trị cuối cùng']);
+})();
+// ===== Đợt 10A.7: người chốt lưu từng phần Cấu hình =====
+(() => {
+  const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tkA = J(ctx.apiLogin(adm.id, '5678')).token, tkC = J(ctx.apiLogin('uC7', '7777')).token, tkK = J(ctx.apiLogin('uK7', '7171')).token;
+  const err = f => { try { f(); return ''; } catch (e) { return e.message; } };
+  const cur = () => { C.__resetMemo(); return C.cfg_(); };
+  const before = cur(), pdf0 = (before.settings || {}).pdfFolderId, rr0 = (before.settings || {}).requireReview;
+  // gửi cả cấu hình có "lén" đổi vai, thư mục PDF, cài đặt khác → máy chủ chỉ lấy phần zones
+  const c = JSON.parse(JSON.stringify(before)); c.zones = [{ id: 'z10', name: 'Zone 10', section: 'XD', owner: 'uK7' }];
+  c.users.find(u => u.id === 'uC7').role = 'admin'; c.settings = Object.assign({}, c.settings, { pdfFolderId: 'HACK', requireReview: false, testMode: true }); c.project = Object.assign({}, c.project, { name: 'Đổi tên' }); c.wbs = [{ code: 'X', name: 'lén' }];
+  ctx.apiSaveCfgPart(tkC, 'zones', JSON.stringify(c)); let a = cur();
+  A([a.zones.length === 1 && a.zones[0].id === 'z10' && a.users.find(u => u.id === 'uC7').role === 'chot' && a.settings.pdfFolderId === pdf0 && a.settings.requireReview === rr0 && a.project.name === before.project.name && JSON.stringify(a.wbs) === JSON.stringify(before.wbs),
+    'Người chốt lưu Khu vực: chỉ ghi khu vực, bỏ qua vai / thư mục PDF / cài đặt / dự án / WBS gửi kèm']);
+  const l = JSON.parse(JSON.stringify(a)); l.wbs = [{ code: '1', name: 'Phần ngầm' }]; l.manpower = ['Thợ sắt']; l.safetyDefault = 'An toàn'; l.zones = [];
+  ctx.apiSaveCfgPart(tkC, 'lists', JSON.stringify(l)); a = cur();
+  A([a.wbs[0].name === 'Phần ngầm' && a.manpower[0] === 'Thợ sắt' && a.safetyDefault === 'An toàn' && a.zones.length === 1, 'Người chốt lưu Danh mục: không đụng khu vực']);
+  const g = JSON.parse(JSON.stringify(a)); g.settings.register = { id: 'REG1', name: 'Sổ hồ sơ', url: 'u', tabs: [{ name: 'MS', type: 'sub' }] };
+  ctx.apiSaveCfgPart(tkC, 'register', JSON.stringify(g)); a = cur();
+  A([a.settings.register.id === 'REG1' && a.settings.pdfFolderId === pdf0, 'Người chốt khai báo file theo dõi hồ sơ']);
+  A([!/quyền/.test(err(() => ctx.apiCheckRegister(tkC, 'abc'))) && /quyền/.test(err(() => ctx.apiCheckFolder(tkC, 'https://drive.google.com/drive/folders/SHAREDFOLDER01'))), 'Người chốt được kiểm tra file hồ sơ, không được chọn thư mục PDF']);
+  // kỹ sư
+  const e = JSON.parse(JSON.stringify(a)); e.users.push({ id: 'uNew10', name: 'KS mới', role: 'admin', active: true }, { id: 'bad id!', name: 'X', role: 'ks' });
+  e.users.find(u => u.id === 'uK7').active = false; e.users.find(u => u.role === 'tvgs').active = false; e.users.find(u => u.role === 'tvgs').name = 'đổi';
+  ctx.apiSaveCfgPart(tkC, 'engineers', JSON.stringify(e)); a = cur();
+  const nk = a.users.find(u => u.id === 'uNew10'), tv = a.users.find(u => u.role === 'tvgs');
+  A([nk && nk.role === 'ks' && !a.users.some(u => u.id === 'bad id!') && a.users.find(u => u.id === 'uK7').active === false && tv.active !== false && tv.name !== 'đổi', 'Người chốt thêm kỹ sư (luôn vai kỹ sư), khóa kỹ sư; không sửa được tài khoản vai khác']);
+  A([sheets.NhatKy.data.some(r => r[2] === 'THEM_KY_SU') && sheets.NhatKy.data.some(r => r[2] === 'KHOA_KY_SU') && sheets.NhatKy.data.some(r => r[2] === 'SUA_KHU_VUC'), 'Nhật ký: thêm / khóa kỹ sư, sửa khu vực']);
+  ctx.apiSetPin(tkC, 'uNew10', '1919'); A([!!J(ctx.apiLogin('uNew10', '1919')), 'Người chốt đặt PIN kỹ sư mới → đăng nhập được']);
+  A([/quyền/.test(err(() => ctx.apiSetPin(tkC, tv.id, '1212'))) && /quyền/.test(err(() => ctx.apiSetPin(tkC, adm.id, '1212'))), 'Người chốt không đặt PIN TVGS / Quản trị']);
+  e.users.find(u => u.id === 'uK7').active = true; ctx.apiSaveCfgPart(tkC, 'engineers', JSON.stringify(e));
+  A([/quyền/.test(err(() => ctx.apiSaveCfgPart(tkK, 'zones', JSON.stringify(a)))) && /không hợp lệ/.test(err(() => ctx.apiSaveCfgPart(tkC, 'settings', JSON.stringify(a)))), 'Kỹ sư không lưu được; phần không hợp lệ bị chặn']);
 })();

@@ -25,6 +25,7 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - Báo cáo tuần: lưu nháp + tải ảnh Gantt, chặn xuất PDF khi chưa chốt / chưa TVGS xác nhận, chốt ghi 6 bảng Tuan_*, TVGS trả lại phải ghi chú, xác nhận sinh mã tra được, tuần đã chốt không bị ghi đè, PDF lưu thẳng thư mục đã chọn và ai có link xem được, tuần sau nhận số liệu tuần trước, mở khóa làm mã cũ hết hiệu lực, tải PDF MS Project.
 - Hồ sơ đệ trình: link sổ sai/không quyền, nhận loại trang tính, chỉ lấy hồ sơ phát sinh trong tuần (bỏ cũ không đổi, bỏ hủy), ô ngày kiểu Date/chữ, mô tả 2 dòng, B/A → Đã duyệt, C cũ có kết quả trong tuần, MEP đang kiểm tra, văn bản trong tuần, ghi Tuan_HoSo.
 - Reset toàn bộ: lưu trữ, xóa dữ liệu, thu hồi token.
+- Cấu hình người chốt (Đợt 10A.7): lưu từng phần chỉ ghi khóa được phép; tài khoản / PIN chỉ vai kỹ sư; thư mục PDF chỉ Quản trị.
 - Phân vai (Đợt 10A): CĐT chỉ mở / thấy ngày, tuần đã phát hành; TVGS chỉ thấy bản nhà thầu đã chốt; không gửi phiếu kỹ sư cho CĐT/TVGS trong danh mục; người chốt không sửa Cấu hình; "Xem như" chỉ nhận từ Quản trị, chỉ thu hẹp; nhật ký ghi "(xem như …)"; vai "xem" cũ → CĐT; không xóa được Quản trị cuối.
 
 **Giao diện (Playwright, điện thoại 375/390/412 px + máy tính, ảnh ở `tests/shots/`)**
@@ -33,10 +34,18 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - PDF: bản nháp có dấu BẢN NHÁP, cột lũy kế hôm qua/chênh lệch, PDF tuần có mục tuân thủ KH, nguồn thời tiết.
 - TVGS & xác thực: tin nhắn Zalo soạn sẵn, quét QR ra trang xác thực, tra mã sai.
 - Phiên đăng nhập: "Ghi nhớ" / không ghi nhớ, tự đăng xuất sau 8 giờ.
+- So với KH (Đợt 10A.8): 0/0 → Hụt, việc mới không KH không đánh giá, Tạm dừng không tính; chặn nộp thiếu KH ngày mai > 0%; Tạm dừng chuyển ngày sau.
 - Phân vai (Đợt 10A): menu, chọn ngày, dải màu khu theo vai CĐT / TVGS / Quản trị; tuần chưa phát hành chỉ hiện thông báo; "Xem như" trên dải Chế độ thử; dải nhắc + checklist "Rà lại vai trò".
 - Báo cáo tuần: tự tổng hợp khi mở, đầu trang thông tin dự án + thông tin chung + overall + A.1, biểu đồ nhân sự, đánh giá Đạt/Chậm (ngưỡng 5%), tổng hợp lại giữ dòng sửa tay, KH tuần sau từ việc chưa xong, tên file mẫu VC-WR-34, chốt → TVGS xác nhận → QR + tra mã, tuần sau tự lấy số tuần & % tuần trước, tuần đã xác nhận khóa nhập.
 
 ## Ghi chú từng đợt sửa
+
+### Đợt 10A.7 + 10A.8 – Cấu hình cho người chốt; So với KH, KH ngày mai, Tạm dừng (20/11/2026)
+- **10A.7 – sửa gì:** người tổng hợp / chốt có thẻ **Cấu hình rút gọn** (Khu vực & phân công · Danh mục · Kỹ sư · File theo dõi hồ sơ). Máy chủ thêm `apiSaveCfgPart` – chỉ ghi đúng phần được giao, vai / PIN / thư mục PDF / cài đặt khác gửi kèm bị bỏ qua. Người chốt thêm / khóa / đặt PIN **chỉ tài khoản kỹ sư**. Thư mục lưu PDF vẫn chỉ Quản trị.
+- **10A.8 – sửa gì:** bỏ "0/0 = Đạt". Việc kế thừa còn dở: không KH / KH 0 + làm 0 hoặc bỏ trống → **Hụt** (ghi "Hụt – không thực hiện"), chuỗi ngày Hụt không bị cắt. Kỹ sư nộp phiếu: việc còn dở chưa có **KH ngày mai > 0%** → chặn nộp, nút "Tạo dòng KH còn thiếu". Người chốt chốt ngày: chỉ cảnh báo. Nút **⏸ Tạm dừng** (bắt buộc lý do): khóa ô % hôm nay, không tính Đạt/Hụt, không bắt KH, tự chuyển sang ngày sau và đếm ngày, PDF ghi "Tạm dừng · N ngày" + lý do.
+- **Kiểm thử mới:** gastest +10 (lưu từng phần, bỏ qua khóa lén gửi, thêm / khóa kỹ sư, PIN kỹ sư được – PIN TVGS / Quản trị bị chặn, chốt kiểm tra file hồ sơ được – chọn thư mục PDF bị chặn, nhật ký). ui.js +16 (quy tắc đánh giá, ví dụ TVGS 8/13 → 4/13, Tạm dừng có / không lý do, chặn nộp thiếu KH / KH 0%, đủ KH nộp được, Tạm dừng chuyển ngày sau, Cấu hình rút gọn 4 thẻ, thẻ Kỹ sư, lưu khu vực bỏ qua vai / thư mục).
+- **Ảnh đã xem:** `desk_10a8_pause`, `desk_10a7_eng`.
+- **Rủi ro còn lại:** (1) quy tắc tính lúc hiển thị → mở lại ngày cũ / báo cáo tuần cũ trong app sẽ thấy số Đạt thấp hơn trước (PDF đã phát hành không đổi); (2) phiếu nháp chưa nhập % đã hiện Hụt ngay (cố ý – nhắc kỹ sư nhập); (3) Tạm dừng tự kéo dài nếu không bấm "Tiếp tục" – PDF ghi rõ số ngày để TVGS / CĐT thấy.
 
 ### Đợt 10A – Phân vai Nhà thầu – TVGS – CĐT (20/11/2026)
 - **Sửa gì:** thêm vai **CĐT – Ban QLDA** (vai “Chỉ xem” cũ tự đổi sang). Máy chủ lọc: CĐT chỉ mở / thấy ngày và tuần TVGS đã xác nhận; TVGS chỉ thấy bản nhà thầu đã chốt (kể cả bản đã trả về); danh mục ngày gửi cho 2 vai này không còn phiếu kỹ sư. Mở ngày không được thấy → báo “chưa phát hành” / “chưa được nhà thầu chốt”.
@@ -326,3 +335,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 04:33 | f5af234 | đạt | 145 đạt / 0 lỗi | 218 đạt / 0 lỗi | ✅ ĐẠT | 9.6b nhắc Tổng hợp lại khi số liệu ngày đổi |
 | 2026-11-20 05:57 | 970b006 | đạt | 149 đạt / 0 lỗi | 221 đạt / 0 lỗi | ✅ ĐẠT | 9.7 quản trị xóa bản tuần làm lại từ đầu |
 | 2026-11-20 19:37 | 73d1987 | đạt | 174 đạt / 0 lỗi | 240 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A – phân vai CĐT/TVGS, Xem như, dải màu khu, nhắc rà vai trò |
+| 2026-11-20 21:01 | 198529a | đạt | 183 đạt / 0 lỗi | 256 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.7 + 10A.8 – Cấu hình người chốt; So với KH, KH ngày mai, Tạm dừng |

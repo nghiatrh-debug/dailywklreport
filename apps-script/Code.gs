@@ -123,12 +123,38 @@ function apiSaveConfig(token, json) {
 }
 
 function apiSetPin(token, uid, pin) {
-  const me = auth_(token);
-  if (me.role !== 'admin' && me.id !== uid) throw new Error('Không có quyền đặt PIN cho người khác');
+  const me = auth_(token), tg = (cfg_().users || []).find(u => u.id === uid);
+  // Đợt 10A.7: người chốt đặt PIN được cho tài khoản kỹ sư
+  if (me.role !== 'admin' && me.id !== uid && !(me.role === 'chot' && tg && tg.role === 'ks')) throw new Error('Không có quyền đặt PIN cho người khác');
   if (!/^\d{4,6}$/.test(String(pin))) throw new Error('PIN phải gồm 4–6 chữ số');
   const pins = JSON.parse(kv_('pins') || '{}'); pins[uid] = hash_(uid, pin); setKv_('pins', JSON.stringify(pins));
   log_(me.id, 'DAT_PIN', '', uid);
   return true;
+}
+
+/** Đợt 10A.7 – người chốt (và Quản trị) lưu từng phần Cấu hình. Chỉ ghi đúng khóa của phần; mọi thứ khác giữ nguyên bản đang lưu.
+ *  part: 'zones' | 'lists' | 'register' | 'engineers' (chỉ tài khoản vai ks). json = cấu hình giao diện đang sửa. */
+const CFG_PART_KEYS_ = { zones: ['zones'], lists: ['wbs', 'manpower', 'equipment', 'safetyDefault', 'materials'] };
+function apiSaveCfgPart(token, part, json) {
+  const me = auth_(token, ['admin', 'chot']);
+  if (['zones', 'lists', 'register', 'engineers'].indexOf(part) < 0) throw new Error('Phần cấu hình không hợp lệ');
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const c = cfg_(), n = JSON.parse(json); let detail = '';
+    if (CFG_PART_KEYS_[part]) CFG_PART_KEYS_[part].forEach(k => { if (k in n) c[k] = n[k]; });
+    if (part === 'register') { c.settings = c.settings || {}; const r = (n.settings || {}).register;
+      if (r && r.id) c.settings.register = r; else delete c.settings.register; detail = r && r.id ? r.name || r.id : 'bỏ file'; }
+    if (part === 'engineers') { const add = [], off = [];
+      (n.users || []).forEach(x => { const o = c.users.find(u => u.id === x.id), nm = String(x.name || '').trim();
+        if (o) { if (o.role !== 'ks') return; if (nm) o.name = nm; const a = x.active !== false; if (o.active !== false && !a) off.push(o.name); o.active = a; return; }
+        if (!nm || !/^u[\w-]{3,40}$/.test(String(x.id))) return;
+        c.users.push({ id: String(x.id), name: nm, role: 'ks', active: x.active !== false }); add.push(nm); });
+      if (add.length) log_(me.id, 'THEM_KY_SU', '', add.join(', ')); if (off.length) log_(me.id, 'KHOA_KY_SU', '', off.join(', ')); }
+    saveCfg_(c);
+    const ACT = { zones: 'SUA_KHU_VUC', lists: 'SUA_DANH_MUC', register: 'DOI_FILE_HO_SO' };
+    if (ACT[part]) log_(me.id, ACT[part], '', detail);
+    return true;
+  } finally { lock.releaseLock(); }
 }
 
 /* ======================= DỮ LIỆU NGÀY ======================= */
@@ -653,7 +679,7 @@ function regStatus_(raw, hasTvgs) {
 }
 /** Quản trị dán link file theo dõi → nhận các trang tính, đoán loại (đệ trình / văn bản / bỏ qua). */
 function apiCheckRegister(token, link) {
-  auth_(token, ['admin']); const c = cfg_();
+  auth_(token, ['admin', 'chot']); const c = cfg_();
   const id = sheetIdOf_(link); if (!id) throw new Error('Link không hợp lệ – mở file Google Sheet, sao chép link trên thanh địa chỉ (dạng …/spreadsheets/d/…)');
   let ss; try { ss = SpreadsheetApp.openById(id); ss.getName(); } catch (e) { throw new Error('Không mở được file. Tài khoản triển khai app cần có quyền **xem** file theo dõi hồ sơ này.'); }
   const tabs = ss.getSheets().map(sh => { const name = sh.getName(), n = Math.min(sh.getLastRow(), 40), vals = n ? sh.getRange(1, 1, n, Math.max(1, sh.getLastColumn())).getValues() : [];
