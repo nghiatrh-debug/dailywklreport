@@ -42,6 +42,13 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Giả lập đầu-cuối theo vai (21/11/2026) – `tests/e2e_roles.js`
+- **Là gì:** chạy giao diện thật ở **chế độ Apps Script** (shim `google.script.run`) nối với máy chủ `Code.gs` giả lập (`gasmock`). Đóng vai KS Xây dựng + KS MEP (điện thoại 390 px), người chốt, TVGS (điện thoại), CĐT, Quản trị: 2 ngày + 1 tuần: lập phiếu, chặn nộp thiếu KH, chốt, TVGS trả về → sửa → chốt lại, TVGS xác nhận + ý kiến → tự phát hành, Drive lỗi → Xuất lại, Tạm dừng, Hụt, báo cáo tuần (chốt thiếu số liệu bị chặn, Gantt 3 ảnh, gom ý kiến), CĐT xem, mở khóa ngày đã phát hành, quyền.
+- **Kết quả:** 36 đạt / 0 lỗi. Ảnh: `tests/shots/e2e/`.
+- **Sửa kèm:** sau khi phát hành xong, thông báo "⏳ Đang phát hành PDF…" còn treo ~90 giây (đè lên màn hình người dùng kế tiếp) → thay bằng "✅ Đã phát hành PDF".
+- **Phát hiện (chưa sửa, chờ chủ repo quyết):** (1) kỹ sư không nộp phiếu → việc dở dang của kỹ sư đó biến mất khỏi báo cáo ngày, không tính Hụt; (2) mở khóa ngày đã phát hành → CĐT mất hẳn ngày đó cho đến khi TVGS xác nhận lại (PDF cũ vẫn trên Drive); (3) tự sinh KH ngày mai có cả việc đang Tạm dừng; (4) CĐT vẫn thấy danh sách phiếu kỹ sư + nút Xem trong báo cáo ngày đã phát hành; (5) chữ trong hộp mở khóa còn nói "khi xuất lại" (luồng cũ).
+- Chạy: `CHROME=… PW_PATH=… node tests/e2e_roles.js` (chưa đưa vào `run-all.sh` / CI).
+
 ### Đợt 10B1 – Tự phát hành khi TVGS xác nhận, Ý kiến TVGS in PDF, Gantt nằm ngang (20/11/2026)
 - **Sửa gì:** TVGS bấm Xác nhận (ngày / tuần) → hộp có phần **Ý kiến TVGS** (loại + nội dung, không bắt buộc) → xác nhận xong app **tự xuất PDF + QR** lên Drive, hiện tin nhắn Zalo có link PDF + mã. Người chốt không còn nút "☁ PDF" khi dự án có TVGS kiểm tra. Đã xác nhận mà chưa có PDF → dải đỏ "Chưa phát hành được PDF" + **↻ Xuất lại** (Quản trị, người chốt, TVGS).
 - Máy chủ: "đã phát hành" = TVGS xác nhận + có link PDF (cột `pdf_url`; dữ liệu cũ có link tự tính là đã phát hành). Xác nhận lại sau mở khóa → xóa link cũ. CĐT chỉ thấy ngày / tuần đã phát hành. TVGS chỉ xuất được đúng bản vừa xác nhận (mã khớp). Ý kiến TVGS tính vào mã xác thực; mở khóa ghi nhật ký mã cũ + ý kiến.
@@ -348,3 +355,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 19:37 | 73d1987 | đạt | 174 đạt / 0 lỗi | 240 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A – phân vai CĐT/TVGS, Xem như, dải màu khu, nhắc rà vai trò |
 | 2026-11-20 21:01 | 198529a | đạt | 183 đạt / 0 lỗi | 256 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.7 + 10A.8 – Cấu hình người chốt; So với KH, KH ngày mai, Tạm dừng |
 | 2026-11-20 22:41 | 0c7d568 | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10B1 – tự phát hành khi TVGS xác nhận, ý kiến TVGS in PDF, Gantt nằm ngang |
+| 2026-11-21 05:59 | 4b2c5da | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Giả lập đầu-cuối theo vai + sửa thông báo phát hành bị treo |

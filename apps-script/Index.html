@@ -998,12 +998,12 @@ async function publishDay(){
   if (!IS_GAS || !R || revOf(R)!=='approved') return; const rv = R.review; toast('⏳ Đang phát hành PDF… vui lòng chờ', 90000);
   try { const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
     const url = await Store.exportPdf(docHtml(box), dayFileName(R), R.date, 'day', rv.code);
-    idxSet('reports', Object.assign({}, IDX.reports.find(x=>x.date===R.date) || {date:R.date, status:R.status, version:R.version}, {review:'approved', pdf:true})); renderDayAll();
+    idxSet('reports', Object.assign({}, IDX.reports.find(x=>x.date===R.date) || {date:R.date, status:R.status, version:R.version}, {review:'approved', pdf:true})); renderDayAll(); toast('✅ Đã phát hành PDF', 2500);
     zaloModal('✅ Đã phát hành Báo cáo ngày', `PDF đã lưu Drive, CĐT đã xem được. Mã xác thực <b>${esc(rv.code)}</b>.`, `✅ [${CFG.project.code}] Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''} đã được TVGS xác nhận và phát hành. Mã xác thực: ${rv.code}\nPDF: ${url}`);
   } catch(e){ renderDayAll(); toast('⚠ Chưa phát hành được PDF: ' + (e.message||e) + ' – bấm “↻ Xuất lại”', 8000); } }
 async function publishWeek(){
   if (!IS_GAS || !W || (W.review||{}).status!=='approved') return; const rv = W.review; toast('⏳ Đang phát hành PDF báo cáo tuần… vui lòng chờ', 120000);
-  try { const url = await exportWeek(rv.code); W.pdfUrl = url; renderWeek();
+  try { const url = await exportWeek(rv.code); W.pdfUrl = url; renderWeek(); toast('✅ Đã phát hành PDF tuần', 2500);
     zaloModal('✅ Đã phát hành Báo cáo tuần', `PDF đã lưu Drive, CĐT đã xem được. Mã xác thực <b>${esc(rv.code)}</b>.`, `✅ [${CFG.project.code}] Báo cáo tuần ${W.no} (${vi(W.from)} → ${vi(W.to)}) đã được TVGS xác nhận và phát hành. Mã xác thực: ${rv.code}\nPDF: ${url}`);
   } catch(e){ renderWeek(); toast('⚠ Chưa phát hành được PDF tuần: ' + (e.message||e) + ' – bấm “↻ Xuất lại”', 8000); } }
 const testMode = () => !!(CFG.settings||{}).testMode;
