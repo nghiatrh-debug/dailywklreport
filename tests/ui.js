@@ -116,8 +116,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     ok(await pg.isVisible('#zaloTxt'), 'Chốt khi bật TVGS → gợi ý tin nhắn nhắc TVGS');
     ok(await pg.evaluate(async () => { const s = await IDB.get('subs', '2026-06-27|u_than'); return s && s.status === 'accepted' && SUBS.find(x=>x.uid==='u_than').rev === s.rev && !ACCEPT.length; }), 'Chốt: phiếu đã nộp được nhận trong cùng lần lưu báo cáo');
     await pg.evaluate(() => closeModal());
-    await pg.click('#dayPrevBar [data-act=drive]'); await wait(300);
-    ok(/Chờ TVGS xác nhận/.test(await pg.innerText('body')), 'Chưa xác nhận → chặn xuất PDF chính thức');
+    ok(!(await pg.locator('[data-act=drive]').count()), '10B: có TVGS → người chốt không còn nút Xuất PDF (TVGS xác nhận là tự phát hành)');
     await login(pg, 'u_tvgs', '3333');
     await pg.selectOption('#dateSel', '2026-06-27'); await wait(600);
     /* ---- Đợt 9: TVGS ghi ý kiến ngay tại từng việc ---- */
@@ -485,7 +484,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-view=period]'); await wait(500);
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
     ok(/Ý kiến TVGS lần trước – đã sửa 1\/2/.test(await pg.innerText('#periodPane')), 'Tuần chốt lại → TVGS thấy “Ý kiến lần trước – đã sửa 1/2”');
-    await pg.click('[data-act=wApprove]'); await wait(700);
+    await pg.click('[data-act=wApprove]'); await wait(400); await pg.evaluate(() => $('#mOk').click()); await wait(700);
     const wcode = await pg.evaluate(() => W.review && W.review.code);
     ok(wcode && /Verified by Consultant/.test(await pg.innerText('#pdoc')), 'TVGS xác nhận tuần → mã xác thực + QR trên PDF');
     ok(await pg.evaluate(() => { const q = document.querySelector('#pdoc .qrst'); if (!q) return false; const k = [...q.childNodes].filter(n=>n.nodeType===1 || n.textContent.trim());
@@ -514,7 +513,7 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.fill('#pAnchor', '2026-07-03'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
     ok(await pg.evaluate(() => W.no === 35 && W.overall.plan === 11 && W.overall.actualPrev === 10.4 && !PW === false), 'Tuần sau: số tuần 35, KH tuần này & thực tế tuần trước tự lấy');
     await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
-    ok(await pg.locator('[data-act=drivePeriod]').count() === 1 && await pg.locator('[data-root=W]:not([disabled])').count() === 0, 'Tuần đã xác nhận: khóa nhập, hiện nút xuất PDF');
+    ok(await pg.locator('[data-act=drivePeriod]').count() === 0 && await pg.locator('[data-root=W]:not([disabled])').count() === 0, 'Tuần đã xác nhận: khóa nhập; 10B: người chốt không còn nút xuất PDF');
     await pg.click('[data-wtab=mat]'); await wait(300); await shot(pg, 'desk_week_mat');
     await pg.click('[data-view=day]'); await wait(600); await pg.click('[data-tab=mat]'); await wait(300);
     if (await pg.locator('[data-act=add][data-path=materials]').count()) { await pg.click('[data-act=add][data-path=materials]'); await wait(300);
@@ -625,6 +624,34 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await pg.click('[data-cfgtab=reg]'); await wait(300);
     ok(await pg.locator('#regLink').count() === 1 && !(await pg.locator('[data-act=pdfFolderSet],[data-act=weekFolderSet]').count()), '10A.7: thẻ File theo dõi hồ sơ có ô dán link, không có chọn thư mục PDF');
     ok(!errs.length, '10A.7/10A.8: không lỗi JavaScript ' + errs.join(' | '));
+    await ctx.close();
+  }
+
+  /* ---------- ĐỢT 10B1: ý kiến TVGS in PDF, ảnh Gantt nằm ngang nửa trang ---------- */
+  for (const [n, VW, VH, mob] of [['desk', 1440, 900, false], ['m390', 390, 844, true]]) {
+    const { ctx, pg, errs } = await fresh(browser, mob ? { viewport: { width: VW, height: VH }, isMobile: true, hasTouch: true } : { viewport: { width: VW, height: VH } });
+    await login(pg, 'u_tvgs', '3333'); await pg.selectOption('#dateSel', '2026-06-26'); await wait(700);
+    await pg.evaluate(() => { const b = document.querySelector('[data-act=approveRep]'); if (b) b.click(); }); await wait(400);
+    ok(await pg.isVisible('#rmkAdd') && /ý kiến tvgs in vào pdf/i.test(await pg.innerText('#modal')), `10B ${n}: hộp Xác nhận có phần Ý kiến TVGS`);
+    await pg.click('#rmkAdd'); await wait(150); await pg.click('#rmkAdd'); await wait(150);
+    await pg.selectOption('#rmkL .rmk:nth-child(1) select', 'An toàn'); await pg.fill('#rmkL .rmk:nth-child(1) textarea', 'Bổ sung lan can biên sàn GF');
+    await shot(pg, n + '_10b_remarks');
+    await pg.evaluate(() => $('#mOk').click()); await wait(900);
+    const rv = await pg.evaluate(() => JSON.stringify(R.review.remarks));
+    ok(rv === JSON.stringify([{ cat: 'An toàn', text: 'Bổ sung lan can biên sàn GF' }]), `10B ${n}: lưu ý kiến (bỏ dòng trống) ` + rv);
+    const doc = await pg.evaluate(() => docHTML(R, {}));
+    ok(/Ý KIẾN TVGS \/ CONSULTANT'S REMARKS[\s\S]*An toàn:[\s\S]*lan can biên sàn GF[\s\S]*CONTRACTOR'S REPRESENTATION/.test(doc), `10B ${n}: PDF ngày có khung Ý kiến TVGS trước phần ký`);
+    if (!mob) {
+      ok(!/CONSULTANT'S REMARKS/.test(await pg.evaluate(() => docHTML(Object.assign(clone(R), { review: Object.assign({}, R.review, { remarks: [] }) }), {}))), '10B: không có ý kiến → ẩn khung');
+      const g = await pg.evaluate(() => { const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAAEUlEQVR42mP8z8DwnwEIGGEAAB0EAf9jOc4AAAAASUVORK5CYII=';
+        const w = normWeek({ no: 9, from: '2026-06-20', to: '2026-06-26', status: 'locked', gantt: [{ img: px, caption: 'G1' }, { img: px, caption: 'G2' }, { img: px, caption: 'G3' }] });
+        genWeek(w, [Object.assign(normReport({ date: '2026-06-25' }), { review: { status: 'approved', remarks: [{ cat: 'Tiến độ', text: 'Tăng tổ cốp pha' }] } })], null);
+        const box = document.createElement('div'); box.innerHTML = weekDocHTML(w, {});
+        const gp = [...box.querySelectorAll('.gpage.gh')];
+        return JSON.stringify([gp.length, gp.map(x => x.classList.contains('gpb') ? 1 : 0).join(''), gp.every(x => x.querySelector('img').getAttribute('src') === px), w.dayRemarks.length, /Ý KIẾN TVGS CÁC NGÀY[\s\S]*Tăng tổ cốp pha/.test(box.innerText)]); });
+      ok(g === JSON.stringify([3, '001', true, 1, true]), '10B: Gantt giữ nguyên ảnh (không xoay), 2 ảnh / trang; tuần tự gom ý kiến TVGS các ngày ' + g);
+    }
+    ok(!errs.length, `10B ${n}: không lỗi JavaScript ` + errs.join(' | '));
     await ctx.close();
   }
 

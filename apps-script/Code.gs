@@ -183,7 +183,7 @@ function bundle_(me, date, mode, uid) {
   }
   const day = dayData_(date);
   // CĐT chỉ mở ngày đã phát hành, TVGS chỉ mở ngày nhà thầu đã chốt (Đợt 10A) – kiểm theo dữ liệu ngày, không theo chỉ mục
-  if (lim && !seen_(me, day.report, c)) {
+  if (lim && !seen_(me, day.report && Object.assign({}, day.report, { pdf: dayPdf_(date) }), c)) {
     if (asked) throw new Error('Báo cáo ngày ' + date + (me.role === 'cdt' ? ' chưa phát hành' : ' chưa được nhà thầu chốt'));
     return { date: date, index: idxEnc_(vis), report: null, subs: [], prev: null };
   }
@@ -268,23 +268,24 @@ const TS_ = Object.keys(ST_).reduce((o, k) => (o[ST_[k]] = k, o), {});
 const enc1_ = v => ST_[v] || v || '', dec1_ = v => TS_[v] || v || '';
 function idxEnc_(idx, uid) {
   if (!idx) return null;
-  return { r: idx.reports.map(x => [x.date, enc1_(x.status), x.version || 0, enc1_(x.review)]),
+  return { r: idx.reports.map(x => [x.date, enc1_(x.status), x.version || 0, enc1_(x.review), x.pdf ? 1 : 0]),
            s: idx.subs.filter(x => !uid || x.uid === uid).map(x => [x.date, x.uid, enc1_(x.status)]), t: idx.testDays || [] };
 }
 function idxDec_(e) {
   if (!e || !e.r) return e && e.reports ? e : null;
-  return { reports: e.r.map(x => ({ date: x[0], status: dec1_(x[1]), version: x[2], review: dec1_(x[3]) })),
+  return { reports: e.r.map(x => ({ date: x[0], status: dec1_(x[1]), version: x[2], review: dec1_(x[3]), pdf: !!x[4] })),
            subs: e.s.map(x => ({ date: x[0], uid: x[1], status: dec1_(x[2]) })), testDays: e.t || [] };
 }
 
 /* Đợt 10A – phạm vi nhìn thấy theo vai. rec: {status, review} (review là chuỗi trạng thái trong chỉ mục, object trong dữ liệu ngày/tuần). */
 const rvSt_ = rec => rec ? (typeof rec.review === 'string' ? rec.review : (rec.review || {}).status || '') : '';
 function seen_(me, rec, c) {
-  if (me.role === 'cdt') return !!rec && (reviewOn_(c) ? rvSt_(rec) === 'approved' : rec.status === 'locked');    // đã phát hành
+  if (me.role === 'cdt') return !!rec && (reviewOn_(c) ? rvSt_(rec) === 'approved' && !!rec.pdf : rec.status === 'locked');    // đã phát hành (10B: TVGS xác nhận + đã có PDF)
   if (me.role === 'tvgs') return !!rec && (rec.status === 'locked' || rvSt_(rec) === 'returned');                 // nhà thầu đã chốt
   return true;
 }
 /** Chỉ mục cho CĐT / TVGS: chỉ ngày được thấy, không có phiếu kỹ sư. Vai khác: giữ nguyên (cùng đối tượng). */
+const dayPdf_ = d => (rowOf_('BaoCao', 0, d) || [])[SCHEMA.BaoCao.indexOf('pdf_url')] || '';
 function idxFor_(idx, me, c) {
   if (me.role !== 'cdt' && me.role !== 'tvgs') return idx;
   return { reports: idx.reports.filter(r => seen_(me, r, c)), subs: [], testDays: idx.testDays || [] };
@@ -322,7 +323,7 @@ function apiSaveReport(token, json) {
     if (r.status === 'locked') writeNormalized_(r, c, pctOf_);     // bảng chuẩn hóa = số liệu đã chốt
     dd.report = strip_(r); dayPut_(d, dd);
     idxPatch_('reports', { date: d, status: r.status, version: r.version, review: (r.review || {}).status || '' });
-    if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, '');
+    if (!old || old.status !== r.status) log_(me.id, r.status === 'locked' ? 'CHOT_BAO_CAO_V' + r.version : 'MO_KHOA', d, r.status === 'locked' ? '' : rmkLog_(kept));
     return JSON.stringify({ ok: true, rev: r.rev, accepted: acc, subRevs: acc.map(u => dd.subs.find(x => x.uid === u).rev), review: r.review || null, layouts: r.layouts.map(p => p.fileId || ''), extra: (r.extraPhotos || []).map(p => p.fileId || '') });
   } finally { lock.releaseLock(); }
 }
@@ -368,8 +369,17 @@ function cmtItems_(json) {
   return (Array.isArray(a) ? a : []).slice(0, 200).map(c => ({ id: s_(c.id, 40) || Utilities.getUuid().slice(0, 8), scope: s_(c.scope, 60), path: s_(c.path, 40), ref: s_(c.ref, 60),
     label: s_(c.label, 300), owner: s_(c.owner, 80), tags: (Array.isArray(c.tags) ? c.tags : []).slice(0, 6).map(t => s_(t, 40)), pct: s_(c.pct, 10), note: s_(c.note, 1000), text: s_(c.text, 1500) }));
 }
+/** Ý kiến TVGS in PDF (Đợt 10B): [{cat, text}] */
+const RMK_CATS_ = ['Chất lượng', 'An toàn', 'Tiến độ', 'Vệ sinh – môi trường', 'Khác'];
+function remarks_(json) {
+  let a = []; try { a = JSON.parse(json || '[]'); } catch (e) { a = []; }
+  return (Array.isArray(a) ? a : []).slice(0, 30).map(x => ({ cat: RMK_CATS_.indexOf(x && x.cat) >= 0 ? x.cat : 'Khác', text: String((x && x.text) || '').trim().slice(0, 1000) })).filter(x => x.text);
+}
+/** Mã xác thực gồm cả ý kiến TVGS (không có ý kiến → giữ đúng cách tính cũ). */
+const vcodeR_ = (o, rm) => vcode_(rm.length ? Object.assign({}, o, { tvgsRemarks: rm }) : o);
+const rmkLog_ = rv => rv && rv.status === 'approved' ? 'mã cũ ' + rv.code + ((rv.remarks || []).length ? ' · ý kiến TVGS: ' + rv.remarks.map(x => x.cat + ': ' + x.text).join(' | ') : '') : '';
 const cmtNote_ = its => its.map(c => '• ' + (c.owner ? c.owner + ' – ' : '') + c.label + ': ' + c.text).join('\n');
-function apiReview(token, date, action, note, items) {
+function apiReview(token, date, action, note, items, remarks) {
   const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -389,9 +399,11 @@ function apiReview(token, date, action, note, items) {
     if (r.review && r.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo đã được xác nhận');
     r.rev = (r.rev || 0) + 1;
     if (action === 'approve') {
-      r.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(r), version: r.version || 1 };
+      const rm = remarks_(remarks);
+      r.review = { status: 'approved', by: me.id, at: now_(), code: vcodeR_(r, rm), version: r.version || 1, remarks: rm };
       r.review.url = verifyUrl_(r.review.code);
-      log_(me.id, 'TVGS_XAC_NHAN', date, r.review.code + ' · v' + r.review.version);
+      setCell_('BaoCao', date, 'pdf_url', '');          // 10B: phát hành lại theo bản vừa xác nhận
+      log_(me.id, 'TVGS_XAC_NHAN', date, r.review.code + ' · v' + r.review.version + (rm.length ? ' · ' + rm.length + ' ý kiến' : ''));
     } else {
       if (!note && !its.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
       r.review = { status: 'returned', by: me.id, at: now_(), note: note, items: its, version: r.version || 1 };
@@ -400,7 +412,7 @@ function apiReview(token, date, action, note, items) {
     }
     writeReport_(r, c);
     const dd = dayData_(date); dd.report = strip_(r); dayPut_(date, dd);
-    idxPatch_('reports', { date: date, status: r.status, version: r.version, review: r.review.status });
+    idxPatch_('reports', { date: date, status: r.status, version: r.version, review: r.review.status, pdf: false });
     return JSON.stringify(r.review);
   } finally { lock.releaseLock(); }
 }
@@ -550,15 +562,16 @@ function apiPeriod(token, from, to, key) {
   if (rowsIdx.length) {
     const a = Math.min.apply(null, rowsIdx), b = Math.max.apply(null, rowsIdx);
     const vals = sh.getRange(a + 2, 1, b - a + 1, Math.min(W, sh.getLastColumn())).getValues();
-    reports = rowsIdx.map(i => ({ d: keys[i], r: jsonOf_('BaoCao', vals[i - a]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
+    const pc = SCHEMA.BaoCao.indexOf('pdf_url');
+    reports = rowsIdx.map(i => ({ d: keys[i], r: jsonOf_('BaoCao', vals[i - a]), p: vals[i - a][pc] || '' })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => { if (x.r && lim) x.r.pdf = x.p; return x.r; });
   }
   let manual = null, prevWeek = null, hidden = '';
-  if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? jsonOf_('TongHopKy', row) : null; }
+  if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? jsonOf_('TongHopKy', row) : null; if (manual) manual.pdfUrl = row[5] || ''; }
   if (String(key).indexOf('W-') === 0) prevWeek = prevWeek_(from);
   if (lim) {             // Đợt 10A: CĐT chỉ thấy ngày/tuần đã phát hành, TVGS chỉ thấy bản nhà thầu đã chốt; không có phiếu kỹ sư
     reports = reports.filter(r => seen_(me, r, c));
-    if (String(key).indexOf('W-') === 0 && !seen_(me, manual, c)) { manual = null; hidden = me.role === 'cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt'; }
-    if (prevWeek && !seen_(me, prevWeek, c)) prevWeek = null;
+    if (String(key).indexOf('W-') === 0 && !seen_(me, manual && Object.assign({}, manual, { pdf: manual.pdfUrl }), c)) { manual = null; hidden = me.role === 'cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt'; }
+    if (prevWeek && !seen_(me, Object.assign({}, prevWeek, { pdf: (rowOf_('TongHopKy', 0, prevWeek.key) || [])[5] }), c)) prevWeek = null;
     return JSON.stringify({ reports: reports, manual: manual, subs: [], prevWeek: prevWeek, hidden: hidden });
   }
   // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
@@ -596,11 +609,11 @@ function apiSavePeriod(token, json) {
 function saveWeek_(me, w) {
   const c = cfg_(), lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
-    const old = weekGet_(w.key);
+    const old = weekGet_(w.key); delete w.pdfUrl;
     if (old && old.status === 'locked' && w.status === 'locked') return JSON.stringify({ ok: true, review: old.review || null, noop: true });
     w.review = old ? old.review || null : null;
     if (old && old.status === 'locked' && w.status !== 'locked') {           // mở khóa
-      if (w.review) w.review = { lastNote: w.review.note || '', lastStatus: w.review.status }; log_(me.id, 'MO_KHOA_TUAN', w.to, w.key + ' → v' + w.version); }
+      const lg = rmkLog_(w.review); if (w.review) w.review = { lastNote: w.review.note || '', lastStatus: w.review.status }; log_(me.id, 'MO_KHOA_TUAN', w.to, w.key + ' → v' + w.version + (lg ? ' · ' + lg : '')); }
     if (w.status === 'locked' && !(old && old.status === 'locked')) { w.lockedAt = now_(); w.lockedBy = me.id;
       const kept = w.review, fix = w.reviewFix || {}; delete w.reviewFix;
       if (reviewOn_(c)) w.review = { status: 'pending', version: w.version, lastNote: kept && kept.status === 'returned' ? kept.note || '' : '',
@@ -713,7 +726,7 @@ function apiRegisterWeek(token, from, to) {
   return JSON.stringify({ subs: subs, docs: docs, at: now_() });
 }
 /** TVGS kiểm tra báo cáo tuần: 'approve' | 'return' (bắt buộc ghi chú). */
-function apiReviewPeriod(token, key, action, note, items) {
+function apiReviewPeriod(token, key, action, note, items, remarks) {
   const me = auth_(token, ['admin', 'tvgs']), c = cfg_();
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -729,9 +742,11 @@ function apiReviewPeriod(token, key, action, note, items) {
     if (!w || w.status !== 'locked') throw new Error('Báo cáo tuần chưa được nhà thầu chốt');
     if (w.review && w.review.status === 'approved' && action === 'approve') throw new Error('Báo cáo tuần đã được xác nhận');
     if (action === 'approve') {
-      w.review = { status: 'approved', by: me.id, at: now_(), code: vcode_(w), version: w.version || 1 };
+      const rm = remarks_(remarks);
+      w.review = { status: 'approved', by: me.id, at: now_(), code: vcodeR_(w, rm), version: w.version || 1, remarks: rm };
       w.review.url = verifyUrl_(w.review.code);
-      log_(me.id, 'TVGS_XAC_NHAN_TUAN', w.to, w.review.code + ' · Tuần ' + w.no + ' v' + w.review.version);
+      setCell_('TongHopKy', key, 'pdf_url', '');
+      log_(me.id, 'TVGS_XAC_NHAN_TUAN', w.to, w.review.code + ' · Tuần ' + w.no + ' v' + w.review.version + (rm.length ? ' · ' + rm.length + ' ý kiến' : ''));
     } else {
       if (!note && !its.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa');
       w.review = { status: 'returned', by: me.id, at: now_(), note: note, items: its, version: w.version || 1 };
@@ -752,8 +767,11 @@ function apiUploadFile(token, dataUrl, name) {
 }
 
 /** HTML → PDF. Ảnh được giao diện đánh dấu src="fid:<fileId>" → máy chủ tự chèn từ Drive (đỡ gửi dữ liệu nặng từ điện thoại). */
-function apiExportPdf(token, html, fileName, key, kind) {
-  const me = auth_(token, ['admin', 'chot']), c = cfg_();
+function apiExportPdf(token, html, fileName, key, kind, code) {
+  const me = auth_(token, ['admin', 'chot', 'tvgs']), c = cfg_();
+  // Đợt 10B: TVGS tự phát hành ngay sau khi xác nhận – chỉ đúng bản vừa xác nhận (mã xác thực khớp)
+  if (me.role === 'tvgs') { const rv = ((kind === 'day' ? dayData_(key).report : kind === 'week' ? weekGet_(key) : null) || {}).review || {};
+    if (rv.status !== 'approved' || !code || rv.code !== code) throw new Error('Chỉ phát hành được bản TVGS vừa xác nhận'); }
   if (kind === 'day' && reviewOn_(c)) { const r = dayData_(key).report;
     if (!r || !r.review || r.review.status !== 'approved') throw new Error('Báo cáo chưa được TVGS xác nhận nội dung – chưa xuất PDF chính thức được'); }
   if (kind === 'week') { const w = weekGet_(key);
@@ -767,7 +785,7 @@ function apiExportPdf(token, html, fileName, key, kind) {
   const file = folder.createFile(pdf), url = file.getUrl();
   // Báo cáo ngày đã được TVGS xác nhận: ai có link đều xem được (chỉ xem) – để mở từ QR trên điện thoại
   if (kind === 'day' || kind === 'week') { try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
-  if (kind === 'day') { setCell_('BaoCao', key, 'pdf_url', url); cdel_(['day:' + key]); }
+  if (kind === 'day') { setCell_('BaoCao', key, 'pdf_url', url); cdel_(['day:' + key]); idxPatch_('reports', { date: key, pdf: true }); }
   else setCell_('TongHopKy', key, 'pdf_url', url);
   log_(me.id, 'XUAT_PDF', kind === 'day' ? key : '', fileName);
   return url;
@@ -840,8 +858,9 @@ function index_() {
     const rb = sheet_('BaoCao'), nb = rb.getLastRow() - 1, rp = sheet_('PhieuKS'), np = rp.getLastRow() - 1;
     const b = nb > 0 ? rb.getRange(2, 1, nb, 3).getValues() : [], p = np > 0 ? rp.getRange(2, 2, np, 5).getValues() : [];
     const rc = SCHEMA.BaoCao.indexOf('tvgs_kiem_tra'), rv = nb > 0 && rb.getLastColumn() > rc ? rb.getRange(2, rc + 1, nb, 1).getValues() : [];
-    const RV = { CHO_KIEM_TRA: 'pending', YEU_CAU_SUA: 'returned', DA_XAC_NHAN: 'approved' };
-    idx = { reports: b.map((r, i) => ({ date: String(r[0]), status: r[1], version: r[2], review: RV[(rv[i] || [])[0]] || '' })).filter(r => r.date),
+    const RV = { CHO_KIEM_TRA: 'pending', YEU_CAU_SUA: 'returned', DA_XAC_NHAN: 'approved' }, pc = SCHEMA.BaoCao.indexOf('pdf_url');
+    const pf = nb > 0 && rb.getLastColumn() > pc ? rb.getRange(2, pc + 1, nb, 1).getValues() : [];
+    idx = { reports: b.map((r, i) => ({ date: String(r[0]), status: r[1], version: r[2], review: RV[(rv[i] || [])[0]] || '', pdf: !!(pf[i] || [])[0] })).filter(r => r.date),
             subs: p.filter(r => r[0]).map(r => ({ date: String(r[0]), uid: r[1], status: r[4] })), testDays: testDays_() };
     // Phiếu của ngày đã chốt quá IDX_DAYS ngày: bỏ chi tiết (ngày vẫn còn trong danh sách báo cáo) → chỉ mục không phình theo thời gian
     const cut = Utilities.formatDate(new Date(Date.now() - IDX_DAYS * 864e5), TZ, 'yyyy-MM-dd'), lk = {};

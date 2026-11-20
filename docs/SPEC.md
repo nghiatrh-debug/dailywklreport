@@ -533,7 +533,7 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Lưu ý: quy tắc tính lúc hiển thị → mở lại ngày cũ trong app cũng thấy theo quy tắc mới; PDF đã phát hành không đổi.
 - Kiểm thử: 0/0 → Hụt; KH trống + làm 0 (kế thừa) → Hụt; việc mới không KH → không đánh giá; thống kê 4/13 theo ví dụ; Tạm dừng → không tính, có lý do trên PDF, chuyển sang ngày sau +1 ngày; nộp thiếu KH ngày mai / KH 0 → bị chặn; chốt thiếu KH → cảnh báo.
 
-### 10B – chốt phạm vi (20/11/2026), làm 2 bước – đang làm 10B1
+### 10B – chốt phạm vi (20/11/2026), làm 2 bước – 10B1 đã làm (lên /dev), chờ chạy thử
 **Bước 10B1** (thay luồng phát hành – chạy thử vài ngày rồi mới làm 10B2):
 - Tự phát hành PDF + QR khi TVGS Xác nhận (ngày + tuần) như 10B.1; bỏ nút "☁ PDF" của người chốt; lỗi → `pub=fail`, dải đỏ + "Xuất lại" (Quản trị, người chốt, TVGS). CĐT chỉ thấy khi `pub=ok`.
 - Chuyển đổi: ngày / tuần đã xác nhận + đã có `pdf_url` trước bản này → coi `pub=ok`.

@@ -26,6 +26,7 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - Hồ sơ đệ trình: link sổ sai/không quyền, nhận loại trang tính, chỉ lấy hồ sơ phát sinh trong tuần (bỏ cũ không đổi, bỏ hủy), ô ngày kiểu Date/chữ, mô tả 2 dòng, B/A → Đã duyệt, C cũ có kết quả trong tuần, MEP đang kiểm tra, văn bản trong tuần, ghi Tuan_HoSo.
 - Reset toàn bộ: lưu trữ, xóa dữ liệu, thu hồi token.
 - Cấu hình người chốt (Đợt 10A.7): lưu từng phần chỉ ghi khóa được phép; tài khoản / PIN chỉ vai kỹ sư; thư mục PDF chỉ Quản trị.
+- Phát hành (Đợt 10B1): CĐT chỉ thấy bản đã có PDF; TVGS xuất đúng mã vừa xác nhận; ý kiến TVGS lưu + nhật ký khi mở khóa; xác nhận lại xóa link cũ.
 - Phân vai (Đợt 10A): CĐT chỉ mở / thấy ngày, tuần đã phát hành; TVGS chỉ thấy bản nhà thầu đã chốt; không gửi phiếu kỹ sư cho CĐT/TVGS trong danh mục; người chốt không sửa Cấu hình; "Xem như" chỉ nhận từ Quản trị, chỉ thu hẹp; nhật ký ghi "(xem như …)"; vai "xem" cũ → CĐT; không xóa được Quản trị cuối.
 
 **Giao diện (Playwright, điện thoại 375/390/412 px + máy tính, ảnh ở `tests/shots/`)**
@@ -35,10 +36,20 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - TVGS & xác thực: tin nhắn Zalo soạn sẵn, quét QR ra trang xác thực, tra mã sai.
 - Phiên đăng nhập: "Ghi nhớ" / không ghi nhớ, tự đăng xuất sau 8 giờ.
 - So với KH (Đợt 10A.8): 0/0 → Hụt, việc mới không KH không đánh giá, Tạm dừng không tính; chặn nộp thiếu KH ngày mai > 0%; Tạm dừng chuyển ngày sau.
+- Phát hành (Đợt 10B1): hộp Xác nhận kèm ý kiến TVGS, khung ý kiến trong PDF ngày / tuần, Gantt nằm ngang 2 ảnh / trang.
 - Phân vai (Đợt 10A): menu, chọn ngày, dải màu khu theo vai CĐT / TVGS / Quản trị; tuần chưa phát hành chỉ hiện thông báo; "Xem như" trên dải Chế độ thử; dải nhắc + checklist "Rà lại vai trò".
 - Báo cáo tuần: tự tổng hợp khi mở, đầu trang thông tin dự án + thông tin chung + overall + A.1, biểu đồ nhân sự, đánh giá Đạt/Chậm (ngưỡng 5%), tổng hợp lại giữ dòng sửa tay, KH tuần sau từ việc chưa xong, tên file mẫu VC-WR-34, chốt → TVGS xác nhận → QR + tra mã, tuần sau tự lấy số tuần & % tuần trước, tuần đã xác nhận khóa nhập.
 
 ## Ghi chú từng đợt sửa
+
+### Đợt 10B1 – Tự phát hành khi TVGS xác nhận, Ý kiến TVGS in PDF, Gantt nằm ngang (20/11/2026)
+- **Sửa gì:** TVGS bấm Xác nhận (ngày / tuần) → hộp có phần **Ý kiến TVGS** (loại + nội dung, không bắt buộc) → xác nhận xong app **tự xuất PDF + QR** lên Drive, hiện tin nhắn Zalo có link PDF + mã. Người chốt không còn nút "☁ PDF" khi dự án có TVGS kiểm tra. Đã xác nhận mà chưa có PDF → dải đỏ "Chưa phát hành được PDF" + **↻ Xuất lại** (Quản trị, người chốt, TVGS).
+- Máy chủ: "đã phát hành" = TVGS xác nhận + có link PDF (cột `pdf_url`; dữ liệu cũ có link tự tính là đã phát hành). Xác nhận lại sau mở khóa → xóa link cũ. CĐT chỉ thấy ngày / tuần đã phát hành. TVGS chỉ xuất được đúng bản vừa xác nhận (mã khớp). Ý kiến TVGS tính vào mã xác thực; mở khóa ghi nhật ký mã cũ + ý kiến.
+- PDF ngày + tuần: khung "Ý KIẾN TVGS / CONSULTANT'S REMARKS" trước phần ký (không có → ẩn). Báo cáo tuần: mục 🔒 tự gom ý kiến TVGS các ngày trong tuần.
+- **Ảnh Gantt (mục IV):** bỏ tự xoay dọc; giữ nằm ngang như ảnh gốc, mỗi ảnh nửa trang (2 ảnh / trang).
+- **Kiểm thử mới:** gastest +12 (lưu ý kiến, CĐT chờ PDF, TVGS phát hành sai / đúng mã, link lưu Sheet, mở khóa ghi nhật ký, xác nhận lại xóa link, người chốt xuất lại, tuần tương tự, không lưu pdfUrl vào dữ liệu tuần). ui.js +10 (hộp ý kiến máy tính + 390 px, lưu ý kiến, khung trong PDF, ẩn khi không có, Gantt không xoay 2 ảnh / trang, gom ý kiến các ngày). Sửa 2 kiểm thử cũ theo luồng mới (không còn nút PDF của người chốt).
+- **Ảnh đã xem:** `m390_10b_remarks` (đã chỉnh ô ý kiến xếp dọc trên điện thoại).
+- **Rủi ro còn lại:** (1) chưa đo thời gian xuất PDF trên điện thoại thật của TVGS – cần thử trên /dev (1 ngày + 1 tuần); (2) bản độc lập (xem trước) không có Drive nên không thử được bước tự phát hành – kiểm bằng gastest; (3) TVGS tắt app giữa lúc đang xuất → báo cáo đã xác nhận nhưng chưa có PDF, dải đỏ "Xuất lại" nhắc các bên.
 
 ### Đợt 10A.7 + 10A.8 – Cấu hình cho người chốt; So với KH, KH ngày mai, Tạm dừng (20/11/2026)
 - **10A.7 – sửa gì:** người tổng hợp / chốt có thẻ **Cấu hình rút gọn** (Khu vực & phân công · Danh mục · Kỹ sư · File theo dõi hồ sơ). Máy chủ thêm `apiSaveCfgPart` – chỉ ghi đúng phần được giao, vai / PIN / thư mục PDF / cài đặt khác gửi kèm bị bỏ qua. Người chốt thêm / khóa / đặt PIN **chỉ tài khoản kỹ sư**. Thư mục lưu PDF vẫn chỉ Quản trị.
@@ -336,3 +347,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 05:57 | 970b006 | đạt | 149 đạt / 0 lỗi | 221 đạt / 0 lỗi | ✅ ĐẠT | 9.7 quản trị xóa bản tuần làm lại từ đầu |
 | 2026-11-20 19:37 | 73d1987 | đạt | 174 đạt / 0 lỗi | 240 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A – phân vai CĐT/TVGS, Xem như, dải màu khu, nhắc rà vai trò |
 | 2026-11-20 21:01 | 198529a | đạt | 183 đạt / 0 lỗi | 256 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.7 + 10A.8 – Cấu hình người chốt; So với KH, KH ngày mai, Tạm dừng |
+| 2026-11-20 22:41 | 0c7d568 | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10B1 – tự phát hành khi TVGS xác nhận, ý kiến TVGS in PDF, Gantt nằm ngang |
