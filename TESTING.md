@@ -42,6 +42,9 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - Báo cáo tuần: dòng tự động lấy từ báo cáo ngày → sau khi xóa ở phiếu ngày phải bấm “⟳ Tổng hợp lại” thì dòng mới mất khỏi tuần và bản xem trước; ý kiến tuần trên dòng đó tự thành “Đã xóa dòng” (mã dòng giữ nguyên khi tổng hợp lại nên không báo nhầm).
 - **Kiểm thử mới:** ui.js – xóa việc có ý kiến → “🗑 Đã xóa dòng”, đã sửa 2/2, lưu reviewFix; khôi phục → 1/2.
 - **Rủi ro còn lại:** dòng cũ không có mã (dữ liệu rất cũ) thì không nhận biết được đã xóa → vẫn đánh dấu tay.
+- **9.6b – Nhắc tổng hợp lại tuần:** mở tuần chưa chốt → app tổng hợp thử trên bản sao, so các dòng tự động 🔒 với bản đang lưu; khác → dải vàng “⚠ Số liệu báo cáo ngày đã thay đổi… bấm ⟳ Tổng hợp lại” (chỉ người chốt). Không tự ghi đè, không so ảnh.
+  - Kiểm thử: tuần đã lưu mở lại không báo nhầm; đổi số liệu ngày → có dải vàng; bấm tổng hợp lại → mất. Ảnh `desk_week_stale.png` đã xem.
+  - Rủi ro: tuần chốt rồi thì không kiểm (muốn cập nhật phải mở khóa).
 
 ### Đợt 9.5 – Lỗi “reviewFix” khi bấm 💬 ở báo cáo tuần (20/11/2026)
 - **Nguyên nhân:** bấm 💬 (ý kiến TVGS đã gửi) trong báo cáo tuần, app đọc nhầm dấu “đã sửa” của báo cáo ngày (đang trống) → lỗi, không mở được ý kiến.
@@ -302,3 +305,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-19 14:18 | 0edff6b | đạt | 145 đạt / 0 lỗi | 213 đạt / 0 lỗi | ✅ ĐẠT | 9.4 sửa lỗi renderPeriod khi tuần chưa tải xong |
 | 2026-11-20 03:58 | 6ce7d6c | đạt | 145 đạt / 0 lỗi | 214 đạt / 0 lỗi | ✅ ĐẠT | 9.5 sửa lỗi reviewFix khi bấm 💬 ở báo cáo tuần |
 | 2026-11-20 04:15 | fe315c3 | đạt | 145 đạt / 0 lỗi | 215 đạt / 0 lỗi | ✅ ĐẠT | 9.6 ý kiến TVGS trên dòng đã xóa → tự đánh dấu đã sửa |
+| 2026-11-20 04:33 | f5af234 | đạt | 145 đạt / 0 lỗi | 218 đạt / 0 lỗi | ✅ ĐẠT | 9.6b nhắc Tổng hợp lại khi số liệu ngày đổi |

@@ -347,3 +347,8 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Dòng 🔒: hộp ý kiến nhắc nhà thầu sửa ở báo cáo ngày rồi “Tổng hợp lại”, hoặc giải trình ở cột Ghi chú.
 - Máy chủ: apiReviewPeriod nhận items + 'append'; saveWeek_ khi chốt lại sau khi bị trả → review.lastNote + lastItems (cờ fixed từ W.reviewFix), xóa reviewFix.
 - Quản trị kiêm người chốt: khi báo cáo đang bị trả về thì ở vai người sửa (không gửi bổ sung ý kiến) – áp dụng cả báo cáo ngày.
+
+### 9.6 Ý kiến trên dòng đã xóa + nhắc tổng hợp lại tuần (20/11/2026)
+- Ý kiến TVGS mà dòng gốc đã bị xóa → hiện “🗑 Đã xóa dòng”, tính là đã sửa (ghi vào reviewFix), ẩn “Tới chỗ sửa”.
+- Báo cáo tuần chưa chốt: khi mở, app tự tổng hợp thử (không ghi) và so các dòng tự động (🔒) với bản đang lưu. Khác nhau → dải vàng “⚠ Số liệu báo cáo ngày đã thay đổi sau lần tổng hợp … – bấm ⟳ Tổng hợp lại” (chỉ người chốt thấy). Bấm tổng hợp lại → dải mất. Không tự ghi đè.
+- Không so ảnh (bộ ảnh có chọn ngẫu nhiên).

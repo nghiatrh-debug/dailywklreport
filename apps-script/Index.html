@@ -1793,6 +1793,7 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
   P.manual = b.manual || {key:pr.key, kind:P.kind, from:pr.from, to:pr.to, legal:'', evaluation:'', evalNote:'', nextPlan:''};
   if (P.kind==='week'){ PW = b.prevWeek ? normWeek(b.prevWeek) : null;
     W = b.manual && b.manual.v===2 ? normWeek(b.manual) : null;
+    if (W && W.status !== 'locked') W._stale = weekStale(W);
     if (!W) { W = blankWeek(pr, PW); genWeek(W, P.reports, PW); W._unsaved = true; }
     renderWeek(); loadImages(); return; }
   W = null; renderPeriod(); }
@@ -1907,6 +1908,11 @@ function mergeAuto(arr, fresh, keep = []){
 }
 const tkKey = t => (t.zoneId||'') + '|' + (t.desc||'').trim().toLowerCase();
 /** Tổng hợp tuần từ các báo cáo ngày (+ tuần trước). */
+/* Tuần đã lưu: tổng hợp thử trên bản sao, so các dòng tự động → báo số liệu ngày đã đổi (không so ảnh vì chọn ngẫu nhiên) */
+const W_NOCMP = { photos:1, layouts:1, gantt:1 };
+function weekStale(w){ try { const c = clone(w); genWeek(c, P.reports, PW);
+  const sig = o => JSON.stringify(Object.keys(o).filter(k => !W_NOCMP[k] && Array.isArray(o[k])).sort().map(k => [k, o[k].filter(x => x && x.auto)]));
+  return sig(c) !== sig(w); } catch(e){ return false; } }
 function genWeek(w, reps, pw){
   const zIdx = id => { const i = CFG.zones.findIndex(z=>z.id===id); return i < 0 ? 999 : i; };
   // A. công việc
@@ -1982,7 +1988,7 @@ function autoRatings(w, pw = PW){ const ni = w.safety.issues.length, ev = wEval(
 /* ---- lưu ---- */
 async function saveW(silent){
   if (!W || !isChot() || W.status === 'locked' && !W._lockNow) return; clearTimeout(saveTimer.W); dirty.W = false; setSave('saving');
-  try { W.matCum = calcMatCum(W, PW); const p = clone(W); delete p._unsaved; delete p._lockNow; (p.photos||[]).concat(p.layouts||[], p.gantt||[]).forEach(x=>{ if (x && x.fileId) x.img = ''; });
+  try { W.matCum = calcMatCum(W, PW); const p = clone(W); delete p._unsaved; delete p._lockNow; delete p._stale; (p.photos||[]).concat(p.layouts||[], p.gantt||[]).forEach(x=>{ if (x && x.fileId) x.img = ''; });
     const res = await Store.savePeriod(p) || {}; delete W._unsaved; delete W._lockNow;
     if (res.gantt) res.gantt.forEach((f,i)=>{ if (W.gantt[i] && f) W.gantt[i].fileId = f; });
     if (res.layouts) res.layouts.forEach((f,i)=>{ if (W.layouts[i] && f) W.layouts[i].fileId = f; });
@@ -2071,6 +2077,7 @@ function renderWeek(){
   let h = `<div class="ph"><h3>Báo cáo tuần ${w.no ? esc(w.no) + ' ' : ''}· ${vi(pr.from)} → ${vi(pr.to)}</h3>${st}${w.version > 1 ? ` <span class="hint">bản v${w.version}</span>` : ''}</div>
   <div class="note">${A.n} ngày có báo cáo${A.unl.length ? ` · <b>${A.unl.length} ngày chưa chốt</b> (${A.unl.map(d=>vi(d).slice(0,5)).join(', ')}) – số liệu tạm` : ''}${w.genAt ? ` · tổng hợp lúc ${esc(w.genAt)}` : ''}${w._unsaved && isChot() ? ' · <b>chưa lưu</b>' : ''}
     ${RO ? '' : ' <button class="btn sm" data-act="wGen">⟳ Tổng hợp lại</button>'}</div>
+  ${w._stale && !RO && isChot() ? `<div class="note w">⚠ Số liệu báo cáo ngày đã thay đổi sau lần tổng hợp${w.genAt ? ' lúc ' + esc(w.genAt) : ''} – bấm <b>⟳ Tổng hợp lại</b> để cập nhật báo cáo tuần.</div>` : ''}
   ${rv.status === 'returned' ? `<div class="note w">↩ TVGS yêu cầu sửa${rv.at ? ' (' + esc(rv.at) + ')' : ''}: ${rv.note ? `<b style="white-space:pre-wrap">${esc(rv.note)}</b>` : ''}${cmtPanel(rv.items, 'ret')}${isChot() ? 'Sửa xong bấm <b>🔒 Chốt tuần</b> để gửi TVGS kiểm tra lại.' : ''}${canReview() && !isChot() ? `<div class="bar" style="margin:6px 0 0"><button class="btn" data-act="cmtBasket">📝 Gửi bổ sung ý kiến${cmtCount() ? ' (' + cmtCount() + ')' : ''}</button><span class="hint">Bấm 💬 ở từng dòng để thêm ý kiến.</span></div>` : ''}</div>` : ''}${rv.lastNote ? `<div class="note w">Lần trước TVGS ghi: ${esc(rv.lastNote)}</div>` : ''}${rv.status === 'pending' && (rv.lastItems || []).length ? `<div class="note"><details><summary>Ý kiến TVGS lần trước – đã sửa ${rv.lastItems.filter(c=>c.fixed).length}/${rv.lastItems.length}</summary>${cmtPanel(rv.lastItems, 'last')}</details></div>` : ''}${canReview() && w.status === 'locked' && rv.status === 'pending' ? '<div class="hint" style="margin:4px 0">💬 Góp ý từng dòng: bấm 💬 ngay tại dòng trong các thẻ, cuối cùng bấm “Yêu cầu nhà thầu sửa” để gửi 1 lần.</div>' : ''}
   <div class="wpane">`;
   const o = w.overall, first = !PW, lockHint = '<div class="hint">🔒 Ô xám tổng hợp từ báo cáo ngày – không sửa. Sai thì sửa ở báo cáo ngày rồi bấm “Tổng hợp lại”. Dòng thêm mới (nhãn <b>Mới</b>) sửa được.</div>';
@@ -2755,7 +2762,7 @@ document.addEventListener('click', async function onClick(e){
   if (a==='geoHere'){ if (!navigator.geolocation) return toast('Thiết bị không hỗ trợ định vị');
     navigator.geolocation.getCurrentPosition(p=>{ CFG.project.lat = p.coords.latitude.toFixed(5); CFG.project.lon = p.coords.longitude.toFixed(5); renderConfig.edit = true; renderConfig(); toast('📍 Đã lấy tọa độ – bấm Lưu'); }, ()=>toast('Không lấy được vị trí – kiểm tra quyền định vị'), {enableHighAccuracy:true, timeout:15000}); return; }
   if (b.dataset.wtab){ WTAB = b.dataset.wtab; renderWeek(); if (isMobile()) b.scrollIntoView({inline:'center', block:'nearest'}); return; }
-  if (a==='wGen'){ genWeek(W, P.reports, PW); markDirty('W'); renderWeek(); loadImages(); toast('✔ Đã tổng hợp lại – giữ dòng thêm mới và ghi chú'); if (regOn() && IS_GAS) readRegister(true); return; }
+  if (a==='wGen'){ genWeek(W, P.reports, PW); delete W._stale; markDirty('W'); renderWeek(); loadImages(); toast('✔ Đã tổng hợp lại – giữ dòng thêm mới và ghi chú'); if (regOn() && IS_GAS) readRegister(true); return; }
   if (a==='wReg') return readRegister();
   if (a==='regSet'){ const link = ($('#regLink').value||'').trim(); if (!link) { toast('Dán link file Google Sheet theo dõi hồ sơ trước'); return; }
     toast('Đang đọc file…', 8000);
