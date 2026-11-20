@@ -351,3 +351,58 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   ctx.apiSavePeriod(tkA, JSON.stringify(Object.assign({}, wk, { status: 'locked' }))); e = ''; try { ctx.apiDeleteWeek(tkA, k); } catch (x) { e = x.message; }
   A([/đã chốt/.test(e) && !!ctx.weekGet_(k), 'Tuần đã chốt → không xóa được']);
 })();
+// ===== Đợt 10A: vai CĐT / TVGS, lọc ở máy chủ, "Xem như", Quản trị cuối =====
+(() => {
+  const adm = J(ctx.apiPublicConfig()).users.find(u => u.role === 'admin'), tkA = J(ctx.apiLogin(adm.id, '5678')).token;
+  const c0 = J(ctx.apiPublicConfig()); A([(c0.settings || {}).roles10 === true, 'dự án khai báo mới: không cần nhắc rà vai trò']);
+  c0.settings = Object.assign({}, c0.settings, { requireReview: true });
+  if (!c0.users.some(u => u.id === 'uX')) c0.users.push({ id: 'uX', name: 'CĐT cũ', role: 'xem', active: true });
+  if (!c0.users.some(u => u.id === 'uT10')) c0.users.push({ id: 'uT10', name: 'TVGS 10', role: 'tvgs', active: true });
+  ctx.apiSaveConfig(tkA, JSON.stringify(c0)); ctx.apiSetPin(tkA, 'uX', '4444'); ctx.apiSetPin(tkA, 'uT10', '1010');
+  C.__resetMemo(); A([C.cfg_().users.find(u => u.id === 'uX').role === 'cdt', 'vai "Chỉ xem" cũ tự đổi thành CĐT']);
+  const tkX = J(ctx.apiLogin('uX', '4444')).token, tkT = J(ctx.apiLogin('uT10', '1010')).token, tkC = J(ctx.apiLogin('uC7', '7777')).token, tkK = J(ctx.apiLogin('uK7', '7171')).token;
+  A([tkX && tkT && tkC && tkK, 'đăng nhập 4 vai']);
+  const mk = (d, st) => Object.assign({}, rep, { date: d, status: st, version: 1, tasks: [], plans: [], photos: [], layouts: [], extraPhotos: [] });
+  const D1 = '2027-03-01', D2 = '2027-03-02', D3 = '2027-03-03', D4 = '2027-03-04';
+  ctx.apiSaveReport(tkC, JSON.stringify(mk(D1, 'draft')));
+  [D2, D3, D4].forEach(d => ctx.apiSaveReport(tkC, JSON.stringify(mk(d, 'locked'))));
+  ctx.apiReview(tkT, D3, 'approve'); ctx.apiReview(tkT, D4, 'return', 'Sửa nhân lực');
+  ctx.apiSaveSub(tkK, JSON.stringify({ key: D1 + '|uK7', date: D1, uid: 'uK7', status: 'submitted', tasks: [], plans: [], inspections: [], inspectionPlans: [], tests: [], photos: [] }));
+  const err = (f) => { try { f(); return ''; } catch (e) { return e.message; } };
+  // CĐT
+  A([/chưa phát hành/.test(err(() => ctx.apiOpen(tkX, D1, 'day'))) && /chưa phát hành/.test(err(() => ctx.apiOpen(tkX, D2, 'day'))) && /chưa phát hành/.test(err(() => ctx.apiOpen(tkX, D4, 'day'))), 'CĐT mở ngày nháp / chờ kiểm tra / bị trả → "chưa phát hành"']);
+  const bx = J(ctx.apiOpen(tkX, D3, 'day')); A([bx.report && bx.report.review.status === 'approved', 'CĐT mở ngày TVGS đã xác nhận']);
+  A([bx.index.reports.length > 0 && bx.index.reports.every(r => r.review === 'approved') && bx.index.subs.length === 0, 'CĐT: danh mục chỉ có ngày đã phát hành, không có phiếu kỹ sư']);
+  const b0 = J(ctx.apiOpen(tkX, '', 'day')); A([b0.report && b0.report.review.status === 'approved', 'CĐT mở mặc định → ngày đã phát hành gần nhất (' + b0.date + ')']);
+  A([!bx.prev || bx.index.reports.some(r => r.date === bx.prev.date), 'CĐT: ngày trước kèm theo cũng là ngày đã phát hành']);
+  const px = J(ctx.apiPeriod(tkX, D1, D4, '')); A([px.reports.length === 1 && px.reports[0].date === D3 && px.subs.length === 0, 'CĐT: kỳ chỉ gom ngày đã phát hành, không có phiếu kỹ sư']);
+  // TVGS
+  A([/chưa được nhà thầu chốt/.test(err(() => ctx.apiOpen(tkT, D1, 'day'))), 'TVGS mở ngày chưa chốt → lỗi']);
+  A([J(ctx.apiOpen(tkT, D2, 'day')).report.status === 'locked' && J(ctx.apiOpen(tkT, D4, 'day')).report.review.status === 'returned', 'TVGS mở ngày đã chốt + ngày đã trả về']);
+  const it = J(ctx.apiOpen(tkT, D2, 'day')).index; A([!it.reports.some(r => r.date === D1) && it.reports.some(r => r.date === D4) && it.subs.length === 0, 'TVGS: danh mục không có ngày nháp, không có phiếu kỹ sư']);
+  A([J(ctx.apiPeriod(tkT, D1, D4, '')).reports.map(r => r.date).join() === [D2, D3, D4].join(), 'TVGS: kỳ gom ngày đã chốt / đã trả về']);
+  // Tuần
+  const wk = { v: 2, kind: 'week', key: 'W-2027-03-05', from: '2027-03-05', to: '2027-03-11', no: 50, status: 'draft', version: 1, overall: {}, tasks: [] };
+  ctx.apiSavePeriod(tkC, JSON.stringify(wk));
+  let pw = J(ctx.apiPeriod(tkX, wk.from, wk.to, wk.key)), pt = J(ctx.apiPeriod(tkT, wk.from, wk.to, wk.key));
+  A([!pw.manual && /chưa phát hành/.test(pw.hidden) && !pt.manual && /chưa được nhà thầu chốt/.test(pt.hidden), 'Tuần nháp: CĐT, TVGS không nhận bản tuần']);
+  ctx.apiSavePeriod(tkC, JSON.stringify(Object.assign({}, wk, { status: 'locked' })));
+  pw = J(ctx.apiPeriod(tkX, wk.from, wk.to, wk.key)); pt = J(ctx.apiPeriod(tkT, wk.from, wk.to, wk.key));
+  A([!pw.manual && pw.hidden && pt.manual && pt.manual.status === 'locked' && !pt.hidden, 'Tuần đã chốt: TVGS thấy, CĐT chưa']);
+  ctx.apiReviewPeriod(tkT, wk.key, 'approve'); pw = J(ctx.apiPeriod(tkX, wk.from, wk.to, wk.key));
+  A([pw.manual && pw.manual.review.status === 'approved' && !pw.hidden, 'Tuần TVGS xác nhận → CĐT thấy']);
+  A([J(ctx.apiPeriod(tkC, D1, D4, '')).reports.length === 4 && J(ctx.apiOpen(tkC, D1, 'day')).report.status === 'draft', 'Người chốt vẫn thấy mọi ngày (kể cả nháp)']);
+  // Quyền cấu hình
+  A([/quyền/.test(err(() => ctx.apiSaveConfig(tkC, JSON.stringify(J(ctx.apiPublicConfig()))))) && /quyền/.test(err(() => ctx.apiSetPin(tkC, 'uK7', '1212'))), 'Người chốt không sửa Cấu hình, không đặt PIN người khác']);
+  A([/quyền/.test(err(() => ctx.apiSaveLogo(tkC, 'client', 'data:image/png;base64,iVBORw0KGgo=', ''))) && /quyền/.test(err(() => ctx.apiClearTestDays(tkC))), 'Người chốt không đổi logo, không xóa ngày thử']);
+  // Xem như (chỉ Quản trị, chỉ thu hẹp)
+  A([/chưa phát hành/.test(err(() => ctx.apiOpen(tkA + '~cdt', D1, 'day'))) && J(ctx.apiOpen(tkA, D1, 'day')).report.status === 'draft', 'Quản trị "Xem như CĐT": máy chủ lọc như CĐT; bỏ "xem như" → thấy hết']);
+  A([/quyền/.test(err(() => ctx.apiSaveConfig(tkA + '~chot', JSON.stringify(J(ctx.apiPublicConfig()))))), 'Quản trị "Xem như người chốt" → không lưu Cấu hình được']);
+  A([/quyền/.test(err(() => ctx.apiSaveConfig(tkC + '~admin', JSON.stringify(J(ctx.apiPublicConfig()))))) && /quyền/.test(err(() => ctx.apiReview(tkK + '~tvgs', D2, 'approve'))), '"Xem như" từ tài khoản không phải Quản trị → bị bỏ qua, không mở rộng quyền']);
+  A([J(ctx.apiOpen(tkA + '~xyz', D1, 'day')).report.status === 'draft', 'Vai "xem như" không hợp lệ → bỏ qua']);
+  ctx.apiSaveReport(tkA + '~chot', JSON.stringify(mk('2027-03-06', 'draft')));
+  A([sheets.NhatKy.data.some(r => /\(xem như chot\)/.test(r[1]) && r[3] === '2027-03-06'), 'Nhật ký ghi "(xem như <vai>)"']);
+  // Quản trị cuối
+  const c9 = J(ctx.apiPublicConfig()); c9.users = c9.users.filter(u => u.role !== 'admin');
+  A([/ít nhất 1 tài khoản Quản trị/.test(err(() => ctx.apiSaveConfig(tkA, JSON.stringify(c9)))), 'Không xóa được Quản trị cuối cùng']);
+})();

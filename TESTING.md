@@ -25,6 +25,7 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - Báo cáo tuần: lưu nháp + tải ảnh Gantt, chặn xuất PDF khi chưa chốt / chưa TVGS xác nhận, chốt ghi 6 bảng Tuan_*, TVGS trả lại phải ghi chú, xác nhận sinh mã tra được, tuần đã chốt không bị ghi đè, PDF lưu thẳng thư mục đã chọn và ai có link xem được, tuần sau nhận số liệu tuần trước, mở khóa làm mã cũ hết hiệu lực, tải PDF MS Project.
 - Hồ sơ đệ trình: link sổ sai/không quyền, nhận loại trang tính, chỉ lấy hồ sơ phát sinh trong tuần (bỏ cũ không đổi, bỏ hủy), ô ngày kiểu Date/chữ, mô tả 2 dòng, B/A → Đã duyệt, C cũ có kết quả trong tuần, MEP đang kiểm tra, văn bản trong tuần, ghi Tuan_HoSo.
 - Reset toàn bộ: lưu trữ, xóa dữ liệu, thu hồi token.
+- Phân vai (Đợt 10A): CĐT chỉ mở / thấy ngày, tuần đã phát hành; TVGS chỉ thấy bản nhà thầu đã chốt; không gửi phiếu kỹ sư cho CĐT/TVGS trong danh mục; người chốt không sửa Cấu hình; "Xem như" chỉ nhận từ Quản trị, chỉ thu hẹp; nhật ký ghi "(xem như …)"; vai "xem" cũ → CĐT; không xóa được Quản trị cuối.
 
 **Giao diện (Playwright, điện thoại 375/390/412 px + máy tính, ảnh ở `tests/shots/`)**
 - Trên 3 cỡ điện thoại: không tràn ngang, không lỗi JavaScript, nút ＋ nổi, thêm việc / nghiệm thu / kế hoạch ngày mai, lũy kế tự cộng.
@@ -32,9 +33,20 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 - PDF: bản nháp có dấu BẢN NHÁP, cột lũy kế hôm qua/chênh lệch, PDF tuần có mục tuân thủ KH, nguồn thời tiết.
 - TVGS & xác thực: tin nhắn Zalo soạn sẵn, quét QR ra trang xác thực, tra mã sai.
 - Phiên đăng nhập: "Ghi nhớ" / không ghi nhớ, tự đăng xuất sau 8 giờ.
+- Phân vai (Đợt 10A): menu, chọn ngày, dải màu khu theo vai CĐT / TVGS / Quản trị; tuần chưa phát hành chỉ hiện thông báo; "Xem như" trên dải Chế độ thử; dải nhắc + checklist "Rà lại vai trò".
 - Báo cáo tuần: tự tổng hợp khi mở, đầu trang thông tin dự án + thông tin chung + overall + A.1, biểu đồ nhân sự, đánh giá Đạt/Chậm (ngưỡng 5%), tổng hợp lại giữ dòng sửa tay, KH tuần sau từ việc chưa xong, tên file mẫu VC-WR-34, chốt → TVGS xác nhận → QR + tra mã, tuần sau tự lấy số tuần & % tuần trước, tuần đã xác nhận khóa nhập.
 
 ## Ghi chú từng đợt sửa
+
+### Đợt 10A – Phân vai Nhà thầu – TVGS – CĐT (20/11/2026)
+- **Sửa gì:** thêm vai **CĐT – Ban QLDA** (vai “Chỉ xem” cũ tự đổi sang). Máy chủ lọc: CĐT chỉ mở / thấy ngày và tuần TVGS đã xác nhận; TVGS chỉ thấy bản nhà thầu đã chốt (kể cả bản đã trả về); danh mục ngày gửi cho 2 vai này không còn phiếu kỹ sư. Mở ngày không được thấy → báo “chưa phát hành” / “chưa được nhà thầu chốt”.
+- Quản trị “Xem như <vai>” trên dải vàng Chế độ thử: gửi kèm mã phiên `<mã>~<vai>`; máy chủ chỉ nhận khi tài khoản thật là Quản trị, chỉ thu hẹp quyền, nhật ký ghi “(xem như …)”.
+- Dải màu khu dưới đầu trang (🟡 Nhà thầu · 🔵 TVGS · 🟢 CĐT · 🟣 Quản trị). Menu CĐT: “Ngày đã phát hành” · “Tuần đã phát hành”. Không xóa được Quản trị cuối.
+- Dải nhắc “Rà lại vai trò” + checklist chuyển vai ở Cấu hình → Người dùng & PIN đến khi bấm “Đã rà xong” (dự án khai báo mới không hiện).
+- Đọc ảnh bằng `URL.createObjectURL` thay FileReader (máy yếu không treo khi chọn nhiều ảnh lớn).
+- **Kiểm thử mới:** gastest +25 (lọc CĐT/TVGS ngày – kỳ – tuần, quyền cấu hình người chốt, Xem như, nhật ký, Quản trị cuối, đổi vai cũ). ui.js +19 (menu, ngày, dải màu từng vai, tuần chưa phát hành, Xem như CĐT/TVGS, nhắc rà vai trò, 375/412 px).
+- **Ảnh đã xem:** `desk_10a_cdt_day`, `desk_10a_xemnhu_cdt`, `desk_10a_roles_check`, `m_10a_375_cdt`.
+- **Rủi ro còn lại:** (1) kỹ sư vẫn nhận dữ liệu báo cáo ngày như trước (thẻ “Báo cáo đã phát hành” cho kỹ sư để sang 10B); (2) trang mở đầu (trước đăng nhập) vẫn nhúng danh mục ngày đầy đủ – chỉ ngày + trạng thái, không có nội dung; (3) dữ liệu demo: ngày 25/06 thực ra đang “chờ kiểm tra” (lỗi cũ của hàm tạo mẫu), kiểm thử tự xác nhận trước khi thử vai CĐT.
 
 ### Đợt 9.7 – Quản trị xóa bản tuần, làm lại từ đầu (20/11/2026)
 - **Sửa gì:** nút “🗑 Xóa bản tuần này, làm lại từ đầu” (thẻ Chung, chỉ Quản trị, chỉ tuần chưa chốt, có hỏi lại). Xóa bản tuần đã lưu (số nhập tay, ý kiến TVGS, trạng thái trả về) + nháp ý kiến trên máy; báo cáo ngày giữ nguyên; app tự tổng hợp lại. Máy chủ `apiDeleteWeek` chặn người không phải quản trị và tuần đã chốt, ghi nhật ký XOA_BAN_TUAN.
@@ -313,3 +325,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 04:15 | fe315c3 | đạt | 145 đạt / 0 lỗi | 215 đạt / 0 lỗi | ✅ ĐẠT | 9.6 ý kiến TVGS trên dòng đã xóa → tự đánh dấu đã sửa |
 | 2026-11-20 04:33 | f5af234 | đạt | 145 đạt / 0 lỗi | 218 đạt / 0 lỗi | ✅ ĐẠT | 9.6b nhắc Tổng hợp lại khi số liệu ngày đổi |
 | 2026-11-20 05:57 | 970b006 | đạt | 149 đạt / 0 lỗi | 221 đạt / 0 lỗi | ✅ ĐẠT | 9.7 quản trị xóa bản tuần làm lại từ đầu |
+| 2026-11-20 19:37 | 73d1987 | đạt | 174 đạt / 0 lỗi | 240 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A – phân vai CĐT/TVGS, Xem như, dải màu khu, nhắc rà vai trò |

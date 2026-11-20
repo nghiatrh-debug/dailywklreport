@@ -526,6 +526,54 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     await ctx.close();
   }
 
+  /* ---------- ĐỢT 10A: vai CĐT / TVGS, Xem như, dải màu khu, nhắc rà vai trò ---------- */
+  {
+    const { ctx, pg, errs } = await fresh(browser, { viewport: { width: 1440, height: 900 } });
+    const navT = () => pg.$$eval('#nav .pill', b => b.map(x => x.textContent).join('|'));
+    const dates = () => pg.$$eval('#dateSel option', o => o.map(x => x.value).filter(v => v !== '__pick').sort().join(','));
+    ok(await pg.evaluate(() => migRoles({ users: [{ role: 'xem' }, { role: 'ks' }] }).users.map(u => u.role).join() === 'cdt,ks'), '10A: vai “Chỉ xem” cũ đổi thành CĐT khi nạp cấu hình');
+    await login(pg, 'u_tvgs', '3333');
+    ok(await dates() === '2026-06-25,2026-06-26' && /TVGS – chờ kiểm tra/.test(await pg.innerText('#zoneBar')), '10A TVGS: chỉ ngày nhà thầu đã chốt (không có ngày nháp 27/06), dải xanh dương');
+    await pg.evaluate(() => Store.review('2026-06-25', 'approve')); await wait(300);       // TVGS xác nhận 25/06 → phát hành
+    await login(pg, 'u_cdt', '0000');
+    ok(/Ngày đã phát hành/.test(await navT()) && !/Cấu hình|Tổng hợp/.test(await navT()), '10A CĐT: menu chỉ có báo cáo đã phát hành ' + await navT());
+    ok(await dates() === '2026-06-25', '10A CĐT: chọn ngày chỉ có ngày TVGS đã xác nhận: ' + await dates());
+    ok(/CĐT – đã phát hành/.test(await pg.innerText('#zoneBar')) && await pg.evaluate(() => R && R.review && R.review.status === 'approved'), '10A CĐT: dải xanh lá “CĐT – đã phát hành”, mở bản đã xác nhận');
+    ok(!(await pg.locator('[data-act=lock],[data-act=unlock],[data-act=drive],[data-act=approveRep]').count()), '10A CĐT: không có nút chốt / xác nhận / xuất PDF');
+    await shot(pg, 'desk_10a_cdt_day');
+    await pg.evaluate(() => go('period')); await wait(500); await pg.fill('#pAnchor', '2026-06-26'); await pg.dispatchEvent('#pAnchor', 'change'); await wait(700);
+    ok(/chưa phát hành/.test(await pg.innerText('#periodPane')) && !(await pg.locator('#wActs button').count()), '10A CĐT: tuần chưa xác nhận → “chưa phát hành”, không nội dung');
+    await shot(pg, 'desk_10a_cdt_week');
+    await pg.evaluate(() => go('day')); await wait(500);
+    await login(pg, 'u_chot', '1234');
+    ok(/Quản trị/.test(await pg.innerText('#zoneBar')) && /Cấu hình/.test(await navT()) && !(await pg.locator('#asSel').count()), '10A Quản trị: dải tím; tắt chế độ thử thì không có “Xem như”');
+    await pg.evaluate(async () => { CFG.settings = Object.assign({}, CFG.settings, { testMode: true }); await Store.saveConfig(CFG); renderNav(); }); await wait(300);
+    await pg.selectOption('#asSel', 'cdt'); await wait(900);
+    ok(!/Cấu hình/.test(await navT()) && await dates() === '2026-06-25' && /CĐT/.test(await pg.innerText('#zoneBar')) && /xem như/.test(await pg.innerText('#userChip')), '10A Xem như CĐT: menu, ngày, dải màu đúng vai CĐT');
+    await shot(pg, 'desk_10a_xemnhu_cdt');
+    await pg.selectOption('#asSel', 'tvgs'); await wait(900);
+    ok(await dates() === '2026-06-25,2026-06-26' && /Kiểm tra báo cáo ngày/.test(await navT()), '10A Xem như TVGS');
+    await pg.selectOption('#asSel', ''); await wait(900);
+    ok(/Cấu hình/.test(await navT()) && (await dates()).split(',').includes('2026-06-27'), '10A bỏ “Xem như” → về Quản trị, thấy ngày nháp');
+    await pg.evaluate(async () => { CFG.settings.testMode = false; CFG.settings.roles10 = false; await Store.saveConfig(CFG); renderNav(); }); await wait(300);
+    ok(await pg.isVisible('#rolesNote [data-act=goRoles]'), '10A: Quản trị thấy dải nhắc “Rà lại vai trò”');
+    await pg.click('#rolesNote [data-act=goRoles]'); await wait(500);
+    ok(await pg.isVisible('#rolesChk') && /Chỉ định tài khoản/.test(await pg.innerText('#rolesChk')) && /CĐT – Ban QLDA/.test(await pg.innerText('#cfgPane, #v-config')), '10A: Người dùng & PIN có checklist chuyển vai, vai CĐT trong danh sách');
+    await shot(pg, 'desk_10a_roles_check');
+    await pg.click('[data-act=rolesOk]'); await wait(500);
+    ok(!(await pg.isVisible('#rolesChk')) && !(await pg.isVisible('#rolesNote [data-act=goRoles]')) && await pg.evaluate(() => CFG.settings.roles10 === true), '10A: bấm “Đã rà xong” → hết nhắc');
+    ok(!errs.length, '10A: không lỗi JavaScript ' + errs.join(' | '));
+    await ctx.close();
+  }
+  for (const [n, W, H] of [['10a_375', 375, 740], ['10a_412', 412, 860]]) {
+    const { ctx, pg, errs } = await fresh(browser, { viewport: { width: W, height: H }, isMobile: true, hasTouch: true });
+    await login(pg, 'u_cdt', '0000');
+    ok(await pg.isVisible('#zoneBar') && await pg.evaluate(() => document.documentElement.scrollWidth) <= W, `${n} CĐT: dải màu khu, không tràn ngang`);
+    await shot(pg, 'm_' + n + '_cdt');
+    ok(!errs.length, `${n}: không lỗi JavaScript ` + errs.join(' | '));
+    await ctx.close();
+  }
+
   /* ---------- ĐIỆN THOẠI ---------- */
   for (const [W, H, n] of [[375, 667, 'se'], [390, 844, 'ip'], [412, 915, 'an']]) {
     const { ctx, pg, errs } = await fresh(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });

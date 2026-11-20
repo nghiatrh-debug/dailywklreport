@@ -358,3 +358,153 @@ Trạng thái: **ĐÃ CHỐT** (17/11/2026). Báo cáo tháng giữ nguyên. H�
 - Xóa dòng tuần trong TongHopKy (số nhập tay, ý kiến TVGS, trạng thái trả về). Báo cáo ngày, phiếu kỹ sư giữ nguyên. Mở lại → tự tổng hợp mới. Ghi nhật ký XOA_BAN_TUAN.
 - Máy chủ chặn: không phải quản trị, hoặc tuần đã chốt.
 - “🗑 Xóa toàn bộ ngày thử” xóa thêm các bản tuần chưa chốt có chứa ngày thử.
+
+## Đợt 10: Phân vai Nhà thầu – TVGS – CĐT, tự phát hành PDF, Ý kiến TVGS, Lỗi tồn đọng, mất sóng
+
+Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Draft Đợt 5 — LẬP BÁO CÁO THI CÔNG theo vai trò". Đang làm: **10A**.
+Áp dụng mọi dự án dùng khuôn mẫu. Làm theo 4 gói tách rời, mỗi gói triển khai và chạy thử riêng: **10A → 10B → 10C → 10D**.
+
+---
+
+### 10A. Vai trò và phạm vi nhìn thấy
+
+#### 10A.1 Năm vai trò
+| Mã | Tên hiển thị | Đơn vị | Ghi chú |
+|---|---|---|---|
+| `admin` | Quản trị (PMH) | CĐT – PMH | Người được trao quyền triển khai dự án. Giữ toàn bộ cài đặt, người dùng, PIN, logo, thư mục. Phân vai cho người các đơn vị. **Thấy tất cả**, kể cả bản nháp. Làm thay được mọi vai (dự phòng). |
+| `cdt` | CĐT – Ban QLDA | CĐT – PMH | **Chỉ thấy báo cáo ngày/tuần đã được TVGS xác nhận.** Không xem sớm. Không góp ý báo cáo trong app. Được tạo **yêu cầu khắc phục** hiện trường (10C). Thay cho vai `xem` cũ. |
+| `tvgs` | TVGS – kiểm tra nội dung | TVGS | Thấy báo cáo **từ lúc nhà thầu chốt**. Kiểm tra, ghi Ý kiến TVGS, Xác nhận / Yêu cầu sửa. Tạo và đóng yêu cầu khắc phục của mình, nhắc nhà thầu với yêu cầu do CĐT tạo. |
+| `chot` | Người tổng hợp / chốt | Nhà thầu chính | Tổng hợp, chốt ngày/tuần, sửa khi bị trả. **Không còn quyền Cấu hình.** Phản hồi yêu cầu khắc phục. |
+| `ks` | Kỹ sư hiện trường | Nhà thầu | Như hiện tại (chỉ phiếu của mình). Phản hồi yêu cầu khắc phục thuộc khu vực được giao. |
+
+#### 10A.2 Bảng quyền
+| Việc | ks | chot | tvgs | cdt | admin |
+|---|:-:|:-:|:-:|:-:|:-:|
+| Lập / nộp phiếu kỹ sư | ✔ | ✔ (nộp thay) | | | ✔ |
+| Tổng hợp, chốt ngày / tuần, mở khóa | | ✔ | | | ✔ |
+| Xem bản nháp, bản chưa chốt | phiếu của mình | ✔ | | | ✔ |
+| Xem bản đã chốt, chờ kiểm tra, bị trả | | ✔ | ✔ | | ✔ |
+| Ý kiến từng dòng (Đợt 9), Xác nhận / Yêu cầu sửa | | | ✔ | | ✔ |
+| Ý kiến TVGS in PDF (10B) | | | ✔ | | ✔ |
+| Phát hành PDF + QR | | xuất lại (dự phòng) | **tự động khi xác nhận** | | ✔ |
+| Xem bản đã phát hành | ✔ | ✔ | ✔ | ✔ | ✔ |
+| Tạo yêu cầu khắc phục (10C) | | | ✔ | ✔ | ✔ |
+| Phản hồi bằng ảnh | ✔ (khu vực mình) | ✔ | | | ✔ |
+| Đóng / trả lại yêu cầu | | | của TVGS | của CĐT | ✔ mọi yêu cầu |
+| Nhắc nhà thầu | | | ✔ (yêu cầu của CĐT) | | ✔ |
+| Cấu hình, người dùng, PIN, logo, thư mục, Cài đặt | | | | | ✔ |
+
+#### 10A.3 Menu theo vai (chỉ thấy thẻ của mình)
+- **ks**: Phiếu của tôi · Yêu cầu khắc phục · Báo cáo đã phát hành.
+- **chot**: Tổng hợp & chốt ngày · Báo cáo tuần · Bị TVGS trả về (số) · Yêu cầu khắc phục (số).
+- **tvgs**: Hộp chờ kiểm tra (số, ngày + tuần, cũ nhất lên đầu) · Đã xác nhận · Lỗi tồn đọng.
+- **cdt**: Báo cáo đã phát hành (ngày / tuần, mới nhất lên đầu) · Lỗi tồn đọng · Tra mã xác thực.
+- **admin**: toàn bộ thẻ + Cấu hình.
+- Dải màu dưới đầu trang cho biết đang ở khu nào: 🟡 Nhà thầu – đang làm · 🔵 TVGS – chờ kiểm tra · 🟢 CĐT – đã phát hành · 🟣 Quản trị.
+
+#### 10A.4 Lọc ở máy chủ (không chỉ ẩn trên giao diện)
+- `index_` / `idxEnc_`: vai `cdt` chỉ nhận ngày **đã phát hành** = `review.status = 'approved'` (từ 10B: thêm điều kiện `pub = ok`; dự án không bật TVGS kiểm tra: đã chốt) và tuần tương tự. Vai `tvgs` chỉ nhận ngày/tuần đã chốt (`locked`, `returned`, `approved`). Không gửi phiếu kỹ sư (`subs`) cho `tvgs` / `cdt`.
+- `apiOpen` / `bundle_`: `cdt` mở ngày chưa xác nhận → lỗi "Báo cáo chưa phát hành". `tvgs` mở ngày chưa chốt → lỗi tương tự. Không trả `prev` của ngày chưa phát hành cho `cdt`.
+- `apiPeriod`: cùng quy tắc với tuần / tháng. Tháng của `cdt` chỉ gom ngày đã phát hành.
+- `apiSaveConfig`, `apiSetPin` (người khác), `apiSaveLogo`, `apiCheckFolder`, `apiResetAll`, `apiClearTestDays`: chỉ `admin`.
+- Trang xác thực công khai `?v=<mã>` giữ nguyên.
+
+#### 10A.5 Chế độ thử (1 người nhiều vai)
+- Chỉ `admin` thấy ô **"Xem như: <vai>"** trên dải vàng Chế độ thử (đã có Đợt 3).
+- Máy chủ nhận tham số `asRole` **chỉ khi tài khoản thật là `admin`**. `asRole` chỉ **thu hẹp** quyền, không bao giờ mở rộng. Ghi nhật ký kèm "(xem như <vai>)".
+- Khi triển khai thật: mỗi tài khoản 1 vai, tắt Chế độ thử.
+
+#### 10A.6 Chuyển đổi khi cập nhật
+- Vai `xem` cũ tự đổi thành `cdt`.
+- Sau cập nhật, `admin` thấy dải nhắc **"Rà lại vai trò"** ở Cấu hình → Người dùng & PIN cho đến khi bấm "Đã rà". **Việc tay bắt buộc:** tài khoản nhà thầu đang giữ `admin` (người chốt hiện tại) đổi sang `chot`; người PMH được giao giữ `admin`. **Làm bước này trước khi báo nhà thầu dùng bản mới**, để người chốt không mất quyền giữa chừng.
+- Không cho xóa / hạ vai `admin` cuối cùng.
+- **Checklist chuyển vai** (in ở dải nhắc): (1) tạo / chỉ định tài khoản PMH giữ `admin`; (2) đổi tài khoản người chốt nhà thầu sang `chot`; (3) kiểm tra người chốt đăng nhập lại được và chốt thử; (4) mới báo nhà thầu dùng bản mới. Ghi rõ người làm, ngày làm.
+
+---
+
+### 10B. Tự phát hành PDF khi TVGS xác nhận + Ý kiến TVGS
+
+#### 10B.1 Tự phát hành
+- Luồng mới (ngày và tuần giống nhau): Nhà thầu **chốt** → TVGS **Xác nhận** → **PDF + QR tự xuất, lưu Drive** → báo cáo sang khu CĐT. **Bỏ bước người chốt bấm Xuất PDF.**
+- Kỹ thuật: PDF đang dựng HTML trên trình duyệt. Sau khi `apiReview(...,'approve')` trả về thành công, trình duyệt của TVGS dựng HTML bản đã xác nhận và gọi `apiExportPdf`. `apiExportPdf` mở cho `tvgs` **chỉ khi** báo cáo đúng `approved` và đúng bản (`rev`) vừa xác nhận.
+- Trạng thái phát hành `pub`: `pending` (đang xuất) · `ok` (fileId, giờ) · `fail` (lỗi). Màn hình TVGS: "⏳ Đang phát hành PDF…" → "✅ Đã phát hành" + nút **Sao chép tin nhắn Zalo** (link PDF, mã xác thực).
+- Xuất lỗi (mạng, Drive, quá giờ): giữ `approved`, đặt `pub=fail`, dải đỏ cho `admin` + `chot` + `tvgs` "Chưa phát hành được PDF ngày …" + nút **Xuất lại** (cả 3 vai). CĐT chỉ thấy báo cáo khi `pub=ok`.
+- Tên file, thư mục: giữ như Đợt 4–6A (xuất lại thay file cũ cùng tên).
+- Lưu ý: TVGS hay dùng điện thoại. PDF tuần nặng (ảnh, Gantt). **Đo thời gian xuất trên điện thoại thật** ở 10B. Nếu quá 60 giây → chuyển dựng HTML ở máy chủ (gói sau).
+
+#### 10B.2 Ý kiến TVGS (in vào PDF)
+- **Khác Đợt 9**: Đợt 9 là ý kiến từng dòng để **yêu cầu nhà thầu sửa**, không in. 10B là **nhắc nhở / lưu ý của TVGS kèm bản xác nhận**, in vào PDF.
+- Nhập trong hộp **Xác nhận**: mỗi ý kiến = loại (Chất lượng / An toàn / Tiến độ / Vệ sinh – môi trường / Khác) + nội dung. Có thể không có ý kiến nào.
+- Dữ liệu: `review.remarks:[{cat,text}]`. **Tính vào mã xác thực** (SHA-256 nội dung) → in xong không sửa được. Mở khóa → xóa remarks cùng dấu TVGS, **nhưng trước khi xóa ghi nhật ký `MO_KHOA` kèm remarks cũ + mã xác thực cũ** (PDF cũ đã gửi Zalo vẫn tra lại được).
+- **Mã xác thực do máy chủ tính** từ dữ liệu đã lưu (không lấy từ HTML trình duyệt gửi lên) → PDF dựng trên máy TVGS mà sai lệch thì quét QR là lộ.
+- PDF ngày và tuần: khung **"Ý KIẾN TVGS / CONSULTANT'S REMARKS"** viền xanh, đặt **trước phần ký**. Không có ý kiến → ẩn khung.
+- Tuần: TVGS ghi ý kiến riêng cho tuần + **mục 🔒 tự gom ý kiến TVGS của các ngày trong tuần, chỉ đọc** (mỗi dòng: ngày · loại · nội dung). *(Đã chốt.)*
+- Nhật ký: `TVGS_XAC_NHAN` ghi thêm số ý kiến.
+
+---
+
+### 10C. Lỗi tồn đọng / Yêu cầu khắc phục (thẻ riêng)
+
+#### 10C.1 Luồng
+1. **TVGS hoặc CĐT** phát hiện lỗi → thẻ *Lỗi tồn đọng* → **📷 Chụp & tạo yêu cầu**. **Bắt buộc ≥ 1 ảnh** (tối đa 4), vị trí, khu vực (theo danh mục Cấu hình), loại, nội dung, hạn khắc phục, giao cho (mặc định Nhà thầu chính).
+2. Nhà thầu nhận ở thẻ *Yêu cầu khắc phục* (số đang chờ) → **📷 Phản hồi bằng ảnh**: **bắt buộc ≥ 1 ảnh sau khắc phục** (tối đa 4) + ghi chú.
+3. **Bên tạo kiểm tra**: ✔ Đạt – đóng, hoặc ↩ Chưa đạt – trả lại (bắt buộc lý do) → quay về bước 2. Quyền đóng **theo vai, không theo người**: yêu cầu do CĐT tạo thì bất kỳ tài khoản `cdt` nào cũng đóng được, do TVGS tạo thì bất kỳ `tvgs` nào cũng đóng được (người tạo nghỉ phép không làm treo yêu cầu). `admin` đóng được mọi yêu cầu.
+4. TVGS thấy cả yêu cầu do CĐT tạo, có nút **🔔 Nhắc nhà thầu** (ghi số lần nhắc, lần cuối; hiện trên yêu cầu cho mọi vai).
+
+- Trạng thái: `open` (chờ nhà thầu) · `fixed` (nhà thầu đã phản hồi) · `closed`. Quá hạn = chưa `closed` và hạn < hôm nay → viền đỏ.
+- Bộ lọc: Đang xử lý · Chờ kiểm tra · Quá hạn · Đã đóng · Tất cả. Ô đếm đầu thẻ cùng 4 nhóm.
+- Kỹ sư thấy yêu cầu thuộc khu vực mình được giao (theo bảng gán kỹ sư – khu vực ở Cấu hình). **Kỹ sư chưa được gán khu vực nào → thấy tất cả** (không bỏ sót). Người chốt thấy tất cả. *(Đã chốt.)*
+- Mã: `LTD-001` tăng dần theo dự án.
+
+#### 10C.2 Dữ liệu
+- Sheet `LoiTonDong`: `ma, ngay_tao, nguoi_tao, vai_tao, khu_vuc, vi_tri, loai, noi_dung, han, giao_cho, trang_thai, anh_loi (fileId…), anh_sau (fileId…), ghi_chu_nt, ngay_phan_hoi, ly_do_tra, so_lan_tra, so_lan_nhac, nhac_cuoi, ngay_dong, nguoi_dong, test`.
+- Ảnh lưu Drive thư mục `Lỗi tồn đọng` (cùng thư mục dữ liệu dự án). Dùng chung `processImage` có đóng dấu giờ + người + dự án.
+- API: `apiIssues(token, filter)`, `apiIssueCreate`, `apiIssueRespond`, `apiIssueReview(token, ma, 'close'|'return', lyDo)`, `apiIssueRemind`. Mỗi bản ghi có `rev`, chống ghi đè như Đợt 5.
+- Máy chủ chặn: tạo khi không phải `tvgs/cdt/admin`; phản hồi khi không phải `ks/chot/admin`, hoặc ks ngoài khu vực; đóng / trả khi không phải vai người tạo hoặc `admin`; thiếu ảnh.
+- Nhật ký: `LOI_TAO`, `LOI_PHAN_HOI`, `LOI_DONG`, `LOI_TRA_LAI`, `LOI_NHAC`.
+- Chế độ thử: yêu cầu tạo khi đang bật cờ `test`; "Xóa toàn bộ ngày thử" xóa luôn.
+
+#### 10C.3 Báo cáo tuần (chỉ tuần, không in vào PDF ngày)
+- Mục mới **I.F – Lỗi tồn đọng** (sau E An toàn), số liệu 🔒 tính tại ngày cuối kỳ:
+  - Dòng tóm tắt: tạo mới trong tuần · đã đóng trong tuần · còn mở · trong đó quá hạn.
+  - Bảng các yêu cầu **còn mở**: Mã · Vị trí · Nội dung · Người yêu cầu · Hạn · Trạng thái · Số lần nhắc. Quá hạn tô đỏ. **Không in ảnh** (giữ PDF tuần nhẹ).
+- Tổng hợp lại tuần đọc lại sheet `LoiTonDong`.
+
+---
+
+### 10D. Làm việc khi mất sóng
+
+- Phạm vi: **phiếu kỹ sư** (`apiSaveSub`) và **phản hồi yêu cầu khắc phục** (kèm ảnh). Không áp dụng cho chốt, xác nhận TVGS, cấu hình (cần trạng thái mới nhất từ máy chủ).
+- Hàng đợi `outbox` trong IndexedDB (app đã có `IDB`, thêm kho mới), khóa theo tài khoản + dự án. Ảnh giữ dạng đã nén.
+- Gửi khi nào: sự kiện `online`, mỗi 30 giây khi còn hàng chờ, khi mở app. Gửi lần lượt, cũ trước.
+- Giao diện: dải "📵 Mất sóng – N mục chờ gửi, sẽ tự gửi khi có mạng". Gửi xong: "✅ Đã gửi bù N mục". Mỗi mục ghi giờ lưu và giờ gửi thật.
+- Xung đột (máy chủ báo `CONFLICT` vì phiếu đã đổi, ví dụ người chốt đã nhận phiếu): **không ghi đè**. Giữ mục ở trạng thái "⚠ Cần xem lại" + nút Mở so sánh (như Đợt 5).
+- Đăng xuất khi còn hàng chờ → hỏi lại "Còn N mục chưa gửi – vẫn đăng xuất?" (hàng chờ giữ cho lần đăng nhập sau của đúng tài khoản).
+- **Rủi ro cần thử thật:** app chạy trong khung GitHub Pages trên iPhone. Safari có thể giới hạn hoặc xóa IndexedDB của khung nhúng (có trường hợp xóa sau 7 ngày không mở). Thử trên iPhone + Android trước khi bật cho mọi người, **có ca: lưu hàng chờ → đóng app 1–2 ngày → mở lại xem còn không**. Không được thì có công tắc tắt ở Cài đặt.
+
+---
+
+### Nén ảnh – đã có, không làm mới
+- App đã nén trước khi tải: `processImage` cắt 1280×960 (ảnh hiện trường) hoặc tối đa 1800 px, JPEG 80%, đóng dấu giờ. Mặt bằng giữ ~2400 px (Đợt 5).
+- Đợt 10 chỉ: dùng lại `processImage` cho ảnh lỗi tồn đọng; đổi `loadImg` từ FileReader (đọc cả file gốc vào bộ nhớ) sang `URL.createObjectURL` để máy yếu không treo khi chọn nhiều ảnh 10–12 MB.
+
+---
+
+### Kiểm thử (thêm vào gastest.js / ui.js)
+- `cdt` gọi `apiOpen` ngày chưa xác nhận → lỗi. `cdt` gọi `index_` không thấy ngày nháp. `tvgs` mở ngày chưa chốt → lỗi.
+- `chot` gọi `apiSaveConfig` → lỗi. Đổi `xem` → `cdt` khi nạp cấu hình cũ. Không hạ được `admin` cuối.
+- `asRole` từ tài khoản không phải `admin` → bị bỏ qua. `asRole` không mở rộng quyền.
+- `tvgs` gọi `apiExportPdf` khi chưa `approved` hoặc sai `rev` → lỗi; đúng → ok. Mã xác thực đổi khi đổi remarks.
+- Yêu cầu khắc phục: tạo thiếu ảnh → lỗi; `ks` tạo → lỗi; `cdt` đóng yêu cầu của TVGS → lỗi; trả lại thiếu lý do → lỗi; nhắc tăng đếm.
+- Mất sóng: giả lập lỗi mạng → vào hàng chờ; có mạng → gửi, xóa khỏi hàng; CONFLICT → giữ, không ghi đè.
+- Giao diện 375 / 390 / 412 px + máy tính: menu đúng từng vai; dải màu khu; số trên thẻ.
+
+### Các điểm đã chốt (20/11/2026)
+1. Kỹ sư thấy yêu cầu khắc phục **theo khu vực mình**; chưa được gán khu vực → thấy tất cả.
+2. Báo cáo tuần **tự gom Ý kiến TVGS của các ngày** thành mục 🔒 chỉ đọc.
+3. **Giữ "Lịch phát hành" cho CĐT** (10B): chỉ hiện ngày / tuần nào chưa phát hành, trễ bao lâu, không hiện nội dung. Ngưỡng cảnh báo: nhà thầu chốt quá **24 giờ** mà TVGS chưa xác nhận → tô đỏ.
+4. Thứ tự **10A → 10B → 10C → 10D**; **10A và 10B đi sát nhau** (điều kiện `pub = ok` của CĐT có từ 10B). Đổi `loadImg` sang `URL.createObjectURL` gộp vào 10A.
+
+### 10A – phạm vi đã làm / để lại
+- Làm: vai `cdt` (đổi từ `xem`), lọc máy chủ cho `cdt` / `tvgs` (danh mục ngày, mở ngày, kỳ tuần/tháng), "Xem như" của Quản trị (máy chủ nhận vai qua phiên `<mã phiên>~<vai>`, chỉ khi tài khoản thật là `admin`), không xóa được Quản trị cuối, dải nhắc "Rà lại vai trò" + checklist, dải màu khu, menu theo vai, `loadImg` dùng `URL.createObjectURL`.
+- Để lại 10B: thẻ "Báo cáo đã phát hành" cho kỹ sư (hiện kỹ sư vẫn nhận dữ liệu ngày như trước – đổi cần làm lại màn hình Phiếu của tôi), "Tra mã xác thực" trên menu CĐT, số đếm trên thẻ.

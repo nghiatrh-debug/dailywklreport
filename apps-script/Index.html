@@ -182,6 +182,10 @@ table.ed .in:focus{background:#fff}
 .lbox .lprev{height:64px;display:flex;align-items:center;justify-content:center;width:100%}.lbox .lprev img{max-height:60px;max-width:100%}.lbox .lprev span{font-size:11.5px;color:var(--mu)}
 .swrow{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--bd);border-radius:12px;background:#fff;margin:6px 0;cursor:pointer}.swrow input{width:20px;height:20px;margin-top:2px;flex:none}
 #testBar{display:none;background:#fde047;color:#713f12;font-weight:800;text-align:center;font-size:13px;padding:6px 10px}#testBar.on{display:block}
+#testBar select{font:inherit;font-weight:700;border:1px solid #a16207;border-radius:6px;background:#fffbeb;color:#713f12;padding:1px 4px;margin-left:4px}
+#zoneBar{display:none;border-radius:8px;padding:4px 10px;font-size:12.5px;font-weight:700;margin:0 0 8px}#zoneBar.on{display:block}
+#zoneBar.z-nt{background:#fef9c3;color:#854d0e}#zoneBar.z-tv{background:#dbeafe;color:#1e40af}#zoneBar.z-cd{background:#dcfce7;color:#166534}#zoneBar.z-qt{background:#f3e8ff;color:#6b21a8}
+#rolesNote:empty{display:none}#rolesNote{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:6px 10px;font-size:13px;margin:0 0 8px}
 @media (max-width:767px){.lgrid{grid-template-columns:1fr}}
 details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6px}details.dt[open] summary{color:var(--ac2)}
 /* ===== DOCUMENT (dùng chung cho xem trước, in và xuất PDF) ===== */
@@ -381,7 +385,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
 </style>
 </head>
 <body>
-<div id="testBar">🧪 CHẾ ĐỘ THỬ NGHIỆM – chọn được ngày bất kỳ · dữ liệu ngày thử xóa được trong Cấu hình → Cài đặt</div>
+<div id="testBar">🧪 CHẾ ĐỘ THỬ NGHIỆM – chọn được ngày bất kỳ · dữ liệu ngày thử xóa được trong Cấu hình → Cài đặt<span id="asWrap"></span></div>
 <div class="top"><div class="top-in">
   <div class="brand" style="justify-content:space-between">
     <div class="brand">
@@ -394,6 +398,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
     <div class="pills" style="margin-top:0" id="nav"></div>
     <span class="sp"></span>
   </div>
+  <div id="zoneBar"></div><div id="rolesNote"></div>
   <div id="othersBar"></div>
   <div class="bar" id="dayBar">
     <button class="btn sm" data-act="prevDay" title="Ngày trước">◀</button>
@@ -506,7 +511,9 @@ function prompt2(title, msg, ph='', type='text'){ return new Promise(res=>{ moda
 async function sha(s){ try { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
   catch(e){ let h=5381; for (const c of s) h=((h<<5)+h+c.charCodeAt(0))|0; return 'x'+(h>>>0).toString(16); } }
 
-const ROLES = {admin:'Quản trị (chốt + cấu hình)', chot:'Người tổng hợp / chốt (nhà thầu)', ks:'Kỹ sư hiện trường', tvgs:'TVGS – kiểm tra nội dung', xem:'Chỉ xem (CĐT…)'};
+const ROLES = {admin:'Quản trị (PMH)', chot:'Người tổng hợp / chốt (nhà thầu)', ks:'Kỹ sư hiện trường', tvgs:'TVGS – kiểm tra nội dung', cdt:'CĐT – Ban QLDA'};
+/* Đợt 10A: vai "Chỉ xem" cũ → CĐT */
+const migRoles = c => { (c && c.users || []).forEach(u=>{ if (u.role==='xem') u.role = 'cdt'; }); return c; };
 const SECTIONS = [
   {k:'XD',  t:'A. XÂY DỰNG / CIVIL & STRUCTURAL WORKS', p:'A. XÂY DỰNG / CIVIL & STRUCTURAL PLANS', cls:'grp', label:'Xây dựng'},
   {k:'MEP', t:'B. MEP (CƠ ĐIỆN) / MECHANICAL, ELECTRICAL & PLUMBING', p:'B. MEP (CƠ ĐIỆN) / M&E PLANS', cls:'grp2', label:'MEP'},
@@ -534,7 +541,7 @@ const SAMPLE_CFG = Object.assign(clone(GENERIC_CFG), {
     clientShort:'Phú Mỹ Hưng', consultantShort:'DSPCons', contractorShort:'VICONS', lat:'10.729', lon:'106.718' },
   signers:{ contractor:'Phạm Minh Thương', supervisor:'Đặng Hoàng Nghĩa' },
   users:[ {id:'u_chot',name:'Người chốt (demo)',role:'admin',active:true}, {id:'u_than',name:'Thân',role:'ks',active:true},
-          {id:'u_lam',name:'Lâm',role:'ks',active:true}, {id:'u_tvgs',name:'DSPCons – TVGS (demo)',role:'tvgs',active:true}, {id:'u_cdt',name:'CĐT – xem (demo)',role:'xem',active:true} ],
+          {id:'u_lam',name:'Lâm',role:'ks',active:true}, {id:'u_tvgs',name:'DSPCons – TVGS (demo)',role:'tvgs',active:true}, {id:'u_cdt',name:'CĐT – Ban QLDA (demo)',role:'cdt',active:true} ],
   demoPins:{u_chot:'1234',u_than:'1111',u_lam:'2222',u_tvgs:'3333',u_cdt:'0000'},
   zones:[ {id:'zA',name:'Zone A',section:'XD',owner:'u_than'}, {id:'zB',name:'Zone B',section:'XD',owner:'u_than'},
           {id:'zC',name:'Zone C',section:'XD',owner:'u_lam'}, {id:'zS',name:'Site',section:'MEP',owner:'u_lam'} ],
@@ -793,10 +800,10 @@ async function pruneImgs(){ const d = await IDB.open(); if (!d || !d.objectStore
       cur.onerror = () => res(n); }; } catch(e){ res(n); } }); }
 const pinHash = (uidv, pin) => sha('bcn|' + uidv + '|' + pin);
 const stripImgs = o => { const c = clone(o); (c.photos||[]).concat(c.extraPhotos||[], c.layouts||[]).forEach(p=>{ if (p && p.fileId) p.img=''; }); return c; };
-let TOKEN = '';
+let TOKEN = '', AS = '';            // AS: Quản trị "Xem như" vai khác (Đợt 10A) – gửi kèm mã phiên dạng <mã>~<vai>, máy chủ chỉ nhận khi tài khoản thật là Quản trị
 const gas = (fn, ...a) => new Promise((res,rej)=> google.script.run.withSuccessHandler(res).withFailureHandler(err=>{
   if (/AUTH/.test(err && err.message)) { sessClear(); ME = null; TOKEN = ''; toast('Phiên đăng nhập đã hết hạn – vui lòng đăng nhập lại', 5000); showLogin(); }
-  rej(err); })[fn](...a));
+  rej(err); })[fn](...a.map(x => x === TOKEN && TOKEN && AS ? TOKEN + '~' + AS : x)));
 const J = s => s ? JSON.parse(s) : null;
 let BOOT = null; try { BOOT = JSON.parse(document.getElementById('bootData').textContent); } catch(e){}
 /* Gói dữ liệu 1 lần gọi: {date, index, report, subs, prev:{date, report, subs}} */
@@ -836,10 +843,14 @@ const Store = IS_GAS ? {
     for (const [u,p] of Object.entries(cfg.demoPins||{})) cfg.pins[u] = await pinHash(u, p);
     await IDB.put('kv','config',cfg); return {token:'local', uid:admin.id}; },
   login: async (u, pin) => { const c = await IDB.get('kv','config'); return c && c.pins && c.pins[u] === await pinHash(u, pin) ? {token:'local', uid:u} : null; },
-  open: async (d, mode, u) => { const index = await localIndex(); d = d || defaultDate(index, mode);
-    const all = await IDB.all('subs'), ks = ME && ME.role==='ks';
+  open: async (d, mode, u) => { let index = await localIndex();
+    if (limRole()) { index = viewIdx(index); const ds = index.reports.map(r=>r.date).sort(), rp = d ? await IDB.get('reports', d) : null;      // Đợt 10A: như máy chủ
+      if (d && !seenRec(rp)) throw new Error('Báo cáo ngày ' + d + (role()==='cdt' ? ' chưa phát hành' : ' chưa được nhà thầu chốt'));
+      if (!d) { d = ds[ds.length-1] || today(); if (!ds.length) return {date:d, index, report:null, subs:[], prev:null}; } }
+    d = d || defaultDate(index, mode);
+    const all = (await IDB.all('subs')).filter(s=>!limRole() || index.reports.some(r=>r.date===s.date)), ks = role()==='ks';
     const day = date => ({ subs: all.filter(s=>s.date===date && (!ks || s.uid===ME.id)) });
-    const ds = [...new Set(index.reports.map(r=>r.date).concat(index.subs.map(s=>s.date)))].filter(x=>x<d).sort(), pd = ds[ds.length-1] || '';
+    const ds = [...new Set(index.reports.map(r=>r.date).concat(index.subs.map(s=>s.date)))].filter(x=>x<d).sort(), pd = ds[ds.length-1] || '';   // CĐT/TVGS: index đã lọc
     const b = { date:d, index, report: await IDB.get('reports', d), subs: day(d).subs, prev: pd ? { date:pd, report: await IDB.get('reports', pd), subs: all.filter(x=>x.date===pd).map(lite) } : null };
     return clone(b); },
   images: async () => ({}),
@@ -882,6 +893,8 @@ const Store = IS_GAS ? {
   clearTestDays: async () => { const L = await IDB.get('kv','testDays') || []; for (const w of await IDB.all('periods')) if (w && w.kind !== 'month' && w.status !== 'locked' && L.some(d => d >= w.from && d <= w.to)) await IDB.del('periods', w.key); for (const d of L) await Store.deleteDay(d); await IDB.put('kv','testDays', []); return L.length; },
   period: async (a,b,k) => { const reports = (await IDB.all('reports')).filter(r=>r.date>=a && r.date<=b).sort((x,y)=>x.date.localeCompare(y.date)), lk = new Set(reports.filter(r=>r.status==='locked').map(r=>r.date));
     const prevWeek = String(k).startsWith('W-') ? (await IDB.all('periods')).filter(p=>p && p.v===2 && p.from < a).sort((x,y)=>y.from.localeCompare(x.from))[0] || null : null;
+    if (limRole()) { const m = await IDB.get('periods', k), wk = String(k).startsWith('W-'), hide = wk && !seenRec(m);
+      return { reports: reports.filter(seenRec), manual: hide ? null : m, subs: [], prevWeek: prevWeek && seenRec(prevWeek) ? prevWeek : null, hidden: hide ? (role()==='cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt') : '' }; }
     return { reports, manual: await IDB.get('periods', k), subs:(await IDB.all('subs')).filter(x=>x.date>=a && x.date<=b && !lk.has(x.date)), prevWeek }; },
   reviewPeriod: async (k, act, note, items) => { const w = await IDB.get('periods', k); items = items || []; note = String(note||'').trim();
     if (act==='append'){ if (!w || w.status==='locked' || !w.review || w.review.status!=='returned') throw new Error('Báo cáo tuần không còn ở trạng thái chờ nhà thầu sửa – không gửi bổ sung được');
@@ -894,7 +907,7 @@ const Store = IS_GAS ? {
     else { if (!note && !items.length) throw new Error('Ghi rõ nội dung cần nhà thầu sửa'); w.review = {status:'returned', by:ME.id, at:nowStr(), note, items, version:w.version||1}; w.status = 'draft'; w.reviewFix = {}; }
     await IDB.put('periods', k, w); return w.review; },
   uploadFile: async (data, name) => ({fileId:'', url:'', name}),
-  allReports: async () => (await IDB.all('reports')).sort((x,y)=>x.date.localeCompare(y.date)),
+  allReports: async () => (await IDB.all('reports')).filter(seenRec).sort((x,y)=>x.date.localeCompare(y.date)),
   savePeriod: async p => { if (p.v !== 2) return IDB.put('periods', p.key, p);
     const old = await IDB.get('periods', p.key); if (old && old.status==='locked' && p.status==='locked') return {ok:true, review:old.review||null};
     p.review = old ? old.review || null : null; if (old && old.status==='locked' && p.status!=='locked' && p.review) p.review = {lastNote:p.review.note||'', lastStatus:p.review.status};
@@ -926,15 +939,23 @@ async function markTestL(d){ if (!testMode()) return; const L = await IDB.get('k
 
 /* ===================== TRẠNG THÁI ===================== */
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
-let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
+let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null, NOREP = false;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
 let TAB = 'status', MYTAB = 'work', MYSEG = 'today', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
 let dirty = {R:false, S:false, W:false}, saveTimer = {R:null, S:null, W:null}, prevTimer = null;
 let EDIT = 'R', RO = false;                                       // gốc dữ liệu & chế độ chỉ đọc cho các ô nhập đang dựng
 
-const isChot = () => ME && (ME.role==='admin' || ME.role==='chot');
-const isAdmin = () => ME && ME.role==='admin';
-const isTvgs = () => ME && ME.role==='tvgs';
-const canReview = () => ME && (ME.role==='tvgs' || ME.role==='admin');
+const role = () => ME ? (ME.role==='admin' && AS ? AS : ME.role) : '';      // vai đang dùng (Quản trị "Xem như" → vai đã chọn)
+const realAdmin = () => !!ME && ME.role==='admin';
+const isChot = () => ME && (role()==='admin' || role()==='chot');
+const isAdmin = () => ME && role()==='admin';
+const isTvgs = () => ME && role()==='tvgs';
+const canReview = () => ME && (role()==='tvgs' || role()==='admin');
+/* Đợt 10A: CĐT chỉ thấy bản đã phát hành, TVGS chỉ thấy bản nhà thầu đã chốt (máy chủ lọc; bản độc lập lọc giống vậy) */
+const limRole = () => role()==='cdt' || role()==='tvgs';
+const recRev = x => x ? (typeof x.review === 'string' ? x.review : (x.review||{}).status || '') : '';
+const seenRec = x => role()==='cdt' ? !!x && (reviewOn() ? recRev(x)==='approved' : x.status==='locked') : role()==='tvgs' ? !!x && (x.status==='locked' || recRev(x)==='returned') : true;
+const viewIdx = idx => limRole() ? { reports: idx.reports.filter(seenRec), subs: [], testDays: idx.testDays || [] } : idx;
+const ZONES_ = { ks:['nt','🟡 Nhà thầu – đang làm'], chot:['nt','🟡 Nhà thầu – đang làm'], tvgs:['tv','🔵 TVGS – chờ kiểm tra'], cdt:['cd','🟢 CĐT – đã phát hành'], admin:['qt','🟣 Quản trị'] };
 /* TVGS kiểm tra nội dung: bắt buộc khi công tắc bật (mặc định) và có tài khoản TVGS đang hoạt động */
 const reviewOn = () => (CFG.settings||{}).requireReview !== false && CFG.users.some(u=>u.role==='tvgs' && u.active!==false);
 const revOf = r => r && r.review ? r.review.status || '' : '';
@@ -1047,7 +1068,8 @@ async function exifDate(file){
       if ((m & 0xFF00) !== 0xFF00) break; o += 2 + len; }
   } catch(e){} return null;
 }
-function loadImg(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=fr.result; }; fr.onerror=rej; fr.readAsDataURL(file); }); }
+/* Đợt 10A: đọc ảnh bằng URL.createObjectURL (không nạp cả file gốc 10–12 MB vào bộ nhớ như FileReader) */
+function loadImg(file){ return new Promise((res,rej)=>{ const u = URL.createObjectURL(file), im = new Image(); im.onload=()=>{ URL.revokeObjectURL(u); res(im); }; im.onerror=e=>{ URL.revokeObjectURL(u); rej(e); }; im.src = u; }); }
 async function processImage(file, crop, stamp, opt){ opt = opt || {};
   const taken = (await exifDate(file)) || new Date(file.lastModified || Date.now());
   const im = await loadImg(file), c = document.createElement('canvas'), x = c.getContext('2d');
@@ -1072,9 +1094,10 @@ async function processImage(file, crop, stamp, opt){ opt = opt || {};
 function navItems(){
   if (!ME) return [];
   const it = [];
-  if (ME.role==='ks' || zonesOf(ME.id).length) it.push(['my','Phiếu của tôi']);
-  if (ME.role!=='ks') it.push(['day', isChot() ? 'Tổng hợp & chốt ngày' : isTvgs() ? 'Kiểm tra báo cáo ngày' : 'Báo cáo ngày']);
-  it.push(['period','Báo cáo tuần']);
+  const rl = role(), cdt = rl==='cdt';
+  if (rl==='ks' || (!limRole() && zonesOf(ME.id).length)) it.push(['my','Phiếu của tôi']);
+  if (rl!=='ks') it.push(['day', isChot() ? 'Tổng hợp & chốt ngày' : isTvgs() ? 'Kiểm tra báo cáo ngày' : cdt ? 'Ngày đã phát hành' : 'Báo cáo ngày']);
+  it.push(['period', cdt ? 'Tuần đã phát hành' : 'Báo cáo tuần']);
   if (isAdmin()) it.push(['config','Cấu hình']);
   return it;
 }
@@ -1089,9 +1112,13 @@ function renderChip(){ const el = $('#syncChip'); if (!el) return;
 function renderNav(){
   $('#nav').innerHTML = navItems().map(([k,t])=>`<button class="pill ${VIEW===k?'on':''}" data-view="${k}">${t}</button>`).join('');
   renderChip();
-  $('#userChip').innerHTML = ME ? `<span class="uchip">👤 ${esc(ME.name)} <span class="rl">${esc(ROLES[ME.role])}</span><button class="btn sm ghost" data-act="logout">Đăng xuất</button></span>` : '';
+  $('#userChip').innerHTML = ME ? `<span class="uchip">👤 ${esc(ME.name)} <span class="rl">${esc(ROLES[role()] || role())}${AS ? ' (xem như)' : ''}</span><button class="btn sm ghost" data-act="logout">Đăng xuất</button></span>` : '';
   $('#dayBar').classList.toggle('hide', !(VIEW==='my' || VIEW==='day'));
+  if (!(realAdmin() && testMode())) AS = '';
   $('#testBar').classList.toggle('on', !!ME && testMode());
+  $('#asWrap').innerHTML = realAdmin() && testMode() ? ` · Xem như: <select id="asSel">${['', 'chot', 'ks', 'tvgs', 'cdt'].map(k=>`<option value="${k}" ${AS===k?'selected':''}>${k ? esc(ROLES[k]) : 'Quản trị (vai thật)'}</option>`).join('')}</select>` : '';
+  const zb = $('#zoneBar'), zn = ME && ZONES_[role()]; zb.className = zn ? 'on z-' + zn[0] : ''; zb.textContent = zn ? zn[1] : '';
+  $('#rolesNote').innerHTML = realAdmin() && !AS && !(CFG.settings||{}).roles10 ? `⚠ Bản mới phân vai Nhà thầu – TVGS – CĐT: <b>rà lại vai trò người dùng</b> trước khi báo nhà thầu dùng. <button class="btn sm" data-act="goRoles">Mở Người dùng & PIN</button>` : '';
   const ub = $('#umenuBtn'); if (ub) ub.style.display = ME ? '' : 'none'; renderMobileBar();
   ['my','day','period','config'].forEach(v=> $('#v-'+v).classList.toggle('hide', v!==VIEW));
 }
@@ -1104,9 +1131,10 @@ async function go(view){
 }
 function renderDateSel(){
   let ds = VIEW==='my' ? IDX.subs.filter(s=>s.uid===(S?S.uid:ME.id)).map(s=>s.date) : IDX.reports.map(r=>r.date).concat(IDX.subs.map(s=>s.date));
-  const nx = testMode() ? [addDays([...ds, DATE, today()].sort().pop(), 1)] : [];   // chế độ thử: luôn có "ngày tiếp theo"
-  ds = [...new Set(ds.concat([today(), DATE], nx))].sort().reverse();
-  $('#dateSel').innerHTML = (testMode() ? '<option value="__pick">📅 Chọn ngày bất kỳ…</option>' : '') + ds.map(d=>{ const rp = IDX.reports.find(r=>r.date===d); const ic = (rp && rp.status==='locked' ? ' 🔒' : '') + (isTestDay(d) ? ' 🧪' : '');
+  const lim = limRole(), tm = testMode() && !lim;          // CĐT / TVGS: chỉ các ngày được thấy (không thêm "hôm nay", ngày thử)
+  const nx = tm ? [addDays([...ds, DATE, today()].sort().pop(), 1)] : [];   // chế độ thử: luôn có "ngày tiếp theo"
+  ds = [...new Set(ds.concat(lim ? [DATE] : [today(), DATE], nx))].sort().reverse();
+  $('#dateSel').innerHTML = (tm ? '<option value="__pick">📅 Chọn ngày bất kỳ…</option>' : '') + ds.map(d=>{ const rp = IDX.reports.find(r=>r.date===d); const ic = (rp && rp.status==='locked' ? ' 🔒' : '') + (isTestDay(d) ? ' 🧪' : '');
     const n = IDX.subs.filter(s=>s.date===d && (s.status==='submitted'||s.status==='accepted')).length;
     return `<option value="${d}" ${d===DATE?'selected':''}>${vi(d)}${d===today()?(isMobile()?' •':' (hôm nay)'):''}${ic}${VIEW==='day'&&n&&!isMobile()?' · '+n+' phiếu':''}</option>`; }).join('');
 }
@@ -1116,7 +1144,7 @@ function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date==
 function applyBundle(b, mode, u){
   IDX = idxDec(b.index) || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
   if ('others' in b) othersBanner(b.others);
-  R = b.report ? normReport(b.report) : null;
+  R = b.report ? normReport(b.report) : null; NOREP = !b.report;
   const pm = R && R.status==='locked' ? null : prevMerged();
   if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); if (pm) SUBS.forEach(s=>syncPrev(s, pm)); applyMerge(); renderDayAll(); if (!SYNCING) autoWeather(false); }
   else { SUBS = (b.subs||[]).map(normSub); const s = SUBS.find(x=>x.uid===u); S = s || newSub(DATE, u); if (!s) SUBS.push(S); S_OTHER = u !== ME.id;
@@ -1124,7 +1152,7 @@ function applyBundle(b, mode, u){
     renderMy(); }
   renderDateSel(); loadImages();
 }
-function cacheKey(mode, u){ return 'bcn_last_' + CFG.project.code + '_' + mode + '_' + u; }
+function cacheKey(mode, u){ return 'bcn_last_' + CFG.project.code + '_' + mode + '_' + u + (AS ? '_as_' + AS : ''); }
 async function openBundle(date, mode, u){
   const ck = cacheKey(mode, u);
   if (!R && !S) { try { const c = JSON.parse(localStorage.getItem(ck)||'null'); if (c && (!date || c.date===date)) { SYNCING = true; applyBundle(c, mode, u); } } catch(e){} }
@@ -1377,6 +1405,7 @@ function renderForm(){
   $('#tabs').innerHTML = DAY_TABS.map(t=>`<button class="tab ${TAB===t.k?'on':''}" data-tab="${t.k}"><span>${t.i}</span>${t.t}</button>`).join('');
   EDIT = 'R'; RO = repLocked() || !isChot() || SYNCING; let h = ''; const M = isMobile();
   if (SYNCING) h += `<div class="note">⏳ Đang đồng bộ dữ liệu mới nhất…</div>`;
+  if (NOREP && limRole() && !SYNCING) h += `<div class="note w">${role()==='cdt' ? '📭 Chưa có báo cáo ngày nào được phát hành (TVGS chưa xác nhận).' : '📭 Chưa có báo cáo ngày nào nhà thầu đã chốt để kiểm tra.'}</div>`;
   if (repLocked()) h += `<div class="note g">🔒 Đã chốt${R.lockedBy?' bởi '+esc(userName(R.lockedBy)):''}${R.lockedAt?' lúc '+esc(R.lockedAt):''}${lateDays(R)>0?' – <b>trễ '+lateDays(R)+' ngày</b>':''}. ${isChot()?'Bấm “Mở khóa để sửa” – lần chốt sau sẽ tạo bản v'+((R.version||1)+1)+'.':''}</div>`;
   h += reviewNotes();
   const ul = isChot() ? unlockedDays().filter(d=>d!==R.date) : [];
@@ -1787,6 +1816,7 @@ function aggregate(list){
 }
 async function loadPeriod(){ const pr = periodRange(); setSave('sync');
   const b = await Store.period(pr.from, pr.to, pr.key) || {}; setSave('');
+  if (b.hidden && P.kind==='week') return renderWeekHidden(pr, b.hidden);
   const by = {}; (b.reports||[]).map(normReport).forEach(r=>by[r.date]=r);
   const sd = {}; (b.subs||[]).map(normSub).forEach(x=>(sd[x.date]=sd[x.date]||[]).push(x));
   Object.keys(sd).forEach(d=>{ if (by[d] && by[d].status==='locked') return; const r = by[d] || blankReport(d), L = sd[d];
@@ -1799,6 +1829,11 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
     if (!W) { W = blankWeek(pr, PW); genWeek(W, P.reports, PW); W._unsaved = true; }
     renderWeek(); loadImages(); return; }
   W = null; renderPeriod(); }
+/* Đợt 10A: CĐT / TVGS mở tuần chưa được thấy → chỉ hiện thông báo, vẫn chuyển tuần được */
+function renderWeekHidden(pr, msg){ W = null; EDIT = 'W'; RO = true;
+  $('#perNav').innerHTML = `<button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button>`;
+  $('#perSub').textContent = `${vi(pr.from)} → ${vi(pr.to)}`; $('#wTabs').innerHTML = ''; $('#wActs').innerHTML = ''; $('#perPrevBar').innerHTML = '';
+  $('#periodPane').innerHTML = `<div class="note w">📭 ${esc(msg)} (${vi(pr.from)} → ${vi(pr.to)}).</div>`; $('#pdoc').innerHTML = ''; renderMobileBar(); }
 function renderPeriod(){
   if (P.kind==='week' && W) return renderWeek();
   if (!P.manual) return;
@@ -2431,7 +2466,7 @@ function renderConfig(){
       <div class="bar" style="margin:8px 0 0"><button class="btn" data-act="clearTest" style="color:var(--bad)" ${(IDX.testDays||[]).length?'':'disabled'}>🗑 Xóa toàn bộ ngày thử</button></div></div>`;
   }
   if (CFGTAB==='zones'){
-    const owners = [{v:'',t:'— chưa giao —'}, ...CFG.users.filter(u=>u.active!==false && u.role!=='xem' && u.role!=='tvgs').map(u=>({v:u.id,t:u.name}))];
+    const owners = [{v:'',t:'— chưa giao —'}, ...CFG.users.filter(u=>u.active!==false && u.role!=='cdt' && u.role!=='tvgs').map(u=>({v:u.id,t:u.name}))];
     h += `<div class="note">Mỗi <b>khu vực</b> = Zone/hạng mục + bộ môn, giao cho <b>1 kỹ sư phụ trách</b>. Công việc gắn với khu vực, nên đổi người phụ trách thì việc dở dang tự chuyển sang người mới.</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Tên khu vực / hạng mục</th><th style="width:130px">Bộ môn</th><th style="width:200px">Kỹ sư phụ trách</th><th style="width:40px"></th></tr></thead><tbody>
     ${CFG.zones.map((z,i)=>`<tr><td class="n">${i+1}</td><td><input class="in" data-cfg="zones.${i}.name" value="${esc(z.name)}" placeholder="VD: Zone A, Block B, Hầm B2…"></td>
@@ -2441,6 +2476,10 @@ function renderConfig(){
     <div class="bar"><button class="add" data-act="addZone">+ Thêm khu vực</button><span class="sp"></span><button class="btn pri" data-act="saveCfg">💾 Lưu phân công</button></div>`;
   }
   if (CFGTAB==='users'){
+    if (!(CFG.settings||{}).roles10) h += `<div class="note w" id="rolesChk"><b>⚠ Rà lại vai trò (bản phân vai Nhà thầu – TVGS – CĐT)</b><ol style="margin:6px 0 6px 18px;padding:0">
+      <li>Chỉ định tài khoản <b>PMH</b> giữ vai <b>Quản trị</b>.</li><li>Đổi tài khoản người chốt của nhà thầu sang <b>Người tổng hợp / chốt</b> (không còn quyền Cấu hình).</li>
+      <li>Người chốt đăng nhập lại, chốt thử 1 ngày.</li><li>Xong mới báo nhà thầu dùng bản mới.</li></ol>Vai “Chỉ xem” cũ đã tự đổi thành <b>CĐT – Ban QLDA</b>.
+      <div class="bar" style="margin:6px 0 0;justify-content:flex-end"><button class="btn sm pri" data-act="rolesOk">✔ Đã rà xong</button></div></div>`;
     h += `<div class="note">Đăng nhập bằng <b>tên + PIN</b> (4–6 số). Quản trị đặt/đổi PIN cho từng người. Vai trò: ${Object.entries(ROLES).map(([k,v])=>`<b>${v}</b>`).join(' · ')}.</div>
     <div class="tw"><table class="ed"><thead><tr><th>STT</th><th>Họ tên</th><th style="width:200px">Vai trò</th><th>Khu vực phụ trách</th><th style="width:70px">Hoạt động</th><th style="width:110px"></th></tr></thead><tbody>
     ${CFG.users.map((u,i)=>`<tr><td class="n">${i+1}</td><td><input class="in" data-cfg="users.${i}.name" value="${esc(u.name)}"></td>
@@ -2565,6 +2604,7 @@ document.addEventListener('input', e=>{
 });
 document.addEventListener('change', async e=>{
   const t = e.target;
+  if (t.id==='asSel'){ await flush(); AS = t.value; R = null; S = null; if (limRole()) DATE = ''; renderNav(); return go(navItems()[0][0]); }   // Đợt 10A: Quản trị "Xem như"
   if (t.id==='dateSel' && t.value==='__pick'){ renderDateSel(); const d = await prompt2('📅 Chọn ngày báo cáo (chế độ thử nghiệm)', 'Chọn ngày bất kỳ, kể cả ngày tương lai:', '', 'date'); if (!d) return;
     await flush(); DATE = d; R = null; S = null; return VIEW==='my' ? openMy(DATE, ME.id) : openDay(DATE); }
   if (t.id==='dateSel'){ await flush(); DATE = t.value; return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
@@ -2659,7 +2699,10 @@ document.addEventListener('click', async function onClick(e){
   if (a==='bumpPlan'){ const i = +b.dataset.i, pl = S.plans[i]; const room = Math.max(0, 100 - (pl.base||0)); pl.add = r1(Math.min(room, num(pl.add) + (+b.dataset.v))); planCalc(pl, S.tasks);
     const el = $('#pa-'+i); if (el) el.value = pl.add; const e = $('#pt-'+i); if (e) (e.querySelector('b')||e).textContent = pl.target || '—'; markDirty('S'); schedulePreview(); }
   if (a==='del'){ const o = rootObj(b.dataset.root); getPath(o, b.dataset.path).splice(+b.dataset.i, 1); markDirty(b.dataset.root); if (b.dataset.root==='W') renderWeek(); else if (b.dataset.root==='S') renderMy(); else { applyMerge(); renderForm(); renderDoc(); } }
-  if (a==='logout'){ document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; showLogin(); }
+  if (a==='goRoles'){ CFGTAB = 'users'; return go('config'); }
+  if (a==='rolesOk'){ CFG.settings = Object.assign({}, CFG.settings, {roles10:true}); try { await Store.saveConfig(CFG); renderNav(); renderConfig(); toast('✔ Đã ghi nhận rà vai trò'); } catch(err){ CFG.settings.roles10 = false; toast('⚠ ' + (err.message||err), 5000); } return; }
+  if (a==='logout'){ AS = ''; document.body.classList.remove('pv'); $('#mBottom').classList.remove('on'); await flush(); sessClear(); ME = null; TOKEN = ''; LINKS = null; showLogin(); }
+  if (a==='goToday' && limRole() && !IDX.reports.some(r=>r.date===today())) return toast(role()==='cdt' ? 'Hôm nay chưa có báo cáo phát hành' : 'Hôm nay nhà thầu chưa chốt báo cáo');
   if (a==='goToday'){ await flush(); DATE = today(); return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); }
   if (a==='prevDay' || a==='nextDay'){ await flush(); const opts = [...$('#dateSel').options].map(o=>o.value).sort(); const i = opts.indexOf(DATE), j = a==='prevDay' ? i-1 : i+1;
     if (opts[j]) { DATE = opts[j]; return VIEW==='my' ? openMy(DATE, S_OTHER ? S.uid : ME.id) : openDay(DATE); } toast('Không còn ngày ' + (a==='prevDay'?'trước':'sau')); }
@@ -2826,6 +2869,7 @@ document.addEventListener('click', async function onClick(e){
     document.querySelectorAll('[data-matspecs]').forEach(e=>{ const c = MATS()[+e.dataset.matspecs]; if (c) c.specs = [...new Set(e.value.split('\n').map(x=>x.trim()).filter(Boolean))]; });
     CFG.materials = MATS().filter(c=>nrm(c.name));
     CFG.zones = CFG.zones.filter(z=>z.name.trim());
+    if (!CFG.users.some(u=>u.role==='admin' && u.active!==false)) return toast('⚠ Phải còn ít nhất 1 tài khoản Quản trị đang hoạt động', 5000);
     renderConfig.edit = false; try { await Store.saveConfig(CFG); setSub(); ME = CFG.users.find(u=>u.id===ME.id); renderNav(); renderConfig(); renderDateSel(); toast('✔ Đã lưu cấu hình'); } catch(err){ toast('⚠ ' + (err.message||err), 5000); } }
   if (a==='exportJson'){ const all = await Store.allReports(); const txt = JSON.stringify({project:CFG.project, reports:all.map(stripImgs)}, null, 1);
     modal(`<h3>Dữ liệu JSON (${all.length} báo cáo)</h3><textarea class="in" rows="12" id="jsonOut" readonly>${esc(txt)}</textarea><div class="acts"><button class="btn" onclick="closeModal()">Đóng</button><button class="btn pri" id="cpy">Sao chép</button></div>`);
@@ -2879,7 +2923,7 @@ async function finishSetup(){
   c.project.code = c.project.code.toUpperCase();
   c.wbs = $('#su-wbs').value.split('\n').map(l=>l.split(/\t| {2,}|;/)).filter(x=>x[0]&&x[0].trim()).map(x=>({code:x[0].trim(), name:(x.slice(1).join(' ')||'').trim()}));
   if (showSetup.sample) { c.users[0].name = adminName; c.demoPins.u_chot = pin; } else c.users = [{id:'u'+uid(), name:adminName, role:'admin', active:true}];
-  c.setupDone = true; c.setupAt = vi(today());
+  c.setupDone = true; c.setupAt = vi(today()); c.settings = Object.assign({}, c.settings, {roles10:true});
   try { const res = await Store.setup(c, pin); CFG = Object.assign(clone(GENERIC_CFG), c); if (!IS_GAS) { const cc = await IDB.get('kv','config'); if (cc) CFG = cc; }
     if (showSetup.sample && !IS_GAS) await seed();
     TOKEN = res.token; const lg = showSetup.logos || {};
@@ -3017,7 +3061,7 @@ async function boot(){
   const c = b && b.config;
   if (qv && c) { CFG = Object.assign(clone(GENERIC_CFG), c); const v = await Store.verify(qv); return showVerify(Object.assign({code:qv, project:c.project.code, projectName:c.project.name, consultant:c.project.consultantShort}, v)); }
   if (!c || !c.setupDone) { CFG = clone(GENERIC_CFG); return showSetup(); }
-  CFG = Object.assign(clone(GENERIC_CFG), c); IDX = idxDec(b.index) || IDX; setSub();
+  CFG = migRoles(Object.assign(clone(GENERIC_CFG), c)); IDX = idxDec(b.index) || IDX; setSub();
   const ss = sessLoad();
   if (ss && ss.code === CFG.project.code && CFG.users.find(u=>u.id===ss.uid)) {
     if (idleOver()) { sessClear(); showLogin(); return toast(`Đã tự đăng xuất do không thao tác quá ${idleH()} giờ`, 5000); }

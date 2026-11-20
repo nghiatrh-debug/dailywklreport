@@ -83,6 +83,7 @@ function apiSetup(cfgJson, pin) {
   Object.keys(SCHEMA).forEach(sheet_);
   const c = JSON.parse(cfgJson); delete c.demoPins; delete c.pins; c.sample = false;
   const admin = c.users[0]; admin.role = 'admin';
+  c.settings = Object.assign({}, c.settings, { roles10: true });     // dự án mới: không cần nhắc rà vai trò (Đợt 10A)
   saveCfg_(c);
   setKv_('pins', JSON.stringify({ [admin.id]: hash_(admin.id, pin) }));
   log_(admin.id, 'KHAI_BAO_DU_AN', '', c.project.code);
@@ -115,6 +116,7 @@ function apiSaveConfig(token, json) {
     if (!n) { if (!c.materials.some(x => nrm_(x.name) === nrm_(o.name))) c.materials.push(o); return; }
     (o.specs || []).forEach(sp => { n.specs = n.specs || []; if (!n.specs.some(x => nrm_(x) === nrm_(sp))) n.specs.push(sp); }); });
   const meNew = c.users.find(u => u.id === me.id); if (meNew) { meNew.role = 'admin'; meNew.active = true; }
+  if (!c.users.some(u => u.role === 'admin' && u.active !== false)) throw new Error('Phải còn ít nhất 1 tài khoản Quản trị đang hoạt động');
   saveCfg_(c);
   log_(me.id, 'SUA_CAU_HINH', '', '');
   return true;
@@ -141,24 +143,29 @@ function apiPing(token, heavy) {
 }
 function apiOpen(token, date, mode, uid) {
   const me = auth_(token);
-  const b = bundle_(me, date, mode, uid || me.id); b.others = othersActive_(token, me.id);
+  const b = bundle_(me, date, mode, uid || me.id); b.others = othersActive_(tok_(token), me.id);
   return JSON.stringify(b);
 }
 
 function bundle_(me, date, mode, uid) {
-  const idx = index_();
-  const all = idx.reports.map(r => r.date).concat(idx.subs.map(s => s.date));
+  const c = cfg_(), idx = index_(), vis = idxFor_(idx, me, c), lim = vis !== idx, asked = !!date;
+  const all = vis.reports.map(r => r.date).concat(vis.subs.map(s => s.date));
   const td = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
   if (!date) {
     const ds = all.slice().sort();
     date = mode === 'my' ? td : (ds.indexOf(td) >= 0 || !ds.length ? td : ds[ds.length - 1]);
   }
   const day = dayData_(date);
+  // CĐT chỉ mở ngày đã phát hành, TVGS chỉ mở ngày nhà thầu đã chốt (Đợt 10A) – kiểm theo dữ liệu ngày, không theo chỉ mục
+  if (lim && !seen_(me, day.report, c)) {
+    if (asked) throw new Error('Báo cáo ngày ' + date + (me.role === 'cdt' ? ' chưa phát hành' : ' chưa được nhà thầu chốt'));
+    return { date: date, index: idxEnc_(vis), report: null, subs: [], prev: null };
+  }
   let subs = day.subs;
   if (me.role === 'ks') subs = subs.filter(s => s.uid === me.id);
   const before = all.filter(d => d < date).sort(), pd = before[before.length - 1] || '';
   const prev = pd ? dayData_(pd) : null;
-  const out = { date: date, index: idxEnc_(idx, me.role === 'ks' ? me.id : ''), report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+  const out = { date: date, index: idxEnc_(vis, me.role === 'ks' ? me.id : ''), report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
   if (me.role === 'admin') out.links = links_();
   return out;
 }
@@ -242,6 +249,19 @@ function idxDec_(e) {
   if (!e || !e.r) return e && e.reports ? e : null;
   return { reports: e.r.map(x => ({ date: x[0], status: dec1_(x[1]), version: x[2], review: dec1_(x[3]) })),
            subs: e.s.map(x => ({ date: x[0], uid: x[1], status: dec1_(x[2]) })), testDays: e.t || [] };
+}
+
+/* Đợt 10A – phạm vi nhìn thấy theo vai. rec: {status, review} (review là chuỗi trạng thái trong chỉ mục, object trong dữ liệu ngày/tuần). */
+const rvSt_ = rec => rec ? (typeof rec.review === 'string' ? rec.review : (rec.review || {}).status || '') : '';
+function seen_(me, rec, c) {
+  if (me.role === 'cdt') return !!rec && (reviewOn_(c) ? rvSt_(rec) === 'approved' : rec.status === 'locked');    // đã phát hành
+  if (me.role === 'tvgs') return !!rec && (rec.status === 'locked' || rvSt_(rec) === 'returned');                 // nhà thầu đã chốt
+  return true;
+}
+/** Chỉ mục cho CĐT / TVGS: chỉ ngày được thấy, không có phiếu kỹ sư. Vai khác: giữ nguyên (cùng đối tượng). */
+function idxFor_(idx, me, c) {
+  if (me.role !== 'cdt' && me.role !== 'tvgs') return idx;
+  return { reports: idx.reports.filter(r => seen_(me, r, c)), subs: [], testDays: idx.testDays || [] };
 }
 
 function apiSaveReport(token, json) {
@@ -497,7 +517,7 @@ function apiDeleteDay(token, date) {
 
 /** Báo cáo trong khoảng ngày (không ảnh) + phần nhập tay của kỳ – 1 lần gọi. */
 function apiPeriod(token, from, to, key) {
-  auth_(token);
+  const me = auth_(token), c = cfg_(), lim = me.role === 'cdt' || me.role === 'tvgs';
   const W = SCHEMA.BaoCao.length, sh = sheet_('BaoCao'), keys = col_('BaoCao', 0);
   const rowsIdx = []; keys.forEach((k, i) => { if (k >= from && k <= to) rowsIdx.push(i); });
   let reports = [];
@@ -506,9 +526,15 @@ function apiPeriod(token, from, to, key) {
     const vals = sh.getRange(a + 2, 1, b - a + 1, Math.min(W, sh.getLastColumn())).getValues();
     reports = rowsIdx.map(i => ({ d: keys[i], r: jsonOf_('BaoCao', vals[i - a]) })).sort((x, y) => x.d < y.d ? -1 : 1).map(x => x.r);
   }
-  let manual = null, prevWeek = null;
+  let manual = null, prevWeek = null, hidden = '';
   if (key) { const row = rowOf_('TongHopKy', 0, key); manual = row ? jsonOf_('TongHopKy', row) : null; }
   if (String(key).indexOf('W-') === 0) prevWeek = prevWeek_(from);
+  if (lim) {             // Đợt 10A: CĐT chỉ thấy ngày/tuần đã phát hành, TVGS chỉ thấy bản nhà thầu đã chốt; không có phiếu kỹ sư
+    reports = reports.filter(r => seen_(me, r, c));
+    if (String(key).indexOf('W-') === 0 && !seen_(me, manual, c)) { manual = null; hidden = me.role === 'cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt'; }
+    if (prevWeek && !seen_(me, prevWeek, c)) prevWeek = null;
+    return JSON.stringify({ reports: reports, manual: manual, subs: [], prevWeek: prevWeek, hidden: hidden });
+  }
   // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
   const locked = {}; reports.forEach(r => { if (r && r.status === 'locked') locked[r.date] = 1; });
   const pk = col_('PhieuKS', 1), PW = SCHEMA.PhieuKS.length, pi = [];
@@ -753,6 +779,7 @@ function cfg_() {
   if (MEMO.cfg !== undefined) return MEMO.cfg;
   let c = cget_('cfg');
   if (!c) { const s = kv_('config'); c = s ? JSON.parse(s) : null; if (c) cput_('cfg', c); }
+  if (c) (c.users || []).forEach(u => { if (u.role === 'xem') u.role = 'cdt'; });     // Đợt 10A: vai "Chỉ xem" cũ → CĐT
   return (MEMO.cfg = c);
 }
 function saveCfg_(c) { setKv_('config', JSON.stringify(c)); MEMO.cfg = c; delete MEMO.root; cdel_(['cfg', 'links']); }
@@ -872,7 +899,7 @@ function setCell_(name, key, col, val) {
 }
 function kv_(k) { const r = rowOf_('CauHinh', 0, k); return r ? r[1] : null; }
 function setKv_(k, v) { upsertRow_('CauHinh', 0, k, [k, v]); }
-function log_(uid, act, d, detail) { try { sheet_('NhatKy').appendRow([now_(), userName_(cfg_(), uid), act, d || '', detail || '']); } catch (e) {} }
+function log_(uid, act, d, detail) { try { sheet_('NhatKy').appendRow([now_(), userName_(cfg_(), uid) + (MEMO.as ? ' (xem như ' + MEMO.as + ')' : ''), act, d || '', detail || '']); } catch (e) {} }
 
 /* ======================= HÀM PHỤ: QUYỀN, ẢNH, DRIVE ======================= */
 /** Link nhanh cho Quản trị: file Google Sheet dữ liệu + thư mục Drive ảnh/PDF của dự án (có bộ đệm). */
@@ -911,15 +938,21 @@ function cleanTokens_() {
   const p = PropertiesService.getScriptProperties(), all = p.getProperties(), now = Date.now();
   Object.keys(all).forEach(k => { if (k.indexOf('tok_') === 0) { try { if (JSON.parse(all[k]).exp < now) p.deleteProperty(k); } catch (e) { p.deleteProperty(k); } } });
 }
+/* Đợt 10A – "Xem như": giao diện gửi mã phiên dạng <mã>~<vai>. Chỉ nhận khi tài khoản thật là Quản trị; chỉ thu hẹp quyền. */
+const ROLE_LIST_ = ['admin', 'chot', 'ks', 'tvgs', 'cdt'];
+const tok_ = t => String(t || '').split('~')[0];
 function auth_(token, roles) {
+  const as = String(token || '').split('~')[1] || ''; token = tok_(token); delete MEMO.as;
   const raw = token && PropertiesService.getScriptProperties().getProperty('tok_' + token);
   if (!raw) throw new Error('AUTH: phiên đăng nhập không hợp lệ');
   const t = JSON.parse(raw); if (t.exp < Date.now()) throw new Error('AUTH: phiên đăng nhập hết hạn');
   if (!t.seen || Date.now() - t.seen > 120000) { t.seen = Date.now(); PropertiesService.getScriptProperties().setProperty('tok_' + token, JSON.stringify(t)); }
   const c = cfg_(), u = c && c.users.find(x => x.id === t.uid);
   if (!u || u.active === false) throw new Error('AUTH: tài khoản không còn hoạt động');
-  if (roles && roles.indexOf(u.role) < 0) throw new Error('Không có quyền thực hiện thao tác này');
-  return u;
+  let me = u;
+  if (as && u.role === 'admin' && as !== 'admin' && ROLE_LIST_.indexOf(as) >= 0) { me = Object.assign({}, u, { role: as, asRole: as }); MEMO.as = as; }
+  if (roles && roles.indexOf(me.role) < 0) throw new Error('Không có quyền thực hiện thao tác này');
+  return me;
 }
 /* ======================= TỰ DỌN FILE CŨ ======================= */
 /** Gọi ngầm sau khi chốt ngày (giao diện không chờ). Tối đa 1 lần/ngày. */
