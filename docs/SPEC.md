@@ -509,14 +509,12 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Làm: vai `cdt` (đổi từ `xem`), lọc máy chủ cho `cdt` / `tvgs` (danh mục ngày, mở ngày, kỳ tuần/tháng), "Xem như" của Quản trị (máy chủ nhận vai qua phiên `<mã phiên>~<vai>`, chỉ khi tài khoản thật là `admin`), không xóa được Quản trị cuối, dải nhắc "Rà lại vai trò" + checklist, dải màu khu, menu theo vai, `loadImg` dùng `URL.createObjectURL`.
 - Để lại 10B: thẻ "Báo cáo đã phát hành" cho kỹ sư (hiện kỹ sư vẫn nhận dữ liệu ngày như trước – đổi cần làm lại màn hình Phiếu của tôi), "Tra mã xác thực" trên menu CĐT, số đếm trên thẻ.
 
-### 10A.7 Giao một phần Cấu hình cho Người tổng hợp / chốt (ĐỀ XUẤT 20/11/2026 – chờ chốt, chưa code)
-Ý kiến anh Nghĩa: chuyển cho người chốt của nhà thầu: **Khu vực & phân công**, **Danh mục**, **chọn thư mục lưu PDF báo cáo ngày / tuần**, **file theo dõi hồ sơ đệ trình**.
-- Người chốt thấy thẻ **Cấu hình** rút gọn gồm: Khu vực & phân công · Danh mục · Lưu trữ & hồ sơ (thư mục PDF ngày, thư mục PDF tuần, chia thư mục theo tháng, file theo dõi hồ sơ). Không thấy: Dự án, Người dùng & PIN, logo, công tắc TVGS kiểm tra, Chế độ thử, Sao lưu / Reset.
-- Máy chủ: API mới `apiSaveCfgPart(token, part, json)` cho `chot` + `admin`, chỉ ghi đúng các khóa được phép: `zones`, `wbs`, `manpower`, `equipment`, `safetyDefault`, `materials`, `settings.pdfFolderId/pdfFolderName/pdfMonthly/weekFolderId/weekFolderName`, `settings.register`. Các khóa khác giữ nguyên bản đang lưu → người chốt không đổi được vai, PIN, cài đặt khác dù gửi lên. Ghi theo phần nên Quản trị và người chốt sửa cùng lúc không ghi đè nhau.
-- `apiCheckFolder`, `apiCheckRegister` mở thêm cho `chot`. `apiSaveConfig` (toàn bộ) vẫn chỉ `admin`.
-- Nhật ký: `SUA_KHU_VUC`, `SUA_DANH_MUC`, `DOI_THU_MUC_PDF` (ghi tên thư mục cũ → mới), `DOI_FILE_HO_SO`.
-- Kỹ sư chưa có khu vực nào giao vẫn đăng nhập được, nhưng Phiếu của tôi trống → người chốt giao khu vực.
-- Điểm cần anh chốt:
-  1. **Thư mục lưu PDF**: giao hẳn cho người chốt, hay giữ ở Quản trị (đề xuất: giữ – xem lý do trong trao đổi), hay giao kèm điều kiện (đổi thư mục → dải báo Quản trị, Quản trị "Khóa thư mục")?
-  2. Người chốt có được **thêm / khóa tài khoản kỹ sư + đặt PIN kỹ sư** không (để giao khu vực cho người mới không phải chờ PMH)? Chỉ vai `ks`, không tạo được vai khác.
-  3. Đổi **WBS / danh mục** khi đã có báo cáo: chỉ áp dụng cho ngày chưa chốt (báo cáo đã chốt giữ nguyên chữ đã in) – đề xuất giữ như hiện tại, không cần chặn.
+### 10A.7 Giao một phần Cấu hình cho Người tổng hợp / chốt (ĐÃ CHỐT 20/11/2026 – chờ lệnh làm)
+Ý kiến anh Nghĩa: chuyển cho người chốt của nhà thầu Khu vực & phân công, Danh mục, file theo dõi hồ sơ đệ trình. **Thư mục lưu PDF giữ ở Quản trị PMH** (kho bản chính thức mà QR trỏ tới).
+- Người chốt thấy thẻ **Cấu hình** rút gọn: **Khu vực & phân công** · **Danh mục** · **Kỹ sư** · **File theo dõi hồ sơ** (dán link file, nhận trang tính, phân loại Hồ sơ đệ trình / Văn bản / Bỏ qua). Không thấy: Dự án, Người dùng & PIN (đầy đủ), logo, thư mục lưu PDF ngày / tuần, công tắc TVGS kiểm tra, Chế độ thử, Sao lưu / Reset.
+- **Kỹ sư:** người chốt thêm tài khoản, đổi tên, khóa / mở lại, đặt PIN — **chỉ tài khoản vai `ks`**. Không tạo / sửa / đặt PIN tài khoản vai khác, không đổi vai của ai.
+- Máy chủ: API mới `apiSaveCfgPart(token, part, json)` cho `chot` + `admin`. `part` = `zones` | `lists` | `register` | `engineers`; chỉ ghi đúng khóa của phần đó (`zones`; `wbs, manpower, equipment, safetyDefault, materials`; `settings.register`; người dùng vai `ks`), mọi khóa khác giữ nguyên bản đang lưu. Ghi theo phần → Quản trị và người chốt sửa cùng lúc không ghi đè nhau. Phần `engineers`: người dùng vai khác trong bản gửi lên bị bỏ qua; người mới luôn vai `ks`.
+- `apiSetPin` (người khác): `admin` mọi người; `chot` chỉ tài khoản vai `ks`. `apiCheckRegister` mở thêm cho `chot`. `apiCheckFolder`, thư mục PDF, `apiSaveConfig` (toàn bộ) vẫn chỉ `admin`.
+- Nhật ký: `SUA_KHU_VUC`, `SUA_DANH_MUC`, `DOI_FILE_HO_SO`, `THEM_KY_SU`, `KHOA_KY_SU`, `DAT_PIN` (đã có).
+- Đổi WBS / danh mục khi đã có báo cáo: giữ như hiện tại – chỉ ảnh hưởng ngày chưa chốt, báo cáo đã chốt giữ nguyên.
+- Kiểm thử: chốt lưu từng phần được; gửi kèm vai / PIN / thư mục PDF / cài đặt khác → máy chủ bỏ qua; chốt đặt PIN kỹ sư được, PIN TVGS / CĐT / Quản trị → lỗi; chốt không tạo được vai khác `ks`; chốt gọi `apiCheckFolder` → lỗi; menu Cấu hình rút gọn đúng 4 thẻ.
