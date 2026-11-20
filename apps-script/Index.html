@@ -717,12 +717,18 @@ async function cmtGo(c){
     else toast('Dòng này đã bị xóa hoặc đổi – kiểm tra lại theo nội dung ý kiến'); }, 120);
 }
 /* Danh sách ý kiến trong khung "TVGS yêu cầu sửa" (người chốt + TVGS) và "lần trước" khi TVGS kiểm tra lại */
+/* Dòng có ý kiến đã bị xóa (người chốt xóa việc làm sai/dư) → coi như đã sửa */
+function cmtGone(c){ if (!c || CMT_ONE[c.path] || !c.ref || /^i\d+$/.test(c.ref)) return false;
+  const o = c.scope === 'W' ? (cxW() ? W : null) : c.scope === 'R' ? R : c.scope.indexOf('S:') === 0 && !cxW() ? SUBS.find(x => x.uid === c.scope.slice(2)) : null;
+  if (!o) return false; const a = getPath(o, c.path); return Array.isArray(a) && !a.some(x => x && String(x.id) === c.ref); }
 function cmtPanel(items, mode){
   if (!items || !items.length) return '';
-  const fix = CX().reviewFix || {}, nf = items.filter(c => mode === 'last' ? c.fixed : fix[c.id]).length;
-  return `<div class="cmtlist"><div class="hint" style="margin:4px 0">${items.length} ý kiến theo từng việc · đã sửa <b>${nf}/${items.length}</b></div>` + items.map(c => { const fx = mode === 'last' ? c.fixed : fix[c.id];
-    return `<div class="cmti"><span class="tag ${fx ? 'okt' : 'badt'}">${fx ? 'Đã sửa' : 'Chưa sửa'}</span> <b>${esc(c.label)}</b>${c.scope.indexOf('S:') === 0 ? ` <span class="hint">(${esc(c.owner)})</span>` : ''}<br>${esc(c.text)}
-      <div class="bar" style="margin:4px 0 0;justify-content:flex-end">${mode === 'last' && !canReview() ? '' : `<button class="btn sm" data-act="cmtGo" data-id="${esc(c.id)}" data-m="${mode}">Tới chỗ ${isChot() && mode !== 'last' ? 'sửa' : 'xem'} →</button>`}${isChot() && mode !== 'last' ? `<button class="btn sm" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đã sửa'}</button>` : ''}</div></div>`; }).join('') + '</div>';
+  const d = CX(), gone = {}; if (mode !== 'last') items.forEach(c => { if (cmtGone(c)) gone[c.id] = true; });
+  if (isChot() && mode !== 'last' && !cxLocked() && items.some(c => gone[c.id] && !(d.reviewFix || {})[c.id])) { d.reviewFix = d.reviewFix || {}; items.forEach(c => { if (gone[c.id]) d.reviewFix[c.id] = true; }); markDirty(cxW() ? 'W' : 'R'); }
+  const fix = d.reviewFix || {}, nf = items.filter(c => mode === 'last' ? c.fixed : fix[c.id] || gone[c.id]).length;
+  return `<div class="cmtlist"><div class="hint" style="margin:4px 0">${items.length} ý kiến theo từng việc · đã sửa <b>${nf}/${items.length}</b></div>` + items.map(c => { const fx = mode === 'last' ? c.fixed : fix[c.id] || gone[c.id];
+    return `<div class="cmti"><span class="tag ${fx ? 'okt' : 'badt'}">${gone[c.id] ? '🗑 Đã xóa dòng' : fx ? 'Đã sửa' : 'Chưa sửa'}</span> <b>${esc(c.label)}</b>${c.scope.indexOf('S:') === 0 ? ` <span class="hint">(${esc(c.owner)})</span>` : ''}<br>${esc(c.text)}
+      <div class="bar" style="margin:4px 0 0;justify-content:flex-end">${gone[c.id] || (mode === 'last' && !canReview()) ? '' : `<button class="btn sm" data-act="cmtGo" data-id="${esc(c.id)}" data-m="${mode}">Tới chỗ ${isChot() && mode !== 'last' ? 'sửa' : 'xem'} →</button>`}${isChot() && mode !== 'last' && !gone[c.id] ? `<button class="btn sm" data-act="cmtFix" data-id="${esc(c.id)}">${fx ? '↺ Chưa sửa' : '✔ Đã sửa'}</button>` : ''}</div></div>`; }).join('') + '</div>';
 }
 function reviewNotes(){
   if (!reviewOn() || !R) return ''; let h = ''; const rv = revOf(R), rw = R.review || {};

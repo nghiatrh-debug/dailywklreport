@@ -36,6 +36,13 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 9.6 – Ý kiến TVGS trên dòng đã bị xóa (20/11/2026)
+- **Lỗi:** TVGS ghi ý kiến vào 1 việc làm sai/dư, người chốt xóa hẳn việc đó ở phiếu kỹ sư nhưng ý kiến vẫn “Chưa sửa” mãi.
+- **Sửa gì:** ý kiến mà dòng gốc không còn → tự hiện “🗑 Đã xóa dòng”, tính là đã sửa (lưu vào reviewFix nên khi chốt lại TVGS thấy “đã sửa”), ẩn nút “Tới chỗ sửa”.
+- Báo cáo tuần: dòng tự động lấy từ báo cáo ngày → sau khi xóa ở phiếu ngày phải bấm “⟳ Tổng hợp lại” thì dòng mới mất khỏi tuần và bản xem trước; ý kiến tuần trên dòng đó tự thành “Đã xóa dòng” (mã dòng giữ nguyên khi tổng hợp lại nên không báo nhầm).
+- **Kiểm thử mới:** ui.js – xóa việc có ý kiến → “🗑 Đã xóa dòng”, đã sửa 2/2, lưu reviewFix; khôi phục → 1/2.
+- **Rủi ro còn lại:** dòng cũ không có mã (dữ liệu rất cũ) thì không nhận biết được đã xóa → vẫn đánh dấu tay.
+
 ### Đợt 9.5 – Lỗi “reviewFix” khi bấm 💬 ở báo cáo tuần (20/11/2026)
 - **Nguyên nhân:** bấm 💬 (ý kiến TVGS đã gửi) trong báo cáo tuần, app đọc nhầm dấu “đã sửa” của báo cáo ngày (đang trống) → lỗi, không mở được ý kiến.
 - **Sửa gì:** đọc đúng báo cáo đang mở (ngày hoặc tuần).
@@ -294,3 +301,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-19 13:55 | 3033811 | đạt | 145 đạt / 0 lỗi | 212 đạt / 0 lỗi | ✅ ĐẠT | Đợt 9.3: ý kiến TVGS theo từng dòng cho báo cáo tuần |
 | 2026-11-19 14:18 | 0edff6b | đạt | 145 đạt / 0 lỗi | 213 đạt / 0 lỗi | ✅ ĐẠT | 9.4 sửa lỗi renderPeriod khi tuần chưa tải xong |
 | 2026-11-20 03:58 | 6ce7d6c | đạt | 145 đạt / 0 lỗi | 214 đạt / 0 lỗi | ✅ ĐẠT | 9.5 sửa lỗi reviewFix khi bấm 💬 ở báo cáo tuần |
+| 2026-11-20 04:15 | fe315c3 | đạt | 145 đạt / 0 lỗi | 215 đạt / 0 lỗi | ✅ ĐẠT | 9.6 ý kiến TVGS trên dòng đã xóa → tự đánh dấu đã sửa |

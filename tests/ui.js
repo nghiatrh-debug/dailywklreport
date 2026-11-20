@@ -175,6 +175,10 @@ const shot = (pg, n) => pg.screenshot({ path: path.join(OUT, n + '.png') });
     if (await pg.inputValue('#dateSel') !== '2026-06-27') { await pg.selectOption('#dateSel', '2026-06-27'); await wait(600); }
     await pg.click('#pane [data-act=cmtFix] >> nth=0'); await wait(900);
     ok(await pg.evaluate(async () => { const r = await IDB.get('reports', '2026-06-27'); const id = R.review.items[0].id; return R.reviewFix[id] === true && r.reviewFix && r.reviewFix[id] === true && /đã sửa 1\/2/.test($('#pane').innerText); }), 'Đánh dấu đã sửa: lưu lại, đếm 1/2');
+    ok(await pg.evaluate(async () => { const c = R.review.items[1], sb = SUBS.find(x => 'S:' + x.uid === c.scope), keep = sb.tasks.slice();
+      sb.tasks = sb.tasks.filter(t => String(t.id) !== c.ref); renderDayAll(); await new Promise(r => setTimeout(r, 1200));
+      const tx = $('#pane').innerText, r = await IDB.get('reports', '2026-06-27'), ok1 = /🗑 Đã xóa dòng/.test(tx) && /đã sửa 2\/2/.test(tx) && R.reviewFix[c.id] === true && r.reviewFix[c.id] === true;
+      sb.tasks = keep; delete R.reviewFix[c.id]; markDirty('R'); renderDayAll(); await new Promise(r => setTimeout(r, 1200)); return ok1 && /đã sửa 1\/2/.test($('#pane').innerText); }), 'Người chốt xóa việc có ý kiến TVGS: ý kiến tự thành “🗑 Đã xóa dòng”, tính đã sửa, lưu lại');
     ok(/TVGS .* yêu cầu sửa/.test(pn27) && /thiếu nghiệm thu cốt thép/.test(pn27) && await pg.isVisible('#dayActs [data-act=lock]'), 'Nhà thầu thấy yêu cầu sửa của TVGS, ngày mở lại để chốt lại');
     ok(/TVGS YÊU CẦU SỬA/.test(await pg.innerText('#doc')), 'PDF bị trả lại: dải “TVGS YÊU CẦU SỬA”');
     await shot(pg, 'desk_chot_returned');
