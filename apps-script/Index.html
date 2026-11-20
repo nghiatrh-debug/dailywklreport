@@ -623,7 +623,7 @@ function judgeHtml(t, long){
   if (j === 'pause') return `<span class="jd na">⏸ Tạm dừng${pauseN(t) > 1 ? ' · ' + pauseN(t) + ' ngày' : ''}</span>${t.pauseNote ? `<div class="hint" style="padding:2px 0 0">Lý do: ${esc(t.pauseNote)}</div>` : ''}`;
   if (j === 'ok') return `<span class="jd ok">✔ Đạt KH</span>`;
   if (j === 'over') return `<span class="jd over">▲ Vượt ${sgn(d)}</span>`;
-  return `<span class="jd short">▼ Hụt ${Math.abs(d) < 0.05 ? '– không thực hiện' : sgn(d)}${n >= 2 ? ' · ' + n + ' ngày liên tiếp' : ''}</span>`;
+  return `<span class="jd short">▼ Hụt ${t.noReport ? '– kỹ sư không báo cáo' : Math.abs(d) < 0.05 ? '– không thực hiện' : sgn(d)}${n >= 2 ? ' · ' + n + ' ngày liên tiếp' : ''}</span>`;
 }
 function planStats(tasks){ const s = {n:0, ok:0, short:[]}; tasks.forEach(t=>{ const j = judge(t); if (!j || j === 'pause') return; s.n++; if (j !== 'short') s.ok++; else s.short.push(t); }); return s; }
 /* Đợt 10A.8: việc còn dở phải có KH ngày mai > 0% (trừ việc theo dõi, Tạm dừng) */
@@ -959,7 +959,7 @@ async function markTestL(d){ if (!testMode()) return; const L = await IDB.get('k
 
 /* ===================== TRẠNG THÁI ===================== */
 let CFG = clone(GENERIC_CFG), ME = null, VIEW = '', DATE = today(), IDX = {reports:[],subs:[]};
-let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null, NOREP = false;           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
+let R = null, SUBS = [], S = null, S_OTHER = false, PREV = null, SYNCING = false, LINKS = null, NOREP = false, PUBURL = '';           // R: báo cáo ngày, SUBS: phiếu trong ngày, S: phiếu đang mở
 let TAB = 'status', MYTAB = 'work', MYSEG = 'today', CFGTAB = 'project', P = { kind:'week', anchor: today(), manual:null, reports:[] };
 let dirty = {R:false, S:false, W:false}, saveTimer = {R:null, S:null, W:null}, prevTimer = null;
 let EDIT = 'R', RO = false;                                       // gốc dữ liệu & chế độ chỉ đọc cho các ô nhập đang dựng
@@ -1052,7 +1052,13 @@ function mergeSubs(subs, onlyFinal){
   ['tasks','plans','inspections','inspectionPlans','tests','testPlans'].forEach(k => out[k].sort((a,b)=> zoneOrder(a.zoneId) - zoneOrder(b.zoneId)));
   return out;
 }
-function applyMerge(){ if (!R || repLocked()) return; const m = mergeSubs(SUBS, true); Object.assign(R, m); R.photos = m.photos.concat(R.extraPhotos||[]); }
+function applyMerge(){ if (!R || repLocked()) return; const m = mergeSubs(SUBS, true);
+  // 10A.9: người có khu vực mà chưa nộp phiếu → việc dở dang (kế thừa hôm trước) vẫn vào báo cáo, % hôm nay trống → "Hụt – kỹ sư không báo cáo"
+  const pm = prevMerged(), fin = new Set(SUBS.filter(s=>s.status==='submitted'||s.status==='accepted').map(s=>s.uid));
+  if (pm) { CFG.users.filter(u=>u.active!==false && !fin.has(u.id) && zonesOf(u.id).length).forEach(u=>
+      rollTasks(pm, zonesOf(u.id).map(z=>z.id)).tasks.filter(t=>!isMon(t)).forEach(t=>m.tasks.push(Object.assign(t, {by:u.id, noReport:true}))));
+    m.tasks.sort((a,b)=> zoneOrder(a.zoneId) - zoneOrder(b.zoneId)); }
+  Object.assign(R, m); R.photos = m.photos.concat(R.extraPhotos||[]); }
 
 /* ===================== CUỐN CHIẾU THEO KHU VỰC ===================== */
 function prevMerged(){
@@ -1095,7 +1101,7 @@ function newReport(date){
 }
 function autoPlan(s){
   const have = new Set(s.plans.map(keyOf)); let n=0;
-  s.tasks.forEach(t=>{ if (!(t.desc||'').trim()) return; const mon = isMon(t); let add = '';
+  s.tasks.forEach(t=>{ if (!(t.desc||'').trim() || t.paused) return; const mon = isMon(t); let add = '';
     if (!mon){ const c = cumOf(t) ?? 0; if (c >= 100) return; const rate = hasV(t.dayPct) && num(t.dayPct) > 0 ? num(t.dayPct) : (hasV(t.planToday) && num(t.planToday) > 0 ? num(t.planToday) : 5); add = r1(Math.min(100 - c, rate)); }
     if (have.has(keyOf(t))) { const pl = s.plans.find(x=>keyOf(x)===keyOf(t)); if (pl && !mon && !hasV(pl.add)) { pl.add = add; planCalc(pl, s.tasks); } return; }
     const pl = {id:uid(), zoneId:t.zoneId, section:t.section, desc:t.desc, loc:t.loc, wbs:t.wbs, add: mon ? '' : add, target: mon ? (t.progress||'') : '', mon};
@@ -1193,7 +1199,7 @@ function idxSet(kind, o){ const L = IDX[kind]; const i = L.findIndex(x=>x.date==
 function applyBundle(b, mode, u){
   IDX = idxDec(b.index) || IDX; DATE = String(b.date||today()).slice(0,10); PREV = b.prev || null; if (b.links) { LINKS = b.links; renderChip(); }
   if ('others' in b) othersBanner(b.others);
-  R = b.report ? normReport(b.report) : null; NOREP = !b.report;
+  R = b.report ? normReport(b.report) : null; NOREP = !b.report; PUBURL = b.editing ? b.pubUrl || '' : '';
   const pm = R && R.status==='locked' ? null : prevMerged();
   if (mode==='day'){ SUBS = (b.subs||[]).map(normSub); if (!R) R = newReport(DATE); if (pm) SUBS.forEach(s=>syncPrev(s, pm)); applyMerge(); renderDayAll(); if (!SYNCING) autoWeather(false); }
   else { SUBS = (b.subs||[]).map(normSub); const s = SUBS.find(x=>x.uid===u); S = s || newSub(DATE, u); if (!s) SUBS.push(S); S_OTHER = u !== ME.id;
@@ -1455,17 +1461,18 @@ function renderForm(){
   $('#tabs').innerHTML = DAY_TABS.map(t=>`<button class="tab ${TAB===t.k?'on':''}" data-tab="${t.k}"><span>${t.i}</span>${t.t}</button>`).join('');
   EDIT = 'R'; RO = repLocked() || !isChot() || SYNCING; let h = ''; const M = isMobile();
   if (SYNCING) h += `<div class="note">⏳ Đang đồng bộ dữ liệu mới nhất…</div>`;
-  if (NOREP && limRole() && !SYNCING) h += `<div class="note w">${role()==='cdt' ? '📭 Chưa có báo cáo ngày nào được phát hành (TVGS chưa xác nhận).' : '📭 Chưa có báo cáo ngày nào nhà thầu đã chốt để kiểm tra.'}</div>`;
+  if (NOREP && limRole() && !SYNCING) h += PUBURL ? `<div class="note w">✎ <b>Nhà thầu đang sửa báo cáo ngày ${vi(DATE)}</b> – bản mới chờ TVGS xác nhận. <a class="btn sm" href="${esc(PUBURL)}" target="_blank" rel="noopener">📄 Mở PDF đã phát hành</a></div>`
+    : `<div class="note w">${role()==='cdt' ? '📭 Chưa có báo cáo ngày nào được phát hành (TVGS chưa xác nhận).' : '📭 Chưa có báo cáo ngày nào nhà thầu đã chốt để kiểm tra.'}</div>`;
   if (repLocked()) h += `<div class="note g">🔒 Đã chốt${R.lockedBy?' bởi '+esc(userName(R.lockedBy)):''}${R.lockedAt?' lúc '+esc(R.lockedAt):''}${lateDays(R)>0?' – <b>trễ '+lateDays(R)+' ngày</b>':''}. ${isChot()?'Bấm “Mở khóa để sửa” – lần chốt sau sẽ tạo bản v'+((R.version||1)+1)+'.':''}</div>`;
   h += reviewNotes();
   const ul = isChot() ? unlockedDays().filter(d=>d!==R.date) : [];
   if (ul.length) h += `<div class="note w"><div class="ulk">⚠ Còn <b>${ul.length}</b> ngày chưa chốt:${ul.slice(0,8).map(d=>`<button class="btn sm" data-act="gotoDate" data-d="${d}">${vi(d).slice(0,5)}</button>`).join('')}${ul.length>8?' …':''}</div></div>`;
   if (TAB==='status'){
     const rows = boardRows(), done = rows.filter(r=>r.s && (r.s.status==='submitted'||r.s.status==='accepted')).length, ps = planStats(R.tasks);
-    h += `<div class="stat"><div><b>${done}/${rows.length}</b><span>Phiếu đã nộp</span></div><div><b>${ps.n?ps.ok+'/'+ps.n:'—'}</b><span>Việc đạt kế hoạch</span></div><div><b>${CFG.settings.deadline||'—'}</b><span>Hạn nộp</span></div><div><b>${allWarn(R.tasks).e}</b><span>Lỗi số liệu</span></div><div><b>${allWarn(R.tasks).w}</b><span>Cảnh báo</span></div></div>
+    h += `<div class="stat">${role()==='cdt' ? '' : `<div><b>${done}/${rows.length}</b><span>Phiếu đã nộp</span></div>`}<div><b>${ps.n?ps.ok+'/'+ps.n:'—'}</b><span>Việc đạt kế hoạch</span></div><div><b>${CFG.settings.deadline||'—'}</b><span>Hạn nộp</span></div><div><b>${allWarn(R.tasks).e}</b><span>Lỗi số liệu</span></div><div><b>${allWarn(R.tasks).w}</b><span>Cảnh báo</span></div></div>
     ${shortNote(ps)}
-    <div class="note">Báo cáo chỉ gộp các phiếu <b>Đã nộp / Đã nhận</b>. Phiếu đang nhập hoặc bị trả lại chưa được đưa vào.</div><div class="board">`;
-    rows.forEach(({u,s})=>{ const zs = zonesOf(u).map(z=>z.name+' ('+z.section+')').join(', ') || '—'; const w = s ? allWarn(s.tasks) : {e:0,w:0};
+    ${role()==='cdt' ? '' : '<div class="note">Báo cáo gộp các phiếu <b>Đã nộp / Đã nhận</b>. Kỹ sư chưa nộp: việc dở dang vẫn vào báo cáo, tính Hụt.</div>'}<div class="board">`;
+    if (role()!=='cdt') rows.forEach(({u,s})=>{ const zs = zonesOf(u).map(z=>z.name+' ('+z.section+')').join(', ') || '—'; const w = s ? allWarn(s.tasks) : {e:0,w:0};
       h += `<div class="brow"><div><div class="nm">${esc(userName(u))}</div><div class="zs">${esc(zs)}</div></div>
       <div>${subBadge(s&&s.status)} ${s&&s.submittedAt?`<span class="hint">nộp ${esc(s.submittedAt)}</span>`:''}${s?`<div class="hint">${s.tasks.length} việc · ${s.photos.length} ảnh${w.e?` · <b style="color:var(--bad)">${w.e} lỗi</b>`:''}${w.w?` · ${w.w} cảnh báo`:''}</div>`:''}
       ${s&&s.note?`<div class="hint" style="white-space:pre-wrap;margin-top:4px">📝 ${esc(s.note)}</div>`:''}${s&&s.status==='returned'&&s.returnNote?`<div class="hint" style="color:#991b1b">↩ ${esc(s.returnNote)}</div>`:''}</div>
@@ -1645,7 +1652,7 @@ function docHTML(r, o={}){
       if (isMon(t)) { h += `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}${kl}</td><td>${esc(locText(t))}</td><td class="c">${esc(t.prevProgress)}</td><td class="c">${esc(t.planText)}</td><td class="c" colspan="2"><b>${esc(t.progress)}</b></td><td class="c sm">theo dõi</td></tr>`; return; }
       const j = judge(t), d = j ? num(t.dayPct) - num(t.planToday) : null, n = streakOf(t);
       h += `<tr><td class="n">${i+1}</td><td>${esc(t.desc)}${kl}</td><td>${esc(locText(t))}</td><td class="c">${t.carried||hasV(t.prevProgress)?showPct(t.prevProgress)||'0%':fp(num(t.startPct))}</td><td class="c">${hasV(t.planToday)?fp(num(t.planToday)):'—'}</td><td class="c">${hasV(t.dayPct)?fp(num(t.dayPct)):'—'}</td><td class="c"><b>${esc(t.progress)||'—'}</b></td>
-        ${j==='pause' ? `<td class="c sm">⏸ Tạm dừng${pauseN(t)>1?' · '+pauseN(t)+' ngày':''}${t.pauseNote?`<div class="sm">${esc(t.pauseNote)}</div>`:''}</td></tr>` : `<td class="c ${j==='short'?'bad':j?'ok':''}">${j ? (j==='ok' && Math.abs(d)<0.05 ? 'Đạt' : j==='short' && Math.abs(d)<0.05 ? 'Hụt' : sgn(d)) + (n>=2?`<div class="sm bad">hụt ${n} ngày</div>`:'') : ''}</td></tr>`}`; }); });
+        ${j==='pause' ? `<td class="c sm">⏸ Tạm dừng${pauseN(t)>1?' · '+pauseN(t)+' ngày':''}${t.pauseNote?`<div class="sm">${esc(t.pauseNote)}</div>`:''}</td></tr>` : `<td class="c ${j==='short'?'bad':j?'ok':''}">${j ? (j==='ok' && Math.abs(d)<0.05 ? 'Đạt' : j==='short' && Math.abs(d)<0.05 ? 'Hụt' : sgn(d)) + (t.noReport?'<div class="sm bad">KS không báo cáo</div>':'') + (n>=2?`<div class="sm bad">hụt ${n} ngày</div>`:'') : ''}</td></tr>`}`; }); });
   h += `</table><div class="sec">${N[1]}. KẾ HOẠCH NGÀY MAI / TOMORROW'S PLAN</div>
   <table class="grid"><tr><th class="c">Stt</th><th>Nội dung kế hoạch</th><th style="width:90px">Vị trí</th><th class="c" style="width:70px">Dự kiến thực hiện</th><th class="c" style="width:70px">Lũy kế dự kiến</th></tr>`;
   SECTIONS.forEach(S2=>{ const PL = r.plans.filter(t=>sectionOf(t)===S2.k);
@@ -1866,7 +1873,7 @@ function aggregate(list){
 }
 async function loadPeriod(){ const pr = periodRange(); setSave('sync');
   const b = await Store.period(pr.from, pr.to, pr.key) || {}; setSave('');
-  if (b.hidden && P.kind==='week') return renderWeekHidden(pr, b.hidden);
+  if (b.hidden && P.kind==='week') return renderWeekHidden(pr, b.hidden, b.pubUrl);
   const by = {}; (b.reports||[]).map(normReport).forEach(r=>by[r.date]=r);
   const sd = {}; (b.subs||[]).map(normSub).forEach(x=>(sd[x.date]=sd[x.date]||[]).push(x));
   Object.keys(sd).forEach(d=>{ if (by[d] && by[d].status==='locked') return; const r = by[d] || blankReport(d), L = sd[d];
@@ -1880,10 +1887,10 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
     renderWeek(); loadImages(); return; }
   W = null; renderPeriod(); }
 /* Đợt 10A: CĐT / TVGS mở tuần chưa được thấy → chỉ hiện thông báo, vẫn chuyển tuần được */
-function renderWeekHidden(pr, msg){ W = null; EDIT = 'W'; RO = true;
+function renderWeekHidden(pr, msg, url){ W = null; EDIT = 'W'; RO = true;
   $('#perNav').innerHTML = `<button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button>`;
   $('#perSub').textContent = `${vi(pr.from)} → ${vi(pr.to)}`; $('#wTabs').innerHTML = ''; $('#wActs').innerHTML = ''; $('#perPrevBar').innerHTML = '';
-  $('#periodPane').innerHTML = `<div class="note w">📭 ${esc(msg)} (${vi(pr.from)} → ${vi(pr.to)}).</div>`; $('#pdoc').innerHTML = ''; renderMobileBar(); }
+  $('#periodPane').innerHTML = `<div class="note w">${url ? '✎' : '📭'} ${esc(msg)} (${vi(pr.from)} → ${vi(pr.to)}).${url ? ` <a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">📄 Mở PDF đã phát hành</a>` : ''}</div>`; $('#pdoc').innerHTML = ''; renderMobileBar(); }
 function renderPeriod(){
   if (P.kind==='week' && W) return renderWeek();
   if (!P.manual) return;
@@ -2834,7 +2841,7 @@ document.addEventListener('click', async function onClick(e){
   if (a==='speedTest') return speedTest();
   if (a==='lock'){
     const rows = boardRows(), miss = rows.filter(r=>!r.s || !(r.s.status==='submitted'||r.s.status==='accepted'));
-    if (miss.length && !(await ask('Còn phiếu chưa nộp', `<p>Các kỹ sư sau chưa nộp phiếu – phần việc của họ sẽ <b>không có</b> trong báo cáo:</p><ul>${miss.map(r=>`<li>${esc(userName(r.u))} – ${r.s?SUB_ST[r.s.status][1]:'chưa có phiếu'}</li>`).join('')}</ul><p>Vẫn chốt?</p>`, 'Vẫn chốt'))) return;
+    if (miss.length && !(await ask('Còn phiếu chưa nộp', `<p>Các kỹ sư sau chưa nộp phiếu – việc dở dang của họ <b>vẫn đưa vào báo cáo</b> và tính <b>Hụt – kỹ sư không báo cáo</b>:</p><ul>${miss.map(r=>`<li>${esc(userName(r.u))} – ${r.s?SUB_ST[r.s.status][1]:'chưa có phiếu'}</li>`).join('')}</ul><p>Vẫn chốt?</p>`, 'Vẫn chốt'))) return;
     applyMerge(); const w = allWarn(R.tasks), np = needPlan(R);
     if (np.length && !(await ask('Thiếu kế hoạch ngày mai', `<p><b>${np.length}</b> việc chưa xong nhưng chưa có KH ngày mai (> 0%) – ngày mai sẽ tính <b>Hụt</b>:</p><ul>${np.map(t=>`<li>${esc(t.desc)} <span class="hint">(${esc(locText(t))})</span></li>`).join('')}</ul>`, 'Vẫn chốt'))) return;
     if (w.e && !(await ask('Còn lỗi số liệu', `Báo cáo còn <b>${w.e}</b> lỗi (VD % vượt 100). Vẫn chốt?`, 'Vẫn chốt', true))) return;
@@ -2846,7 +2853,7 @@ document.addEventListener('click', async function onClick(e){
     if (reviewOn()) zaloModal('🔒 Đã chốt – chờ TVGS kiểm tra', `Báo cáo đã gửi sang TVGS. Sau khi TVGS xác nhận nội dung mới xuất được PDF chính thức. Có thể sao chép tin nhắn dưới đây gửi nhóm Zalo để nhắc TVGS:`,
       `📨 [${CFG.project.code}] Nhà thầu đã chốt Báo cáo ngày ${vi(R.date)}${R.version>1?' (bản v'+R.version+')':''}. Nhờ TVGS kiểm tra nội dung trên app báo cáo ngày.`);
     else toast(`🔒 Đã chốt báo cáo ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}. Bấm “Lưu PDF vào Google Drive”.`, 5000); }
-  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>; khi xuất lại, PDF mới thay file cũ cùng tên trên Drive.${revOf(R)==='approved'?'<p class="note w" style="margin:10px 0 0">⚠ Báo cáo đã được TVGS xác nhận. Mở khóa sẽ <b>hủy dấu xác nhận</b> – chốt lại xong phải chờ TVGS kiểm tra lại.</p>':''}`))) return;
+  if (a==='unlock'){ if (!(await ask('Mở khóa báo cáo', `Mở khóa báo cáo ${vi(R.date)} để chỉnh sửa? Lần chốt tiếp theo sẽ tạo <b>bản v${(R.version||1)+1}</b>; ${reviewOn() ? 'TVGS xác nhận lại sẽ phát hành PDF mới thay file cũ cùng tên trên Drive (CĐT vẫn mở được PDF cũ trong lúc sửa).' : 'khi xuất lại, PDF mới thay file cũ cùng tên trên Drive.'}${revOf(R)==='approved'?'<p class="note w" style="margin:10px 0 0">⚠ Báo cáo đã được TVGS xác nhận. Mở khóa sẽ <b>hủy dấu xác nhận</b> – chốt lại xong phải chờ TVGS kiểm tra lại.</p>':''}`))) return;
     R.status='draft'; R.log.push({act:'unlock', by:ME.id, at:nowStr()}); await saveR(true); renderDateSel(); renderDayAll(); }
   if (a==='drive'){ if (reviewOn() && revOf(R)!=='approved') { toast(repLocked() ? '⏳ Chờ TVGS xác nhận nội dung rồi mới xuất PDF chính thức được' : 'Chốt báo cáo và chờ TVGS xác nhận rồi mới xuất PDF chính thức', 5000); return; } toDrive('day'); }
   if (a==='approveRep'){ const rm = await remarksAsk('Xác nhận nội dung báo cáo', `Xác nhận nội dung <b>Báo cáo ngày ${vi(R.date)}${R.version>1?' – bản v'+R.version:''}</b> là đúng?<p class="hint" style="padding:6px 0 0">PDF có dấu “ĐÃ KIỂM TRA NỘI DUNG – TVGS” kèm mã xác thực${IS_GAS ? ' và được <b>tự phát hành</b> vào Google Drive ngay sau khi xác nhận' : ''}.</p>`); if (!rm) return;

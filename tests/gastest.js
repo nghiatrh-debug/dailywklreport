@@ -468,3 +468,24 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   ctx.apiSavePeriod(tkC, JSON.stringify(Object.assign({}, J(ctx.apiPeriod(tkC, wk.from, wk.to, wk.key)).manual, { status: 'draft', version: 2 })));
   A([sheets.NhatKy.data.some(x => x[2] === 'MO_KHOA_TUAN' && x[4].indexOf(wr.code) >= 0 && /lớp bảo vệ/.test(x[4])) && !('pdfUrl' in (C.weekGet_(wk.key) || {})), '10B: mở khóa tuần → nhật ký mã cũ + ý kiến; không lưu pdfUrl vào dữ liệu tuần']);
 })();
+// ===== Đợt 10A.9: CĐT khi ngày đã phát hành đang được sửa; CĐT không nhận phiếu kỹ sư =====
+(() => {
+  const tkC = J(ctx.apiLogin('uC7', '7777')).token, tkT = J(ctx.apiLogin('uT10', '1010')).token, tkX = J(ctx.apiLogin('uX', '4444')).token, tkK = J(ctx.apiLogin('uK7', '7171')).token;
+  const D = '2027-05-03', base = Object.assign({}, rep, { date: D, status: 'locked', version: 1, tasks: [], plans: [], photos: [], layouts: [], extraPhotos: [] });
+  ctx.apiSaveSub(tkK, JSON.stringify({ key: D + '|uK7', date: D, uid: 'uK7', status: 'submitted', tasks: [], plans: [], inspections: [], inspectionPlans: [], tests: [], photos: [] }));
+  ctx.apiSaveReport(tkC, JSON.stringify(base)); const rv = J(ctx.apiReview(tkT, D, 'approve', '', '[]', '[]')); const url = ctx.apiExportPdf(tkT, '<p>x</p>', 'm3.pdf', D, 'day', rv.code);
+  const b1 = J(ctx.apiOpen(tkX, D, 'day'));
+  A([b1.report && b1.subs.length === 0 && J(ctx.apiOpen(tkT, D, 'day')).subs.length === 1, '10A.9: CĐT không nhận phiếu kỹ sư (TVGS vẫn nhận)']);
+  const r = J(ctx.apiOpen(tkC, D, 'day')).report; ctx.apiSaveReport(tkC, JSON.stringify(Object.assign({}, r, { status: 'draft' })));
+  const b2 = J(ctx.apiOpen(tkX, D, 'day'));
+  A([b2.editing && b2.pubUrl === url && !b2.report && b2.index.reports.some(x => x.date === D), '10A.9: ngày đã phát hành bị mở khóa → CĐT vẫn thấy trong danh sách, chỉ nhận link PDF cũ, không nhận nội dung đang sửa']);
+  A([!J(ctx.apiPeriod(tkX, D, D, '')).reports.length, '10A.9: kỳ của CĐT không gom ngày đang sửa']);
+  ctx.apiSaveReport(tkC, JSON.stringify(Object.assign({}, J(ctx.apiOpen(tkC, D, 'day')).report, { status: 'locked', version: 2 }))); ctx.apiReview(tkT, D, 'approve', '', '[]', '[]');
+  let err = ''; try { ctx.apiOpen(tkX, D, 'day'); } catch (e) { err = e.message; }
+  A([/chưa phát hành/.test(err), '10A.9: TVGS xác nhận lại → link cũ xóa, CĐT chờ bản phát hành mới']);
+  const wk = { v: 2, kind: 'week', key: 'W-2027-05-07', from: '2027-05-07', to: '2027-05-13', no: 59, status: 'locked', version: 1, overall: {}, tasks: [] };
+  ctx.apiSavePeriod(tkC, JSON.stringify(wk)); const wr = J(ctx.apiReviewPeriod(tkT, wk.key, 'approve', '', '[]', '[]')); const wu = ctx.apiExportPdf(tkT, '<p>x</p>', 'w59.pdf', wk.key, 'week', wr.code);
+  ctx.apiSavePeriod(tkC, JSON.stringify(Object.assign({}, J(ctx.apiPeriod(tkC, wk.from, wk.to, wk.key)).manual, { status: 'draft', version: 2 })));
+  const pw = J(ctx.apiPeriod(tkX, wk.from, wk.to, wk.key));
+  A([!pw.manual && pw.pubUrl === wu && /đang sửa/.test(pw.hidden), '10A.9: tuần đã phát hành bị mở khóa → CĐT thấy "đang sửa" + link PDF cũ']);
+})();

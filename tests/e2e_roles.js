@@ -133,6 +133,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   ok(await pg.evaluate(d => IDX.reports.some(r => r.date === d && r.pdf), D1) && await pg.evaluate(() => R && R.review && R.review.status === 'approved'), 'N1 CĐT: thấy ngày 1 sau khi phát hành');
   ok(/Ngày đã phát hành/.test(await txt(pg, '#nav')) && /CĐT – đã phát hành/.test(await txt(pg, '#zoneBar')), 'CĐT: menu + dải màu đúng vai');
   await shot(pg, '05_cdt_xem_ngay1');
+  ok(await pg.evaluate(() => !SUBS.length && !document.querySelector('[data-act=openSub]') && !/Phiếu đã nộp/.test($('#pane').innerText)), '10A.9 CĐT: không thấy danh sách phiếu kỹ sư');
 
   /* ===== NGÀY 2 ===== */
   await login(M.pg, 'uK1', '3333'); await M.pg.evaluate(d => openMy(d, ME.id), D2); await wait(1000);
@@ -154,6 +155,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   await M.pg.evaluate(() => { if (S.status === 'submitted') return; S.plans.forEach(pl => { if (!(num(pl.add) > 0)) pl.add = 10; planCalc(pl, S.tasks); }); markDirty('S'); renderMy(); });
   await M.pg.evaluate(() => (document.querySelector('[data-act=submitSub]') || {click(){}}).click()); await wait(900); await clickOk(M.pg);
   ok(await M.pg.evaluate(() => S.status === 'submitted' && !S.plans.some(p => /bê tông sàn/.test(p.desc) && num(p.add) > 0) === true || S.status === 'submitted'), 'N2 KS: đủ KH ngày mai → nộp được; việc Tạm dừng không bắt KH');
+  ok(await M.pg.evaluate(() => !S.plans.some(p => /bê tông sàn/.test(p.desc))), '10A.9 N2: tự sinh KH ngày mai bỏ qua việc đang Tạm dừng');
   // KS MEP KHÔNG nộp phiếu ngày 2 (tình huống kỹ sư bỏ trống)
   await login(pg, 'uC', '2222'); await pg.evaluate(d => { R = null; DATE = d; openDay(d); }, D2); await wait(1000);
   await pg.click('#dayActs [data-act=lock]'); await wait(700);
@@ -163,7 +165,9 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   const r2 = await pg.evaluate(() => JSON.stringify({ st: R.status, tasks: R.tasks.map(t => [t.desc, t.planToday, t.dayPct, judge(t)]), stat: (s => s.ok + '/' + s.n)(planStats(R.tasks)) }));
   note('N2 báo cáo gộp: ' + r2);
   ok(/"locked"/.test(r2), 'N2 Chốt: chốt được khi KS MEP chưa nộp (có hộp cảnh báo)');
-  if (!/Lắp ống âm cột/.test(r2)) note('PHÁT HIỆN: KS MEP không nộp phiếu → việc dở dang "Lắp ống âm cột" (lũy kế 75%, KH 5%) BIẾN MẤT khỏi báo cáo ngày 2, không tính Hụt, thống kê chỉ còn ' + JSON.parse(r2).stat);
+  ok(/Lắp ống âm cột[^\]]*"short"/.test(r2) && JSON.parse(r2).stat === '1/3', '10A.9 N2: KS MEP không nộp → việc dở "Lắp ống âm cột" vẫn vào báo cáo, tính Hụt, thống kê 1/3');
+  ok(/Hụt – kỹ sư không báo cáo/.test(await pg.evaluate(() => R.tasks.filter(t => t.noReport).map(t => judgeHtml(t)).join(''))) && /vẫn đưa vào báo cáo/.test(lockMsgs.join(' ')), '10A.9 N2: nhãn "Hụt – kỹ sư không báo cáo"; hộp hỏi khi chốt nói rõ');
+  ok(/KS không báo cáo/.test(await pg.evaluate(() => docHTML(R, {}))), '10A.9 N2: PDF ghi "KS không báo cáo"');
   await shot(pg, '07_chot_ngay2');
   // TVGS xác nhận ngày 2 – giả lập Drive lỗi → dải đỏ → Xuất lại
   await M.pg.evaluate(() => { const b = document.querySelector('#userChip [data-act=logout]'); if (b) b.click(); }); await wait(300);
@@ -216,7 +220,10 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   if (ub) { await pg.click('#dayActs [data-act=unlock]'); await wait(600); const um = (await modalTxt(pg)).replace(/\s+/g, ' ').slice(0, 220); await clickOk(pg); await pg.evaluate(() => closeModal());
     note('Mở khóa ngày đã phát hành – hộp hỏi: ' + um);
     const vis = J(api('apiOpen', J(api('apiLogin', 'uD', '6666')).token, '', 'day')).index.r.some(x => x[0] === D1);
-    note('Sau khi người chốt mở khóa ngày 1 (đã phát hành): CĐT ' + (vis ? 'VẪN thấy' : 'KHÔNG còn thấy') + ' ngày 1; file PDF cũ trên Drive ' + (Object.values(G.files).some(f => f.name.startsWith(D1.replace(/-/g, '')) && !f.trashed) ? 'vẫn còn' : 'đã xóa'));
+    ok(vis && /TVGS xác nhận lại sẽ phát hành PDF mới/.test(um), '10A.9: mở khóa ngày đã phát hành → CĐT vẫn thấy ngày 1 trong danh sách; hộp mở khóa đúng luồng mới');
+    await login(M.pg, 'uD', '6666'); await M.pg.evaluate(d => { R = null; DATE = d; openDay(d); }, D1); await wait(1000);
+    ok(/Nhà thầu đang sửa báo cáo ngày/.test(await txt(M.pg, '#pane')) && await M.pg.locator('#pane a[href*="drive"]').count() === 1, '10A.9 CĐT: ngày đang sửa → dải "Nhà thầu đang sửa" + nút Mở PDF đã phát hành');
+    await shot(M.pg, '10_cdt_dang_sua');
     await pg.click('#dayActs [data-act=lock]'); await wait(700); await clickOk(pg); await pg.evaluate(() => closeModal());
   } else note('Ngày đã phát hành: người chốt không có nút mở khóa');
 

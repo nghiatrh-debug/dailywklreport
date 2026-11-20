@@ -42,6 +42,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 10A.9 – Sửa 5 phát hiện từ giả lập đầu-cuối (21/11/2026)
+- **Sửa gì:** (1) kỹ sư chưa nộp phiếu → việc dở dang khu vực của họ vẫn vào báo cáo, tính **"Hụt – kỹ sư không báo cáo"** (PDF ghi "KS không báo cáo"), hộp hỏi khi chốt nói rõ; (2) ngày / tuần đã phát hành bị mở khóa → CĐT vẫn thấy trong danh sách, hiện dải "Nhà thầu đang sửa" + nút **Mở PDF đã phát hành**, không nhận nội dung đang sửa; (3) tự sinh KH ngày mai bỏ qua việc Tạm dừng; (4) CĐT không nhận / không thấy danh sách phiếu kỹ sư; (5) chữ hộp mở khóa theo luồng mới.
+- **Kiểm thử mới:** gastest +5 (CĐT không nhận phiếu kỹ sư, ngày đang sửa chỉ nhận link PDF cũ, kỳ không gom ngày đang sửa, xác nhận lại → chờ bản mới, tuần đang sửa). e2e_roles +7 (43 đạt / 0 lỗi).
+- **Ảnh đã xem:** `e2e/07_chot_ngay2` (1/3, 2 việc Hụt gồm việc KS MEP), `e2e/10_cdt_dang_sua`.
+- **Rủi ro còn lại:** việc của kỹ sư không nộp lấy theo báo cáo hôm trước – nếu hôm trước cũng thiếu thì vẫn nối tiếp được nhờ báo cáo đã chốt giữ các việc này.
+
 ### Giả lập đầu-cuối theo vai (21/11/2026) – `tests/e2e_roles.js`
 - **Là gì:** chạy giao diện thật ở **chế độ Apps Script** (shim `google.script.run`) nối với máy chủ `Code.gs` giả lập (`gasmock`). Đóng vai KS Xây dựng + KS MEP (điện thoại 390 px), người chốt, TVGS (điện thoại), CĐT, Quản trị: 2 ngày + 1 tuần: lập phiếu, chặn nộp thiếu KH, chốt, TVGS trả về → sửa → chốt lại, TVGS xác nhận + ý kiến → tự phát hành, Drive lỗi → Xuất lại, Tạm dừng, Hụt, báo cáo tuần (chốt thiếu số liệu bị chặn, Gantt 3 ảnh, gom ý kiến), CĐT xem, mở khóa ngày đã phát hành, quyền.
 - **Kết quả:** 36 đạt / 0 lỗi. Ảnh: `tests/shots/e2e/`.
@@ -356,3 +362,4 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 21:01 | 198529a | đạt | 183 đạt / 0 lỗi | 256 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.7 + 10A.8 – Cấu hình người chốt; So với KH, KH ngày mai, Tạm dừng |
 | 2026-11-20 22:41 | 0c7d568 | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10B1 – tự phát hành khi TVGS xác nhận, ý kiến TVGS in PDF, Gantt nằm ngang |
 | 2026-11-21 05:59 | 4b2c5da | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Giả lập đầu-cuối theo vai + sửa thông báo phát hành bị treo |
+| 2026-11-21 06:47 | 90a7a88 | đạt | 200 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.9 – sửa 5 phát hiện từ giả lập đầu-cuối |

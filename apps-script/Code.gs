@@ -183,7 +183,10 @@ function bundle_(me, date, mode, uid) {
   }
   const day = dayData_(date);
   // CĐT chỉ mở ngày đã phát hành, TVGS chỉ mở ngày nhà thầu đã chốt (Đợt 10A) – kiểm theo dữ liệu ngày, không theo chỉ mục
-  if (lim && !seen_(me, day.report && Object.assign({}, day.report, { pdf: dayPdf_(date) }), c)) {
+  const pdf = lim ? dayPdf_(date) : '';
+  if (lim && !seen_(me, day.report && Object.assign({}, day.report, { pdf: pdf }), c)) {
+    // 10A.9: ngày đã phát hành đang được nhà thầu sửa → CĐT chỉ nhận link PDF đã phát hành, không nhận nội dung đang sửa
+    if (me.role === 'cdt' && pdf && reviewOn_(c)) return { date: date, index: idxEnc_(vis), report: null, subs: [], prev: null, pubUrl: pdf, editing: true };
     if (asked) throw new Error('Báo cáo ngày ' + date + (me.role === 'cdt' ? ' chưa phát hành' : ' chưa được nhà thầu chốt'));
     return { date: date, index: idxEnc_(vis), report: null, subs: [], prev: null };
   }
@@ -191,7 +194,7 @@ function bundle_(me, date, mode, uid) {
   if (me.role === 'ks') subs = subs.filter(s => s.uid === me.id);
   const before = all.filter(d => d < date).sort(), pd = before[before.length - 1] || '';
   const prev = pd ? dayData_(pd) : null;
-  const out = { date: date, index: idxEnc_(vis, me.role === 'ks' ? me.id : ''), report: day.report, subs: subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
+  const out = { date: date, index: idxEnc_(vis, me.role === 'ks' ? me.id : ''), report: day.report, subs: me.role === 'cdt' ? [] : subs, prev: prev ? { date: pd, report: prev.report, subs: prev.subs } : null };
   if (me.role === 'admin') out.links = links_();
   return out;
 }
@@ -288,7 +291,8 @@ function seen_(me, rec, c) {
 const dayPdf_ = d => (rowOf_('BaoCao', 0, d) || [])[SCHEMA.BaoCao.indexOf('pdf_url')] || '';
 function idxFor_(idx, me, c) {
   if (me.role !== 'cdt' && me.role !== 'tvgs') return idx;
-  return { reports: idx.reports.filter(r => seen_(me, r, c)), subs: [], testDays: idx.testDays || [] };
+  // 10A.9: CĐT vẫn thấy trong danh sách ngày đã phát hành đang được sửa (có link PDF cũ)
+  return { reports: idx.reports.filter(r => seen_(me, r, c) || (me.role === 'cdt' && r.pdf && reviewOn_(c))), subs: [], testDays: idx.testDays || [] };
 }
 
 function apiSaveReport(token, json) {
@@ -570,9 +574,12 @@ function apiPeriod(token, from, to, key) {
   if (String(key).indexOf('W-') === 0) prevWeek = prevWeek_(from);
   if (lim) {             // Đợt 10A: CĐT chỉ thấy ngày/tuần đã phát hành, TVGS chỉ thấy bản nhà thầu đã chốt; không có phiếu kỹ sư
     reports = reports.filter(r => seen_(me, r, c));
-    if (String(key).indexOf('W-') === 0 && !seen_(me, manual && Object.assign({}, manual, { pdf: manual.pdfUrl }), c)) { manual = null; hidden = me.role === 'cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt'; }
+    let pubUrl = '';
+    if (String(key).indexOf('W-') === 0 && !seen_(me, manual && Object.assign({}, manual, { pdf: manual.pdfUrl }), c)) {
+      pubUrl = me.role === 'cdt' && manual && manual.pdfUrl && reviewOn_(c) ? manual.pdfUrl : '';
+      manual = null; hidden = pubUrl ? 'Nhà thầu đang sửa báo cáo tuần này – bản mới chờ TVGS xác nhận' : me.role === 'cdt' ? 'Báo cáo tuần này chưa phát hành' : 'Báo cáo tuần này chưa được nhà thầu chốt'; }
     if (prevWeek && !seen_(me, Object.assign({}, prevWeek, { pdf: (rowOf_('TongHopKy', 0, prevWeek.key) || [])[5] }), c)) prevWeek = null;
-    return JSON.stringify({ reports: reports, manual: manual, subs: [], prevWeek: prevWeek, hidden: hidden });
+    return JSON.stringify({ reports: reports, manual: manual, subs: [], prevWeek: prevWeek, hidden: hidden, pubUrl: pubUrl });
   }
   // Phiếu kỹ sư của các ngày CHƯA CHỐT trong kỳ → giao diện tự gộp, đánh dấu "số liệu tạm"
   const locked = {}; reports.forEach(r => { if (r && r.status === 'locked') locked[r.date] = 1; });
