@@ -509,7 +509,7 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Làm: vai `cdt` (đổi từ `xem`), lọc máy chủ cho `cdt` / `tvgs` (danh mục ngày, mở ngày, kỳ tuần/tháng), "Xem như" của Quản trị (máy chủ nhận vai qua phiên `<mã phiên>~<vai>`, chỉ khi tài khoản thật là `admin`), không xóa được Quản trị cuối, dải nhắc "Rà lại vai trò" + checklist, dải màu khu, menu theo vai, `loadImg` dùng `URL.createObjectURL`.
 - Để lại 10B: thẻ "Báo cáo đã phát hành" cho kỹ sư (hiện kỹ sư vẫn nhận dữ liệu ngày như trước – đổi cần làm lại màn hình Phiếu của tôi), "Tra mã xác thực" trên menu CĐT, số đếm trên thẻ.
 
-### 10A.7 Giao một phần Cấu hình cho Người tổng hợp / chốt (ĐÃ CHỐT 20/11/2026 – chờ lệnh làm)
+### 10A.7 Giao một phần Cấu hình cho Người tổng hợp / chốt (ĐÃ CHỐT, làm 20/11/2026)
 Ý kiến anh Nghĩa: chuyển cho người chốt của nhà thầu Khu vực & phân công, Danh mục, file theo dõi hồ sơ đệ trình. **Thư mục lưu PDF giữ ở Quản trị PMH** (kho bản chính thức mà QR trỏ tới).
 - Người chốt thấy thẻ **Cấu hình** rút gọn: **Khu vực & phân công** · **Danh mục** · **Kỹ sư** · **File theo dõi hồ sơ** (dán link file, nhận trang tính, phân loại Hồ sơ đệ trình / Văn bản / Bỏ qua). Không thấy: Dự án, Người dùng & PIN (đầy đủ), logo, thư mục lưu PDF ngày / tuần, công tắc TVGS kiểm tra, Chế độ thử, Sao lưu / Reset.
 - **Kỹ sư:** người chốt thêm tài khoản, đổi tên, khóa / mở lại, đặt PIN — **chỉ tài khoản vai `ks`**. Không tạo / sửa / đặt PIN tài khoản vai khác, không đổi vai của ai.
@@ -518,3 +518,17 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 - Nhật ký: `SUA_KHU_VUC`, `SUA_DANH_MUC`, `DOI_FILE_HO_SO`, `THEM_KY_SU`, `KHOA_KY_SU`, `DAT_PIN` (đã có).
 - Đổi WBS / danh mục khi đã có báo cáo: giữ như hiện tại – chỉ ảnh hưởng ngày chưa chốt, báo cáo đã chốt giữ nguyên.
 - Kiểm thử: chốt lưu từng phần được; gửi kèm vai / PIN / thư mục PDF / cài đặt khác → máy chủ bỏ qua; chốt đặt PIN kỹ sư được, PIN TVGS / CĐT / Quản trị → lỗi; chốt không tạo được vai khác `ks`; chốt gọi `apiCheckFolder` → lỗi; menu Cấu hình rút gọn đúng 4 thẻ.
+
+### 10A.8 Đánh giá "So với KH": bỏ "0/0 = Đạt", bắt buộc KH ngày mai, Tạm dừng (chốt làm 20/11/2026)
+- Phản ánh của TVGS: việc KH hôm nay 0% + thực hiện 0% đang hiện **Đạt** → "Đạt kế hoạch 8/13" bị đẩy cao (đúng ra 4/13).
+- **Quy tắc mới** cho việc **kế thừa từ hôm trước, lũy kế < 100%, không phải việc theo dõi, không Tạm dừng**:
+  - Không có KH / KH 0% → coi KH = 0. Thực hiện trống / 0% → **Hụt** (kể cả KH 0). KH > 0 mà thực hiện 0 → **Hụt** (như cũ).
+  - Còn lại như cũ: = KH → Đạt, > KH → Vượt, < KH → Hụt; lũy kế đạt 100% → Đạt.
+  - Đếm "Hụt N ngày liên tiếp" không bị cắt khi bỏ trống KH. Hụt mà chênh lệch 0 (KH 0, làm 0) ghi "Hụt – không thực hiện".
+  - Việc **mới** thêm trong ngày, không có KH: giữ như cũ (không đánh giá).
+- **Bắt buộc KH ngày mai > 0%**: kỹ sư bấm Nộp phiếu → việc lũy kế < 100% (không theo dõi, không Tạm dừng) mà chưa có dòng "Kế hoạch ngày mai" với % dự kiến **> 0** → **chặn nộp**, báo "Còn N việc chưa lên kế hoạch ngày mai", nút **"Tạo dòng KH còn thiếu"** (thêm dòng, để trống %, chuyển sang Kế hoạch ngày mai). Phiếu chưa có KH nào → vẫn tự sinh như cũ.
+- **Người chốt** chốt ngày: chỉ **cảnh báo** danh sách việc thiếu KH ngày mai, chốt vẫn được.
+- **⏸ Tạm dừng** (việc dừng chính đáng: chờ bảo dưỡng, chờ nghiệm thu, chờ vật tư…): nút trên từng việc (thẻ điện thoại + bảng máy tính), **bắt buộc ghi lý do**. Đang Tạm dừng: ô % hôm nay khóa (để trống), không tính Đạt/Hụt, không vào tổng X/Y, không bắt KH ngày mai. Tạm dừng tự chuyển sang ngày sau kèm lý do, đếm số ngày; bấm "▶ Tiếp tục" để thi công lại. PDF ngày ghi ở cột Chênh lệch: "⏸ Tạm dừng · N ngày" + lý do.
+- Báo cáo tuần: mục tuân thủ KH ngày dùng cùng quy tắc (Tạm dừng không tính).
+- Lưu ý: quy tắc tính lúc hiển thị → mở lại ngày cũ trong app cũng thấy theo quy tắc mới; PDF đã phát hành không đổi.
+- Kiểm thử: 0/0 → Hụt; KH trống + làm 0 (kế thừa) → Hụt; việc mới không KH → không đánh giá; thống kê 4/13 theo ví dụ; Tạm dừng → không tính, có lý do trên PDF, chuyển sang ngày sau +1 ngày; nộp thiếu KH ngày mai / KH 0 → bị chặn; chốt thiếu KH → cảnh báo.
