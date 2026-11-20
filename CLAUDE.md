@@ -12,6 +12,7 @@ Trả lời bằng tiếng Việt, ngắn gọn, dùng được ngay.
 - **Bàn trước, làm sau.** Phân tích, đề xuất phương án (có thể kèm mockup), rồi CHỜ chủ repo nói "Làm đi" mới sửa code.
 - Mỗi đợt sửa: ghi các mục đã chốt vào `docs/SPEC.md` trước, sau đó mới code.
 - **SPEC tự lưu, tự đẩy lên repo**: ghi/cập nhật `docs/SPEC.md` xong thì commit + push luôn, KHÔNG tạo file hay gửi bản SPEC vào cuộc trò chuyện cho chủ repo xem. Chỉ tạo/gửi khi chủ repo yêu cầu xem SPEC.
+- **KHÔNG cập nhật / tạo artifact bản xem trước** ("Báo cáo ngày công trường") sau mỗi đợt sửa – tốn thời gian. Chỉ làm khi chủ repo yêu cầu.
 - App là **khuôn mẫu dùng chung cho nhiều dự án**. CN8-2 chỉ là dữ liệu thử. Không đưa thông tin riêng của một dự án vào code.
 
 ### Bảo mật
