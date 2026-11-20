@@ -92,3 +92,31 @@ Việc nhiều bước → nêu kế hoạch ngắn:
 ```
 
 **Dấu hiệu nguyên tắc đang hiệu quả:** diff ít thay đổi thừa, ít phải viết lại vì phức tạp hóa, câu hỏi làm rõ đến trước khi code chứ không phải sau khi sai.
+
+---
+
+## C. Phân công đội CMD Office (repo `nghiatrh-debug/CMD-OFFICE`)
+
+Khi làm việc với đội agent, Tổng quản giao việc theo bảng dưới. Mọi agent vẫn tuân thủ phần A và B.
+
+| Bước | Agent | Ghi chú riêng cho app này |
+|---|---|---|
+| Bàn trước, phương án, ghi `docs/SPEC.md` | `spec-writer` | Chờ chủ repo nói "Làm đi" |
+| Sửa `apps-script/Code.gs` | `backend-dev` | Cột mới thêm ở cuối + `ensureHeader_()`; test vào `gastest.js` |
+| Sửa `apps-script/Index.html` | `frontend-dev` | **Một file duy nhất → chỉ 1 agent sửa tại một thời điểm**, không chạy song song |
+| Kiểm thử | `tester` | Chạy `bash tests/run-all.sh "ghi chú"` (được phép ghi nhật ký `TESTING.md`); XEM ảnh trong `tests/shots/` |
+| Soát diff | `reviewer` | Đối chiếu phần A + B (nhất là "Sửa đúng chỗ") |
+| Dùng thử | `field-engineer` | Chỉ chế độ độc lập + nút "Điền mẫu demo"; không mở link `/exec` |
+| Push, theo dõi CI | `release` | Lệnh theo dõi bên dưới; "phát hành" chỉ khi chủ repo nói |
+
+Người sửa code (`backend-dev`/`frontend-dev`) viết mục "Ghi chú từng đợt sửa" trong `TESTING.md` và commit cùng code.
+
+### Theo dõi CI
+```bash
+gh api repos/nghiatrh-debug/dailywklreport/commits/<sha>/check-runs --jq '.check_runs[]|"\(.name): \(.status) \(.conclusion)"'
+```
+Lặp bằng vòng `until` (15 giây/lần), không dùng `sleep` dài. API Actions bị proxy chặn → dùng check-runs.
+
+### Môi trường
+- Trong môi trường Claude cloud: cài Playwright `mkdir -p /tmp/pwnode && cd /tmp/pwnode && npm init -y >/dev/null && npm i playwright-core@1`.
+- Trên máy Windows: Chrome ở `C:\Program Files\Google\Chrome\Application\chrome.exe`; `Set-Clipboard` lỗi → dùng `| clip`.
