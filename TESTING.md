@@ -42,6 +42,12 @@ Chạy lần lượt: kiểm tra cú pháp giao diện → kiểm thử máy ch�
 
 ## Ghi chú từng đợt sửa
 
+### Đợt 10B1.1 – Ý kiến TVGS tuần sửa được; dải màu theo trạng thái báo cáo (21/11/2026)
+- **Sửa gì:** (1) bấm Xác nhận tuần → hộp ý kiến điền sẵn ý kiến TVGS các ngày trong tuần (mỗi dòng "dd/mm – nội dung"), TVGS xóa / sửa / thêm; PDF tuần chỉ còn 1 khung "Ý KIẾN TVGS" (bỏ mục gom riêng); ý kiến lưu kèm ngày nguồn. (2) Dải màu dưới đầu trang báo **trạng thái báo cáo đang mở**: đang thực hiện / chờ TVGS kiểm tra / TVGS yêu cầu sửa / đã xác nhận – chưa phát hành được PDF / đã phát hành PDF / (CĐT) nhà thầu đang sửa – thay cho nhãn theo vai.
+- **Kiểm thử mới:** gastest +1 (giữ ngày nguồn hợp lệ). ui.js: hộp điền sẵn – xóa – thêm, PDF in "dd/mm – Loại: nội dung", sửa 4 kiểm thử dải màu theo trạng thái. e2e_roles 49 đạt (dải màu từng trạng thái, điền sẵn 2 ý kiến ngày 1, xóa 1, thêm 1, PDF tuần đúng).
+- **Ảnh đã xem:** `e2e/09a_tvgs_y_kien_tuan` (thêm vạch ngăn giữa các ý kiến trên điện thoại).
+- **Rủi ro còn lại:** ý kiến điền sẵn lấy từ các ngày đã xác nhận lúc TVGS mở tuần; ngày xác nhận sau đó không tự thêm vào tuần đã xác nhận.
+
 ### Đợt 10A.9 – Sửa 5 phát hiện từ giả lập đầu-cuối (21/11/2026)
 - **Sửa gì:** (1) kỹ sư chưa nộp phiếu → việc dở dang khu vực của họ vẫn vào báo cáo, tính **"Hụt – kỹ sư không báo cáo"** (PDF ghi "KS không báo cáo"), hộp hỏi khi chốt nói rõ; (2) ngày / tuần đã phát hành bị mở khóa → CĐT vẫn thấy trong danh sách, hiện dải "Nhà thầu đang sửa" + nút **Mở PDF đã phát hành**, không nhận nội dung đang sửa; (3) tự sinh KH ngày mai bỏ qua việc Tạm dừng; (4) CĐT không nhận / không thấy danh sách phiếu kỹ sư; (5) chữ hộp mở khóa theo luồng mới.
 - **Kiểm thử mới:** gastest +5 (CĐT không nhận phiếu kỹ sư, ngày đang sửa chỉ nhận link PDF cũ, kỳ không gom ngày đang sửa, xác nhận lại → chờ bản mới, tuần đang sửa). e2e_roles +7 (43 đạt / 0 lỗi).
@@ -363,3 +369,5 @@ Mỗi đợt sửa, Claude ghi thêm mục ở đây: sửa gì, kiểm thử m�
 | 2026-11-20 22:41 | 0c7d568 | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10B1 – tự phát hành khi TVGS xác nhận, ý kiến TVGS in PDF, Gantt nằm ngang |
 | 2026-11-21 05:59 | 4b2c5da | đạt | 195 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Giả lập đầu-cuối theo vai + sửa thông báo phát hành bị treo |
 | 2026-11-21 06:47 | 90a7a88 | đạt | 200 đạt / 0 lỗi | 266 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10A.9 – sửa 5 phát hiện từ giả lập đầu-cuối |
+| 2026-11-21 07:08 | 5d42d0b | đạt | 201 đạt / 0 lỗi | 266 đạt / 2 lỗi | ❌ LỖI | Đợt 10B1.1 – ý kiến TVGS tuần sửa được; dải màu theo trạng thái |
+| 2026-11-21 07:17 | 5d42d0b | đạt | 201 đạt / 0 lỗi | 268 đạt / 0 lỗi | ✅ ĐẠT | Đợt 10B1.1 – ý kiến TVGS tuần sửa được; dải màu theo trạng thái (chạy lại) |

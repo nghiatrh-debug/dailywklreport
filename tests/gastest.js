@@ -489,3 +489,11 @@ const g = ctx.doGet(); A([g.html.includes('"config"'),'doGet embeds boot']);
   const pw = J(ctx.apiPeriod(tkX, wk.from, wk.to, wk.key));
   A([!pw.manual && pw.pubUrl === wu && /đang sửa/.test(pw.hidden), '10A.9: tuần đã phát hành bị mở khóa → CĐT thấy "đang sửa" + link PDF cũ']);
 })();
+// ===== Đợt 10B1.1: ý kiến TVGS tuần giữ ngày nguồn =====
+(() => {
+  const tkC = J(ctx.apiLogin('uC7', '7777')).token, tkT = J(ctx.apiLogin('uT10', '1010')).token;
+  const wk = { v: 2, kind: 'week', key: 'W-2027-06-04', from: '2027-06-04', to: '2027-06-10', no: 63, status: 'locked', version: 1, overall: {}, tasks: [] };
+  ctx.apiSavePeriod(tkC, JSON.stringify(wk));
+  const wr = J(ctx.apiReviewPeriod(tkT, wk.key, 'approve', '', '[]', JSON.stringify([{ cat: 'An toàn', text: 'Lan can', date: '2027-06-05' }, { cat: 'Khác', text: 'Mới', date: 'xx' }])));
+  A([wr.remarks[0].date === '2027-06-05' && !('date' in wr.remarks[1]), '10B1.1: ý kiến tuần giữ ngày nguồn hợp lệ, bỏ ngày sai']);
+})();

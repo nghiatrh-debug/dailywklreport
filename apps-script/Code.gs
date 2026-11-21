@@ -377,7 +377,8 @@ function cmtItems_(json) {
 const RMK_CATS_ = ['Chất lượng', 'An toàn', 'Tiến độ', 'Vệ sinh – môi trường', 'Khác'];
 function remarks_(json) {
   let a = []; try { a = JSON.parse(json || '[]'); } catch (e) { a = []; }
-  return (Array.isArray(a) ? a : []).slice(0, 30).map(x => ({ cat: RMK_CATS_.indexOf(x && x.cat) >= 0 ? x.cat : 'Khác', text: String((x && x.text) || '').trim().slice(0, 1000) })).filter(x => x.text);
+  return (Array.isArray(a) ? a : []).slice(0, 30).map(x => { const o = { cat: RMK_CATS_.indexOf(x && x.cat) >= 0 ? x.cat : 'Khác', text: String((x && x.text) || '').trim().slice(0, 1000) };
+    if (x && /^\d{4}-\d{2}-\d{2}$/.test(x.date)) o.date = x.date; return o; }).filter(x => x.text);   // date: ý kiến gom từ báo cáo ngày (tuần)
 }
 /** Mã xác thực gồm cả ý kiến TVGS (không có ý kiến → giữ đúng cách tính cũ). */
 const vcodeR_ = (o, rm) => vcode_(rm.length ? Object.assign({}, o, { tvgsRemarks: rm }) : o);

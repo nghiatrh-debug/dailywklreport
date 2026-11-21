@@ -185,7 +185,7 @@ table.ed .in:focus{background:#fff}
 .rmk{display:grid;grid-template-columns:150px 1fr auto;gap:6px;margin:6px 0}
 #testBar select{font:inherit;font-weight:700;border:1px solid #a16207;border-radius:6px;background:#fffbeb;color:#713f12;padding:1px 4px;margin-left:4px}
 #zoneBar{display:none;border-radius:8px;padding:4px 10px;font-size:12.5px;font-weight:700;margin:0 0 8px}#zoneBar.on{display:block}
-#zoneBar.z-nt{background:#fef9c3;color:#854d0e}#zoneBar.z-tv{background:#dbeafe;color:#1e40af}#zoneBar.z-cd{background:#dcfce7;color:#166534}#zoneBar.z-qt{background:#f3e8ff;color:#6b21a8}
+#zoneBar.z-nt{background:#fef9c3;color:#854d0e}#zoneBar.z-tv{background:#dbeafe;color:#1e40af}#zoneBar.z-cd{background:#dcfce7;color:#166534}#zoneBar.z-or{background:#ffedd5;color:#9a3412}#zoneBar.z-er{background:#fee2e2;color:#991b1b}
 #rolesNote:empty{display:none}#rolesNote{background:#fff7ed;border:1px solid #fdba74;color:#9a3412;border-radius:8px;padding:6px 10px;font-size:13px;margin:0 0 8px}
 @media (max-width:767px){.lgrid{grid-template-columns:1fr}}
 details.dt summary{font-size:11.5px;color:var(--mu);cursor:pointer;padding:2px 6px}details.dt[open] summary{color:var(--ac2)}
@@ -383,7 +383,7 @@ tr.wauto td.n .tag{margin:2px 0 0}.tcard.wauto{background:#fbfcfe}
   #v-config .g2{grid-template-columns:1fr}
   .about{flex-direction:column;align-items:flex-start}.about .htnlogo{width:140px}
 }
-@media (max-width:767px){.rmk{grid-template-columns:1fr auto}.rmk textarea{grid-column:1/-1;grid-row:2}}
+@media (max-width:767px){.rmk{grid-template-columns:1fr auto;padding-bottom:8px;border-bottom:1px dashed #cbd5e1}.rmk textarea{grid-column:1/-1;grid-row:2}}
 </style>
 </head>
 <body>
@@ -975,7 +975,20 @@ const limRole = () => role()==='cdt' || role()==='tvgs';
 const recRev = x => x ? (typeof x.review === 'string' ? x.review : (x.review||{}).status || '') : '';
 const seenRec = x => role()==='cdt' ? !!x && (reviewOn() ? recRev(x)==='approved' : x.status==='locked') : role()==='tvgs' ? !!x && (x.status==='locked' || recRev(x)==='returned') : true;
 const viewIdx = idx => limRole() ? { reports: idx.reports.filter(seenRec), subs: [], testDays: idx.testDays || [] } : idx;
-const ZONES_ = { ks:['nt','🟡 Nhà thầu – đang làm'], chot:['nt','🟡 Nhà thầu – đang làm'], tvgs:['tv','🔵 TVGS – chờ kiểm tra'], cdt:['cd','🟢 CĐT – đã phát hành'], admin:['qt','🟣 Quản trị'] };
+/* 10B1.1: dải màu dưới đầu trang = trạng thái của báo cáo đang mở (ngày / tuần) */
+let WPUB = '';
+const stOf = (o, pdf) => { const rv = (o && o.review || {}).status || '';
+  if (!o || o.status!=='locked') return rv==='returned' ? ['or','↩ TVGS yêu cầu sửa'] : ['nt','✎ Báo cáo đang thực hiện'];
+  if (!reviewOn()) return ['cd','🔒 Báo cáo đã chốt'];
+  if (rv==='approved') return !IS_GAS ? ['cd','✔ TVGS đã xác nhận'] : pdf ? ['cd','✅ Báo cáo đã phát hành PDF'] : ['er','⚠ Đã xác nhận – chưa phát hành được PDF'];
+  return ['tv','⏳ Báo cáo chờ TVGS kiểm tra']; };
+function repStatus(){
+  if (!ME || !VIEW || VIEW==='config') return null;
+  if (VIEW==='period') return P.kind!=='week' ? null : W ? stOf(W, !!W.pdfUrl) : WPUB ? ['or','✎ Nhà thầu đang sửa – xem PDF đã phát hành'] : null;
+  if (NOREP && PUBURL) return ['or','✎ Nhà thầu đang sửa – xem PDF đã phát hành'];
+  if (NOREP && limRole()) return null;
+  return stOf(R, !!(IDX.reports.find(x=>x.date===(R||{}).date)||{}).pdf); }
+function zoneUpd(){ const zb = $('#zoneBar'), st = repStatus(); if (!zb) return; zb.className = st ? 'on z-' + st[0] : ''; zb.textContent = st ? st[1] : ''; }
 /* TVGS kiểm tra nội dung: bắt buộc khi công tắc bật (mặc định) và có tài khoản TVGS đang hoạt động */
 const reviewOn = () => (CFG.settings||{}).requireReview !== false && CFG.users.some(u=>u.role==='tvgs' && u.active!==false);
 const revOf = r => r && r.review ? r.review.status || '' : '';
@@ -985,15 +998,16 @@ const unpubW = w => IS_GAS && reviewOn() && w && w.status==='locked' && (w.revie
 const dayFileName = r => `${r.date.replace(/-/g,'')}-${CFG.project.code}-Daily Report.pdf`;
 /* Ý kiến TVGS in PDF (ngày + tuần): khung viền xanh trước phần ký; không có → ẩn */
 const RMK_CATS = ['Chất lượng','An toàn','Tiến độ','Vệ sinh – môi trường','Khác'];
-const rmkBox = rv => !rv || rv.status!=='approved' || !(rv.remarks||[]).length ? '' : `<div style="border:1.5px solid #2563eb;border-radius:4px;margin:10px 0 6px;padding:6px 9px;page-break-inside:avoid"><div style="font-weight:bold;color:#1e40af;font-size:11px;margin-bottom:3px">Ý KIẾN TVGS / CONSULTANT'S REMARKS</div>${rv.remarks.map((x,i)=>`<div style="font-size:10.5px;padding:1px 0">${i+1}. <b>${esc(x.cat)}:</b> ${esc(x.text)}</div>`).join('')}</div>`;
+const rmkBox = rv => !rv || rv.status!=='approved' || !(rv.remarks||[]).length ? '' : `<div style="border:1.5px solid #2563eb;border-radius:4px;margin:10px 0 6px;padding:6px 9px;page-break-inside:avoid"><div style="font-weight:bold;color:#1e40af;font-size:11px;margin-bottom:3px">Ý KIẾN TVGS / CONSULTANT'S REMARKS</div>${rv.remarks.map((x,i)=>`<div style="font-size:10.5px;padding:1px 0">${i+1}. ${x.date ? vi(x.date).slice(0,5) + ' – ' : ''}<b>${esc(x.cat)}:</b> ${esc(x.text)}</div>`).join('')}</div>`;
 /** Hộp xác nhận kèm ý kiến TVGS → mảng [{cat,text}] hoặc null (hủy) */
-function remarksAsk(title, info){ return new Promise(res=>{ const row = () => `<div class="rmk"><select class="in">${RMK_CATS.map(c=>`<option>${c}</option>`).join('')}</select><textarea class="in" rows="2" placeholder="Nội dung nhắc nhở / lưu ý"></textarea><button class="del" type="button">🗑</button></div>`;
-  modal(`<h3>${title}</h3><div>${info}</div><div class="ph" style="margin-top:10px"><h3 style="font-size:14px">Ý kiến TVGS in vào PDF (không bắt buộc)</h3></div><div id="rmkL"></div><button class="add" id="rmkAdd" type="button">+ Thêm ý kiến</button>
+function remarksAsk(title, info, pre){ return new Promise(res=>{ const row = (x={}) => `<div class="rmk" data-date="${esc(x.date||'')}"><select class="in">${RMK_CATS.map(c=>`<option ${x.cat===c?'selected':''}>${c}</option>`).join('')}</select><textarea class="in" rows="2" placeholder="Nội dung nhắc nhở / lưu ý">${esc((x.date ? vi(x.date).slice(0,5) + ' – ' : '') + (x.text||''))}</textarea><button class="del" type="button" title="Xóa ý kiến">🗑</button></div>`;
+  modal(`<h3>${title}</h3><div>${info}</div><div class="ph" style="margin-top:10px"><h3 style="font-size:14px">Ý kiến TVGS in vào PDF (không bắt buộc)</h3></div>${(pre||[]).length ? '<div class="hint" style="padding:0 0 4px">Đã điền sẵn ý kiến TVGS các ngày trong tuần – xóa ý kiến không cần nhắc nữa, sửa hoặc thêm mới.</div>' : ''}<div id="rmkL">${(pre||[]).map(row).join('')}</div><button class="add" id="rmkAdd" type="button">+ Thêm ý kiến</button>
     <div class="acts"><button class="btn" id="mNo">Hủy</button><button class="btn ok" id="mOk">${IS_GAS ? '✔ Xác nhận & phát hành' : '✔ Xác nhận'}</button></div>`);
   const L = $('#rmkL'); L.addEventListener('click', e=>{ if (e.target.classList.contains('del')) e.target.closest('.rmk').remove(); });
   $('#rmkAdd').onclick = ()=>{ L.insertAdjacentHTML('beforeend', row()); L.lastElementChild.querySelector('textarea').focus(); };
   $('#mNo').onclick = ()=>{ closeModal(); res(null); };
-  $('#mOk').onclick = ()=>{ const a = [...L.querySelectorAll('.rmk')].map(d=>({cat:d.querySelector('select').value, text:d.querySelector('textarea').value.trim()})).filter(x=>x.text); closeModal(); res(a); }; }); }
+  $('#mOk').onclick = ()=>{ const a = [...L.querySelectorAll('.rmk')].map(d=>{ const dt = d.dataset.date, pf = dt ? vi(dt).slice(0,5) + ' – ' : ''; let t = d.querySelector('textarea').value.trim();
+      if (pf && t.startsWith(pf)) t = t.slice(pf.length).trim(); return Object.assign({cat:d.querySelector('select').value, text:t}, dt && t ? {date:dt} : {}); }).filter(x=>x.text); closeModal(); res(a); }; }); }
 async function publishDay(){
   if (!IS_GAS || !R || revOf(R)!=='approved') return; const rv = R.review; toast('⏳ Đang phát hành PDF… vui lòng chờ', 90000);
   try { const box = document.createElement('div'); box.innerHTML = docHTML(R, {pdf:true});
@@ -1172,7 +1186,7 @@ function renderNav(){
   if (!(realAdmin() && testMode())) AS = '';
   $('#testBar').classList.toggle('on', !!ME && testMode());
   $('#asWrap').innerHTML = realAdmin() && testMode() ? ` · Xem như: <select id="asSel">${['', 'chot', 'ks', 'tvgs', 'cdt'].map(k=>`<option value="${k}" ${AS===k?'selected':''}>${k ? esc(ROLES[k]) : 'Quản trị (vai thật)'}</option>`).join('')}</select>` : '';
-  const zb = $('#zoneBar'), zn = ME && ZONES_[role()]; zb.className = zn ? 'on z-' + zn[0] : ''; zb.textContent = zn ? zn[1] : '';
+  zoneUpd();
   $('#rolesNote').innerHTML = realAdmin() && !AS && !(CFG.settings||{}).roles10 ? `⚠ Bản mới phân vai Nhà thầu – TVGS – CĐT: <b>rà lại vai trò người dùng</b> trước khi báo nhà thầu dùng. <button class="btn sm" data-act="goRoles">Mở Người dùng & PIN</button>` : '';
   const ub = $('#umenuBtn'); if (ub) ub.style.display = ME ? '' : 'none'; renderMobileBar();
   ['my','day','period','config'].forEach(v=> $('#v-'+v).classList.toggle('hide', v!==VIEW));
@@ -1283,7 +1297,7 @@ function fabCtx(){
 }
 function updFab(){ const f = $('#fab'); if (!f) return; const on = !!fabCtx(); f.classList.toggle('on', on);
   if (on) { const mb = $('#mBottom'); f.style.bottom = ((mb && mb.classList.contains('on') ? mb.offsetHeight : 0) + 16) + 'px'; } }
-function renderMobileBar(){ renderMobileBar0(); updFab(); }
+function renderMobileBar(){ renderMobileBar0(); updFab(); zoneUpd(); }
 function renderMobileBar0(){
   const el = $('#mBottom'); if (!el) return;
   if (isMobile() && ME && VIEW==='day' && R){ el.classList.add('on'); const a = [];
@@ -1887,7 +1901,7 @@ async function loadPeriod(){ const pr = periodRange(); setSave('sync');
     renderWeek(); loadImages(); return; }
   W = null; renderPeriod(); }
 /* Đợt 10A: CĐT / TVGS mở tuần chưa được thấy → chỉ hiện thông báo, vẫn chuyển tuần được */
-function renderWeekHidden(pr, msg, url){ W = null; EDIT = 'W'; RO = true;
+function renderWeekHidden(pr, msg, url){ W = null; WPUB = url || ''; EDIT = 'W'; RO = true;
   $('#perNav').innerHTML = `<button class="btn sm" data-act="pPrev">◀</button><input type="date" class="btn" id="pAnchor" value="${P.anchor}"><button class="btn sm" data-act="pNext">▶</button>`;
   $('#perSub').textContent = `${vi(pr.from)} → ${vi(pr.to)}`; $('#wTabs').innerHTML = ''; $('#wActs').innerHTML = ''; $('#perPrevBar').innerHTML = '';
   $('#periodPane').innerHTML = `<div class="note w">${url ? '✎' : '📭'} ${esc(msg)} (${vi(pr.from)} → ${vi(pr.to)}).${url ? ` <a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">📄 Mở PDF đã phát hành</a>` : ''}</div>`; $('#pdoc').innerHTML = ''; renderMobileBar(); }
@@ -2008,7 +2022,7 @@ function weekStale(w){ try { const c = clone(w); genWeek(c, P.reports, PW);
   const sig = o => JSON.stringify(Object.keys(o).filter(k => !W_NOCMP[k] && Array.isArray(o[k])).sort().map(k => [k, o[k].filter(x => x && x.auto)]));
   return sig(c) !== sig(w); } catch(e){ return false; } }
 function genWeek(w, reps, pw){
-  // 10B: tự gom ý kiến TVGS của các ngày đã xác nhận trong tuần (chỉ đọc)
+  // 10B: gom ý kiến TVGS của các ngày đã xác nhận trong tuần – điền sẵn vào hộp Xác nhận tuần để TVGS xóa / sửa / thêm
   w.dayRemarks = [].concat(...reps.map(r => (r.review && r.review.status === 'approved' ? r.review.remarks || [] : []).map(x => ({date:r.date, cat:x.cat, text:x.text}))));
   const zIdx = id => { const i = CFG.zones.findIndex(z=>z.id===id); return i < 0 ? 999 : i; };
   // A. công việc
@@ -2418,7 +2432,6 @@ function weekDocHTML(w, o = {}){
   if (w.photos.length) { h += '<table class="phc wph3">'; photoGroups(w.photos).forEach(([nm, idx])=>{ h += `<tr><td colspan="3" class="wz phz">📍 ${esc(nm)} (${idx.length} ảnh)</td></tr>`;
     for (let i = 0; i < idx.length; i += 3) { const row = idx.slice(i, i+3).map(k=>{ const p = w.photos[k], src = (p.img || (o.pdf && p.fileId)) ? imgSrc(p, o) : '';
       return `<td>${src ? `<img src="${src}">` : '<div class="noph">Đang tải ảnh…</div>'}<div>${esc(p.caption)}</div><div class="sm">${vi(p.date)}</div></td>`; }); while (row.length < 3) row.push('<td></td>'); h += '<tr>' + row.join('') + '</tr>'; } }); h += '</table>'; }
-  if ((w.dayRemarks||[]).length) h += `<div class="wsec3">🔒 Ý KIẾN TVGS CÁC NGÀY TRONG TUẦN / CONSULTANT'S DAILY REMARKS</div><table class="grid"><tr><th class="c" style="width:28px">Stt</th><th style="width:70px">Ngày</th><th style="width:120px">Loại</th><th>Nội dung</th></tr>${w.dayRemarks.map((x,i)=>`<tr><td class="c">${i+1}</td><td>${vi(x.date)}</td><td>${esc(x.cat)}</td><td>${esc(x.text)}</td></tr>`).join('')}</table>`;
   h += rmkBox(w.review) + docSign() + docCredit();
   // IV. TIẾN ĐỘ MSP – TRACKING: QR file MS Project + mỗi ảnh Gantt 1 trang
   if (w.gantt.length || w.msp) {
@@ -2918,7 +2931,8 @@ document.addEventListener('click', async function onClick(e){
     if (miss.length) return toast('Chưa nhập: ' + miss.join(', '), 6000);
     W.status = 'locked'; W._lockNow = true; await saveW(true); renderWeek(); toast(reviewOn() ? '🔒 Đã chốt tuần – chờ TVGS kiểm tra' : '🔒 Đã chốt tuần'); return; }
   if (a==='wUnlock'){ W.status = 'draft'; W.version = (W.version||1) + 1; W._lockNow = true; await saveW(true); renderWeek(); toast('🔓 Đã mở khóa – bản v' + W.version + ', chốt lại cần TVGS xác nhận lại'); return; }
-  if (a==='wApprove'){ const rm = await remarksAsk('Xác nhận báo cáo tuần', `Xác nhận nội dung <b>Báo cáo tuần ${esc(W.no)}</b> (${vi(W.from)} → ${vi(W.to)}) là đúng?${IS_GAS ? '<p class="hint" style="padding:6px 0 0">PDF tuần được <b>tự phát hành</b> ngay sau khi xác nhận.</p>' : ''}`); if (!rm) return;
+  if (a==='wApprove'){ const dr = [].concat(...(P.reports||[]).map(r => (r.review && r.review.status === 'approved' ? r.review.remarks || [] : []).map(x => ({date:r.date, cat:x.cat, text:x.text}))));
+    const rm = await remarksAsk('Xác nhận báo cáo tuần', `Xác nhận nội dung <b>Báo cáo tuần ${esc(W.no)}</b> (${vi(W.from)} → ${vi(W.to)}) là đúng?${IS_GAS ? '<p class="hint" style="padding:6px 0 0">PDF tuần được <b>tự phát hành</b> ngay sau khi xác nhận.</p>' : ''}`, dr.length ? dr : W.dayRemarks); if (!rm) return;
     try { W.review = await Store.reviewPeriod(W.key, 'approve', '', [], rm); W.pdfUrl = ''; renderWeek(); if (IS_GAS) await publishWeek(); else toast('✔ Đã xác nhận báo cáo tuần · mã ' + W.review.code); } catch(e){ toast('⚠ ' + (e.message||e), 5000); } return; }
   if (a==='wReturn'){ cmtBasket(); return; }
   if (a==='mv'){ const rt = b.dataset.root || 'R', arr = getPath(rootObj(rt), b.dataset.path), i = +b.dataset.i, j = i + (+b.dataset.d); if (j < 0 || j >= arr.length) return;

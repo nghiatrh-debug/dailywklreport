@@ -74,6 +74,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   await M.pg.evaluate(() => { const pl = S.plans.find(p => /Đổ bê tông/.test(p.desc)); pl.add = 25; planCalc(pl, S.tasks); markDirty('S'); renderMy(); });
   await M.pg.evaluate(() => (document.querySelector('[data-act=submitSub]') || {click(){}}).click()); await wait(900); await clickOk(M.pg);
   ok(await M.pg.evaluate(() => S.status === 'submitted'), 'N1 KS: nhập KH 25% cho việc thiếu → nộp được');
+  ok(/Báo cáo đang thực hiện/.test(await txt(M.pg, '#zoneBar')), '10B1.1 KS: dải “Báo cáo đang thực hiện” khi báo cáo ngày chưa chốt');
   // KS MEP: 1 việc
   await login(M.pg, 'uK2', '4444'); await M.pg.evaluate(d => openMy(d, ME.id), D1); await wait(900);
   await M.pg.evaluate(() => { const t = addItem('S', 'tasks', newTaskTpl(zoneById('zB'))); const x = S.tasks[S.tasks.length - 1] && S.tasks.find(t => !t.desc) || S.tasks[0];
@@ -91,6 +92,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   await pg.click('#dayActs [data-act=lock]'); await wait(700); await clickOk(pg);
   const zl = await pg.evaluate(() => ($('#zaloTxt') || {}).value || '');
   ok(await pg.evaluate(() => R.status === 'locked') && /TVGS|kiểm tra/i.test(zl), 'N1 Chốt: chốt ngày → gợi ý tin Zalo nhắc TVGS');
+  ok(/Báo cáo chờ TVGS kiểm tra/.test(await txt(pg, '#zoneBar')), '10B1.1 Chốt: dải “Báo cáo chờ TVGS kiểm tra” sau khi chốt');
   await pg.evaluate(() => closeModal());
   const lk1 = await pg.evaluate(() => JSON.stringify(R.tasks.map(t => [t.desc, t.planToday, t.dayPct, judge(t)])));
   note('N1 báo cáo gộp: ' + lk1);
@@ -106,6 +108,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   await M.pg.evaluate(async () => { R.review = await Store.review(R.date, 'return', 'Bổ sung số lượng thợ cốp pha', []); renderDayAll(); }); await wait(500);
   await login(pg, 'uC', '2222'); await pg.evaluate(d => { DATE = d; openDay(d); }, D1); await wait(1000);
   ok(/TVGS yêu cầu sửa/i.test(await txt(pg, 'body')) && /thợ cốp pha/.test(await txt(pg, 'body')), 'N1 Chốt: thấy "TVGS yêu cầu sửa" + nội dung');
+  ok(/TVGS yêu cầu sửa/.test(await txt(pg, '#zoneBar')) && /z-or/.test(await pg.getAttribute('#zoneBar', 'class')), '10B1.1 Chốt: dải cam “TVGS yêu cầu sửa”');
   await pg.evaluate(() => { R.manpower = (R.manpower || []).concat([{ title: 'Thợ cốp pha', qty: 8 }]); markDirty('R'); }); await wait(200);
   await pg.click('#dayActs [data-act=lock]'); await wait(700); await clickOk(pg); await pg.evaluate(() => closeModal());
   ok(await pg.evaluate(() => R.status === 'locked' && R.version >= 2), 'N1 Chốt: sửa và chốt lại (bản v' + await pg.evaluate(() => R.version) + ')');
@@ -131,7 +134,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   // CĐT xem
   await login(pg, 'uD', '6666');
   ok(await pg.evaluate(d => IDX.reports.some(r => r.date === d && r.pdf), D1) && await pg.evaluate(() => R && R.review && R.review.status === 'approved'), 'N1 CĐT: thấy ngày 1 sau khi phát hành');
-  ok(/Ngày đã phát hành/.test(await txt(pg, '#nav')) && /CĐT – đã phát hành/.test(await txt(pg, '#zoneBar')), 'CĐT: menu + dải màu đúng vai');
+  ok(/Ngày đã phát hành/.test(await txt(pg, '#nav')) && /Báo cáo đã phát hành PDF/.test(await txt(pg, '#zoneBar')), 'CĐT: menu đúng vai; 10B1.1 dải “Báo cáo đã phát hành PDF”');
   await shot(pg, '05_cdt_xem_ngay1');
   ok(await pg.evaluate(() => !SUBS.length && !document.querySelector('[data-act=openSub]') && !/Phiếu đã nộp/.test($('#pane').innerText)), '10A.9 CĐT: không thấy danh sách phiếu kỹ sư');
 
@@ -178,6 +181,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   const ban = await txt(M.pg, 'body');
   ok(/Chưa phát hành được PDF/.test(ban) && await M.pg.locator('[data-act=repub]').count() > 0, 'N2 TVGS: Drive lỗi → báo cáo vẫn "đã xác nhận", hiện dải đỏ + nút Xuất lại');
   await shot(M.pg, '08_tvgs_loi_phat_hanh');
+  ok(/chưa phát hành được PDF/i.test(await txt(M.pg, '#zoneBar')) && /z-er/.test(await M.pg.getAttribute('#zoneBar', 'class')), '10B1.1: dải đỏ “Đã xác nhận – chưa phát hành được PDF”');
   ok(J(api('apiOpen', J(api('apiLogin', 'uD', '6666')).token, '', 'day')).index.r.every(x => x[0] !== D2 || !x[4]), 'N2 CĐT: chưa thấy ngày 2 khi PDF chưa phát hành');
   await M.pg.evaluate(() => document.querySelector('[data-act=repub]').click()); await wait(2000);
   ok(/đã được TVGS xác nhận và phát hành/.test(await M.pg.evaluate(() => ($('#zaloTxt') || {}).value || '')), 'N2 TVGS: bấm Xuất lại → phát hành thành công');
@@ -201,12 +205,16 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
   await login(M.pg, 'uT', '5555'); await M.pg.evaluate(() => go('period')); await wait(1200);
   await M.pg.fill('#pAnchor', D2); await M.pg.dispatchEvent('#pAnchor', 'change'); await wait(1500);
   await M.pg.evaluate(() => document.querySelector('[data-act=wApprove]').click()); await wait(500);
-  await M.pg.click('#rmkAdd'); await M.pg.selectOption('#rmkL .rmk select', 'Chất lượng'); await M.pg.fill('#rmkL .rmk textarea', 'Kiểm tra lớp bê tông bảo vệ cốt thép cột');
+  const preN = await M.pg.evaluate(() => [...document.querySelectorAll('#rmkL .rmk textarea')].map(x => x.value));
+  ok(preN.length === 2 && /lan can biên sàn GF/.test(preN.join()) && /tăng tổ đội/.test(preN.join()), 'Tuần TVGS: hộp xác nhận điền sẵn 2 ý kiến của ngày 1: ' + preN.join(' | '));
+  await M.pg.evaluate(() => [...document.querySelectorAll('#rmkL .rmk')].find(d => /tăng tổ đội/.test(d.querySelector('textarea').value)).querySelector('.del').click());
+  await M.pg.click('#rmkAdd'); await M.pg.selectOption('#rmkL .rmk:last-child select', 'Chất lượng'); await M.pg.fill('#rmkL .rmk:last-child textarea', 'Kiểm tra lớp bê tông bảo vệ cốt thép cột');
+  await shot(M.pg, '09a_tvgs_y_kien_tuan');
   await M.pg.evaluate(() => $('#mOk').click()); await wait(3000);
   ok(/Báo cáo tuần .* đã được TVGS xác nhận và phát hành/.test(await M.pg.evaluate(() => ($('#zaloTxt') || {}).value || '')), 'Tuần TVGS: xác nhận + ý kiến → tự phát hành PDF tuần');
   await M.pg.evaluate(() => closeModal());
   const wf = Object.values(G.files).find(f => /Weekly report/i.test(f.name) && !f.trashed), wTxt = wf ? Buffer.from(wf.blob.bytes.map(x => x & 255)).toString('utf8') : '';
-  ok(wf && /Ý KIẾN TVGS CÁC NGÀY/.test(wTxt) && /lan can biên sàn/.test(wTxt) && /lớp bê tông bảo vệ/.test(wTxt), 'Tuần PDF: có mục gom ý kiến các ngày + ý kiến TVGS của tuần (' + (wf && wf.name) + ')');
+  ok(wf && /\d\d\/\d\d – <b>An toàn:<\/b> Bổ sung lan can biên sàn/.test(wTxt) && /lớp bê tông bảo vệ/.test(wTxt) && !/tăng tổ đội/.test(wTxt) && !/Ý KIẾN TVGS CÁC NGÀY/.test(wTxt), 'Tuần PDF: một khung Ý kiến TVGS – giữ ý kiến ngày (có ngày), bỏ ý kiến TVGS đã xóa, có ý kiến mới (' + (wf && wf.name) + ')');
   const gh = (wTxt.match(/class="gpage gh/g) || []).length, gb = (wTxt.match(/class="gpage gh gpb/g) || []).length;
   ok(gh === 3 && gb === 1, `Tuần PDF: 3 ảnh Gantt nằm ngang, ngắt trang 1 lần (2 ảnh/trang) – gh=${gh}, gpb=${gb}`);
   await login(pg, 'uD', '6666'); await pg.evaluate(() => go('period')); await wait(1200);
@@ -222,6 +230,7 @@ const dPrev = new Date(Date.parse(D2 + 'T00:00:00Z') - 864e5), D1 = dPrev.toISOS
     const vis = J(api('apiOpen', J(api('apiLogin', 'uD', '6666')).token, '', 'day')).index.r.some(x => x[0] === D1);
     ok(vis && /TVGS xác nhận lại sẽ phát hành PDF mới/.test(um), '10A.9: mở khóa ngày đã phát hành → CĐT vẫn thấy ngày 1 trong danh sách; hộp mở khóa đúng luồng mới');
     await login(M.pg, 'uD', '6666'); await M.pg.evaluate(d => { R = null; DATE = d; openDay(d); }, D1); await wait(1000);
+    ok(/Nhà thầu đang sửa/.test(await txt(M.pg, '#zoneBar')), '10B1.1 CĐT: dải cam “Nhà thầu đang sửa – xem PDF đã phát hành”');
     ok(/Nhà thầu đang sửa báo cáo ngày/.test(await txt(M.pg, '#pane')) && await M.pg.locator('#pane a[href*="drive"]').count() === 1, '10A.9 CĐT: ngày đang sửa → dải "Nhà thầu đang sửa" + nút Mở PDF đã phát hành');
     await shot(M.pg, '10_cdt_dang_sua');
     await pg.click('#dayActs [data-act=lock]'); await wait(700); await clickOk(pg); await pg.evaluate(() => closeModal());
