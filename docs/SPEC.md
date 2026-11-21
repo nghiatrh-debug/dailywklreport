@@ -554,3 +554,7 @@ Trạng thái: **ĐÃ CHỐT 20/11/2026**. Bản thử giao diện: artifact "Dr
 3. Tự sinh KH ngày mai **bỏ qua việc đang Tạm dừng**.
 4. CĐT **không thấy danh sách phiếu kỹ sư** (máy chủ không gửi phiếu kỹ sư cho CĐT; màn hình ẩn khối phiếu).
 5. Hộp mở khóa: bỏ chữ "khi xuất lại" → "TVGS xác nhận lại sẽ phát hành PDF mới thay file cũ".
+
+### 10B1.1 Chỉnh sau góp ý 21/11/2026 (đã chốt, làm ngay)
+1. **Ý kiến TVGS báo cáo tuần sửa được**: bấm Xác nhận tuần → hộp ý kiến **điền sẵn ý kiến TVGS của các ngày trong tuần** (mỗi dòng ghi ngày + loại + nội dung); TVGS **xóa / sửa / thêm mới**. PDF tuần chỉ còn **một khung "Ý KIẾN TVGS"** theo danh sách TVGS chốt (bỏ mục 🔒 gom riêng). Ý kiến lưu thêm `date` (nếu có), in dạng "dd/mm – Loại: nội dung".
+2. **Dải màu dưới đầu trang = trạng thái báo cáo đang mở** (không còn theo vai): 🟡 Báo cáo đang thực hiện · 🔵 Báo cáo chờ TVGS kiểm tra · 🟠 TVGS yêu cầu sửa · 🔴 Đã xác nhận – chưa phát hành được PDF · 🟢 Báo cáo đã phát hành PDF · (dự án không có TVGS: 🟢 Báo cáo đã chốt) · CĐT xem ngày đang sửa: 🟠 Nhà thầu đang sửa – xem PDF đã phát hành. Áp dụng ngày (Tổng hợp / Phiếu của tôi theo báo cáo ngày đó) và tuần; ẩn ở Cấu hình. Tên vai vẫn ở ô tên người dùng.
