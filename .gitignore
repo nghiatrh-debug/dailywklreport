@@ -1,0 +1,4 @@
+.clasprc.json
+.env*
+credentials.json
+node_modules/

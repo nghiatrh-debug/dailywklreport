@@ -29,7 +29,24 @@
 const APP_URL = 'https://script.google.com/macros/s/AKfycbxmF9lIdXFVNxDS6CMPVp7GWarUa_ZGJOix_dc0nQZmQkbloBR6otP6-sG7h-wyJTAL/exec';
 const q = new URLSearchParams(location.search), v = q.get('v');           // ?v=<mã> → trang xác thực
 const f = document.getElementById('app');
-f.src = APP_URL + (v ? '?v=' + encodeURIComponent(v) : '');
+/* ?p=<mã dự án>: nhớ vào máy để mở lại PWA vẫn đúng dự án. ?p= rỗng hoặc ?p=- → xóa đã nhớ. Mã sai ký tự → bỏ qua. */
+const PK = 'dwr_p', OK = /^[A-Za-z0-9_-]{1,32}$/;
+let p = '';
+if (v !== null) {
+  /* Link tra QR (?v=): chỉ dùng p trên chính URL; không p → dự án mặc định; không đọc/ghi mã đã nhớ. */
+  const raw = q.get('p');
+  if (raw && OK.test(raw)) p = raw;
+} else try {
+  const raw = q.get('p');
+  if (raw === '' || raw === '-') localStorage.removeItem(PK);
+  else if (raw !== null && OK.test(raw)) localStorage.setItem(PK, raw);
+  const s = localStorage.getItem(PK);
+  if (s && OK.test(s)) p = s;
+} catch (e) { const raw = q.get('p'); if (raw && OK.test(raw)) p = raw; }
+const ps = [];
+if (p) ps.push('p=' + encodeURIComponent(p));
+if (v) ps.push('v=' + encodeURIComponent(v));
+f.src = APP_URL + (ps.length ? '?' + ps.join('&') : '');
 f.addEventListener('load', () => setTimeout(() => document.getElementById('ld').classList.add('off'), 300));
 setTimeout(() => document.getElementById('ld').classList.add('off'), 15000);
 </script>
