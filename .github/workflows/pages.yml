@@ -1,4 +1,4 @@
-# Đăng thư mục site/ lên GitHub Pages: https://nghiatrh-debug.github.io/dailywklreport/ (repo công khai, chỉ chứa trang mở app)
+# Đăng thư mục site/ lên GitHub Pages: https://nghiatrh-debug.github.io/dailywklreport/ (repo công khai, chỉ chứa trang mở app).
 # Trang này nhúng Web App (Apps Script) → không còn dải "This application was created by a Google Apps Script user",
 # và cho phép "Thêm vào màn hình chính" trên điện thoại (biểu tượng app).
 # Bật 1 lần: Settings → Pages → Build and deployment → Source: GitHub Actions.
